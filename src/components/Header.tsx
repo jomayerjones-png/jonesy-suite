@@ -10,9 +10,9 @@ interface HeaderProps {
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
-  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
-  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
+  { id: 'pipeline', label: 'Partner Pipeline', icon: '⬡', desc: 'Track founding partners' },
+  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Partner summary' },
+  { id: 'proposal', label: 'Proposal AI', icon: '◉', desc: 'Generate partnership proposals' },
 ];
 
 export default function Header({
@@ -44,7 +44,7 @@ export default function Header({
         <div className="flex items-center gap-3">
           {/* Logo mark */}
           <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">J</span>
+            <span className="font-display text-brand-dark font-bold text-sm">L</span>
           </div>
           {/* Editable company name */}
           {editing ? (
@@ -71,13 +71,13 @@ export default function Header({
               </span>
             </button>
           )}
-          <span className="text-white/30 text-sm font-light hidden sm:block">Business Suite</span>
+          <span className="text-white/30 text-sm font-light hidden sm:block">Partner Suite</span>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
+            <span className="text-white/70 text-xs font-medium">{clientCount} partners</span>
           </div>
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

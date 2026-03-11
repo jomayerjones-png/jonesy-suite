@@ -5,13 +5,13 @@ import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 
-const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
-const STORAGE_KEY_COMPANY = 'jonesy_suite_company';
+const STORAGE_KEY_CLIENTS = 'life_suite_clients';
+const STORAGE_KEY_COMPANY = 'life_suite_company';
 
 function App() {
   const [view, setView] = useState<View>('pipeline');
   const [companyName, setCompanyName] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'Jonesy&Co';
+    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'LIFE';
   });
   const [clients, setClients] = useState<Client[]>(() => {
     try {
