@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ProposalFormData } from '../../types';
 
 interface ProposalGeneratorProps {
@@ -17,6 +17,18 @@ const EMPTY_FORM: ProposalFormData = {
   timeline: '',
   additionalContext: '',
 };
+
+const STORAGE_KEY_PROPOSALS = 'jonesy_suite_proposals';
+const STORAGE_KEY_DRAFT_FORM = 'jonesy_suite_proposal_draft_form';
+
+interface SavedProposal {
+  id: string;
+  company: string;
+  clientName: string;
+  content: string;
+  form: ProposalFormData;
+  savedAt: string;
+}
 
 const LABYRINTH_SYSTEM_PROMPT = (companyName: string) => `You are a senior strategist and principal writer at ${companyName}, crafting bespoke client proposals using the Labyrinth Framework.
 
@@ -114,13 +126,52 @@ function FormSection({ title, children }: { title: string; children: React.React
 export default function ProposalGenerator({ companyName }: ProposalGeneratorProps) {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
+  const [form, setForm] = useState<ProposalFormData>(() => {
+    try {
+      const draft = localStorage.getItem(STORAGE_KEY_DRAFT_FORM);
+      if (draft) return JSON.parse(draft) as ProposalFormData;
+    } catch { /* fall through */ }
+    return EMPTY_FORM;
+  });
   const [proposal, setProposal] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [savedProposals, setSavedProposals] = useState<SavedProposal[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_PROPOSALS);
+      if (stored) return JSON.parse(stored) as SavedProposal[];
+    } catch { /* fall through */ }
+    return [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const proposalRef = useRef<HTMLDivElement>(null);
+
+  // Auto-save draft form on every change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_DRAFT_FORM, JSON.stringify(form));
+  }, [form]);
+
+  // Auto-save completed proposals to history
+  useEffect(() => {
+    if (!loading && proposal && form.company) {
+      const entry: SavedProposal = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        company: form.company,
+        clientName: form.clientName,
+        content: proposal,
+        form,
+        savedAt: new Date().toISOString(),
+      };
+      setSavedProposals(prev => {
+        const updated = [entry, ...prev.filter(p => p.id !== entry.id)].slice(0, 20);
+        localStorage.setItem(STORAGE_KEY_PROPOSALS, JSON.stringify(updated));
+        return updated;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const set = <K extends keyof ProposalFormData>(key: K, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -229,17 +280,74 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
     setProposal('');
     setForm(EMPTY_FORM);
     setError('');
+    localStorage.removeItem(STORAGE_KEY_DRAFT_FORM);
+  };
+
+  const loadSaved = (saved: SavedProposal) => {
+    setForm(saved.form);
+    setProposal(saved.content);
+    setShowHistory(false);
+    setError('');
+  };
+
+  const deleteSaved = (id: string) => {
+    setSavedProposals(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem(STORAGE_KEY_PROPOSALS, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Form panel */}
       <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden">
-        <div className="px-5 py-4 border-b border-brand-cream">
-          <h2 className="font-display text-xl font-semibold text-brand-dark">Proposal Generator</h2>
-          <p className="text-xs text-brand-dark/50 mt-0.5">Powered by the Labyrinth Framework & Claude</p>
+        <div className="px-5 py-4 border-b border-brand-cream flex items-start justify-between">
+          <div>
+            <h2 className="font-display text-xl font-semibold text-brand-dark">Proposal Generator</h2>
+            <p className="text-xs text-brand-dark/50 mt-0.5">Powered by the Labyrinth Framework & Claude</p>
+          </div>
+          {savedProposals.length > 0 && (
+            <button
+              onClick={() => setShowHistory(v => !v)}
+              className="text-xs text-brand-gold hover:text-brand-gold-dark font-medium mt-1 flex items-center gap-1"
+            >
+              {showHistory ? '← Back' : `History (${savedProposals.length})`}
+            </button>
+          )}
         </div>
 
+        {showHistory ? (
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <p className="text-xs text-brand-dark/40 uppercase tracking-wider font-semibold mb-3">Saved Proposals</p>
+            {savedProposals.map(saved => (
+              <div key={saved.id} className="card p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-brand-dark">{saved.company}</p>
+                    <p className="text-xs text-brand-dark/50">{saved.clientName}</p>
+                  </div>
+                  <button
+                    onClick={() => deleteSaved(saved.id)}
+                    className="text-brand-dark/20 hover:text-red-400 text-xs px-1"
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-xs text-brand-dark/40">
+                  {new Date(saved.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <button
+                  onClick={() => loadSaved(saved)}
+                  className="w-full btn-secondary text-xs py-1.5"
+                >
+                  Load Proposal
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* API Key */}
           <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
@@ -358,8 +466,10 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
             </div>
           </FormSection>
         </div>
+        )}
 
         {/* Generate button */}
+        {!showHistory && (
         <div className="p-4 border-t border-brand-cream space-y-3">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
@@ -389,6 +499,7 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Proposal output */}
@@ -399,11 +510,10 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-sm font-medium text-brand-dark">Proposal Ready</span>
+                <span className="text-sm font-medium text-brand-dark">
+                  {loading ? 'Generating…' : 'Proposal Ready · Auto-saved'}
+                </span>
               </div>
-              {loading && (
-                <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
-              )}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
