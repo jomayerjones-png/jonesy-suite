@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View } from '../types';
+import { View, formatCurrency } from '../types';
 
 interface HeaderProps {
   companyName: string;
@@ -7,6 +7,7 @@ interface HeaderProps {
   activeView: View;
   onViewChange: (view: View) => void;
   clientCount: number;
+  wonRevenue: number;
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
@@ -14,6 +15,7 @@ const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
+  { id: 'projects', label: 'Live Projects', icon: '◆', desc: 'Sold project folders' },
 ];
 
 export default function Header({
@@ -22,6 +24,7 @@ export default function Header({
   activeView,
   onViewChange,
   clientCount,
+  wonRevenue,
 }: HeaderProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(companyName);
@@ -80,6 +83,12 @@ export default function Header({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
           </div>
+          {wonRevenue > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/15 rounded-full px-3 py-1">
+              <span className="text-emerald-400 text-xs font-semibold">{formatCurrency(wonRevenue)}</span>
+              <span className="text-emerald-400/60 text-xs">won</span>
+            </div>
+          )}
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </div>
