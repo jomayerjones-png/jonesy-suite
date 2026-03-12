@@ -1,8 +1,15 @@
 import { useState, useRef, useCallback } from 'react';
-import { ProposalFormData } from '../../types';
+import { Client, ProposalFormData, SavedProposal, generateId } from '../../types';
 
 interface ProposalGeneratorProps {
   companyName: string;
+  clients: Client[];
+  onSaveToClient: (clientId: string, proposal: SavedProposal) => void;
+}
+
+function extractTitle(markdown: string): string {
+  const match = markdown.match(/^# (.+)$/m);
+  return match?.[1]?.trim() ?? 'Untitled Proposal';
 }
 
 const EMPTY_FORM: ProposalFormData = {
@@ -111,7 +118,7 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export default function ProposalGenerator({ companyName }: ProposalGeneratorProps) {
+export default function ProposalGenerator({ companyName, clients, onSaveToClient }: ProposalGeneratorProps) {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
@@ -119,6 +126,8 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [savedClientId, setSavedClientId] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const proposalRef = useRef<HTMLDivElement>(null);
 
@@ -225,10 +234,35 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const loadFromClient = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    setForm(prev => ({
+      ...prev,
+      clientName: client.name,
+      company: client.company,
+      additionalContext: client.notes ? `Pipeline notes: ${client.notes}` : prev.additionalContext,
+    }));
+    setSelectedClientId(clientId);
+  };
+
+  const saveToClient = () => {
+    if (!selectedClientId || !proposal) return;
+    const saved: SavedProposal = {
+      id: generateId(),
+      title: extractTitle(proposal),
+      content: proposal,
+      createdAt: new Date().toISOString(),
+    };
+    onSaveToClient(selectedClientId, saved);
+    setSavedClientId(selectedClientId);
+  };
+
   const clearAll = () => {
     setProposal('');
     setForm(EMPTY_FORM);
     setError('');
+    setSavedClientId('');
   };
 
   return (
@@ -241,6 +275,27 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Load from client */}
+          {clients.length > 0 && (
+            <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-gold text-sm">⬡</span>
+                <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Load from Pipeline</label>
+              </div>
+              <select
+                className="input-field text-sm"
+                value={selectedClientId}
+                onChange={e => loadFromClient(e.target.value)}
+              >
+                <option value="">Select a client to pre-fill…</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
+                ))}
+              </select>
+              <p className="text-xs text-brand-dark/40">Pre-fills name, company & notes</p>
+            </div>
+          )}
+
           {/* API Key */}
           <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2">
@@ -395,24 +450,53 @@ export default function ProposalGenerator({ companyName }: ProposalGeneratorProp
       <div className="flex-1 flex flex-col overflow-hidden bg-brand-light">
         {/* Proposal toolbar */}
         {proposal && (
-          <div className="bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-sm font-medium text-brand-dark">Proposal Ready</span>
+          <div className="bg-white border-b border-brand-cream px-6 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-sm font-medium text-brand-dark">Proposal Ready</span>
+                </div>
+                {loading && (
+                  <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
+                )}
               </div>
-              {loading && (
-                <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
-              )}
+              <div className="flex items-center gap-2">
+                <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
+                  {copied ? '✓ Copied!' : '⎘ Copy'}
+                </button>
+                <button onClick={() => window.print()} className="btn-secondary flex items-center gap-1.5">
+                  ⎙ Print
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
-                {copied ? '✓ Copied!' : '⎘ Copy'}
-              </button>
-              <button onClick={() => window.print()} className="btn-secondary flex items-center gap-1.5">
-                ⎙ Print
-              </button>
-            </div>
+            {/* Attach to client */}
+            {!loading && clients.length > 0 && (
+              <div className="flex items-center gap-2 pt-1 border-t border-brand-cream">
+                <span className="text-xs text-brand-dark/50 flex-shrink-0">Attach to:</span>
+                <select
+                  className="input-field py-1 text-xs flex-1"
+                  value={selectedClientId}
+                  onChange={e => setSelectedClientId(e.target.value)}
+                >
+                  <option value="">Select client…</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
+                  ))}
+                </select>
+                {savedClientId && savedClientId === selectedClientId ? (
+                  <span className="text-xs text-emerald-600 font-semibold flex-shrink-0">✓ Saved</span>
+                ) : (
+                  <button
+                    onClick={saveToClient}
+                    disabled={!selectedClientId}
+                    className="btn-primary py-1 px-3 text-xs flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Save to record
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

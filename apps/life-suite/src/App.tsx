@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, View, SAMPLE_CLIENTS, generateId } from './types';
+import { Client, SavedProposal, View, SAMPLE_CLIENTS, generateId } from './types';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
@@ -52,6 +52,24 @@ function App() {
     updateClient(id, { stage: newStage, lastContact: new Date().toISOString().split('T')[0] });
   };
 
+  const saveProposalToClient = (clientId: string, proposal: SavedProposal) => {
+    setClients(prev =>
+      prev.map(c =>
+        c.id === clientId ? { ...c, proposals: [...(c.proposals ?? []), proposal] } : c
+      )
+    );
+  };
+
+  const deleteProposalFromClient = (clientId: string, proposalId: string) => {
+    setClients(prev =>
+      prev.map(c =>
+        c.id === clientId
+          ? { ...c, proposals: (c.proposals ?? []).filter(p => p.id !== proposalId) }
+          : c
+      )
+    );
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -69,13 +87,18 @@ function App() {
             onUpdate={updateClient}
             onDelete={deleteClient}
             onMove={moveClient}
+            onDeleteProposal={deleteProposalFromClient}
           />
         )}
         {view === 'report' && (
           <WeeklyReport clients={clients} companyName={companyName} />
         )}
         {view === 'proposal' && (
-          <ProposalGenerator companyName={companyName} />
+          <ProposalGenerator
+            companyName={companyName}
+            clients={clients}
+            onSaveToClient={saveProposalToClient}
+          />
         )}
       </main>
     </div>

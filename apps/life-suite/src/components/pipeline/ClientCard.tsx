@@ -104,6 +104,12 @@ export default function ClientCard({
               <span className="text-brand-dark/20">·</span>
               <span>{formatDate(client.lastContact)}</span>
             </div>
+            {(client.proposals?.length ?? 0) > 0 && (
+              <div className="flex items-center gap-1 text-xs text-brand-gold/80 bg-brand-gold/10 border border-brand-gold/20 rounded-full px-2 py-0.5">
+                <span>◈</span>
+                <span>{client.proposals!.length}</span>
+              </div>
+            )}
           </div>
         </>
       )}

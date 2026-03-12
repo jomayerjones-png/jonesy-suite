@@ -61,9 +61,17 @@ export interface Client {
   lastContact: string; // ISO date string (YYYY-MM-DD)
   createdAt: string;   // ISO date string
   tags: string[];
+  proposals: SavedProposal[];
 }
 
 export type View = 'pipeline' | 'report' | 'proposal';
+
+export interface SavedProposal {
+  id: string;
+  title: string;    // extracted from first H1 heading
+  content: string;  // full markdown
+  createdAt: string; // ISO datetime
+}
 
 export interface ProposalFormData {
   clientName: string;
@@ -125,6 +133,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(2),
     createdAt: daysAgo(18),
     tags: ['tier-1', 'integration', 'technology'],
+    proposals: [],
   },
   {
     id: generateId(),
@@ -138,6 +147,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(5),
     createdAt: daysAgo(30),
     tags: ['tier-1', 'integration', 'technology', 'hardware'],
+    proposals: [],
   },
   {
     id: generateId(),
@@ -151,6 +161,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(4),
     createdAt: daysAgo(10),
     tags: ['tier-1', 'integration', 'creative', 'software'],
+    proposals: [],
   },
 
   // --- Tier 02: Storytelling & Editorial Franchise Partners ---
@@ -166,6 +177,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(6),
     createdAt: daysAgo(35),
     tags: ['tier-2', 'storytelling', 'automotive', 'franchise'],
+    proposals: [],
   },
   {
     id: generateId(),
@@ -179,6 +191,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(3),
     createdAt: daysAgo(22),
     tags: ['tier-2', 'storytelling', 'aviation', 'premium'],
+    proposals: [],
   },
   {
     id: generateId(),
@@ -192,6 +205,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(7),
     createdAt: daysAgo(14),
     tags: ['tier-2', 'storytelling', 'telecom', 'sport', 'la28'],
+    proposals: [],
   },
   {
     id: generateId(),
@@ -205,6 +219,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(4),
     createdAt: daysAgo(45),
     tags: ['tier-2', 'storytelling', 'luxury', 'long-term-thinking', 'high-value'],
+    proposals: [],
   },
 
   // --- Tier 03: Brand Access & Cultural Sponsorship ---
@@ -220,5 +235,6 @@ export const SAMPLE_CLIENTS: Client[] = [
     lastContact: daysAgo(9),
     createdAt: daysAgo(12),
     tags: ['tier-3', 'sponsorship', 'luxury', 'fashion'],
+    proposals: [],
   },
 ];

@@ -12,6 +12,7 @@ interface PipelineTrackerProps {
   onUpdate: (id: string, updates: Partial<Client>) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, stage: Client['stage']) => void;
+  onDeleteProposal: (clientId: string, proposalId: string) => void;
 }
 
 export default function PipelineTracker({
@@ -20,6 +21,7 @@ export default function PipelineTracker({
   onUpdate,
   onDelete,
   onMove,
+  onDeleteProposal,
 }: PipelineTrackerProps) {
   const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [modalOpen, setModalOpen] = useState(false);
@@ -225,6 +227,7 @@ export default function PipelineTracker({
           client={editingClient}
           onSave={handleSave}
           onClose={() => { setModalOpen(false); setEditingClient(null); }}
+          onDeleteProposal={editingClient ? (proposalId) => onDeleteProposal(editingClient.id, proposalId) : undefined}
         />
       )}
     </div>
