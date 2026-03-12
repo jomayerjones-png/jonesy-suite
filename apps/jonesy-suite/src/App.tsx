@@ -88,6 +88,7 @@ function App() {
             onDelete={deleteClient}
             onMove={moveClient}
             onDeleteProposal={deleteProposalFromClient}
+            onAddProposal={saveProposalToClient}
           />
         )}
         {view === 'report' && (
