@@ -7,6 +7,8 @@ interface ClientModalProps {
   client?: Client | null;
   onSave: (data: ClientFormData) => void;
   onClose: () => void;
+  onMarkLost?: (reason: string) => void;
+  onReactivate?: () => void;
   onDeleteProposal?: (proposalId: string) => void;
   onAddProposal?: (proposal: SavedProposal) => void;
 }
@@ -22,6 +24,10 @@ const DEFAULT_FORM: ClientFormData = {
   lastContact: new Date().toISOString().split('T')[0],
   tags: [],
   proposals: [],
+  industry: '',
+  outcome: 'active',
+  lostReason: '',
+  stageHistory: [],
 };
 
 function renderMarkdown(text: string): string {
@@ -288,6 +294,8 @@ export default function ClientModal({
   client,
   onSave,
   onClose,
+  onMarkLost,
+  onReactivate,
   onDeleteProposal,
   onAddProposal,
 }: ClientModalProps) {
@@ -295,6 +303,8 @@ export default function ClientModal({
   const [viewingProposal, setViewingProposal] = useState<SavedProposal | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showLostForm, setShowLostForm] = useState(false);
+  const [lostReason, setLostReason] = useState('');
 
   const [form, setForm] = useState<ClientFormData>(
     client
@@ -309,6 +319,10 @@ export default function ClientModal({
           lastContact: client.lastContact,
           tags: client.tags,
           proposals: client.proposals ?? [],
+          industry: client.industry ?? '',
+          outcome: client.outcome ?? 'active',
+          lostReason: client.lostReason ?? '',
+          stageHistory: client.stageHistory ?? [],
         }
       : DEFAULT_FORM
   );
@@ -491,6 +505,11 @@ export default function ClientModal({
                 </div>
 
                 <div>
+                  <label className="label">Industry</label>
+                  <input className="input-field" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="Media, Technology, Luxury, Automotive…" />
+                </div>
+
+                <div>
                   <label className="label">Notes</label>
                   <textarea className="input-field resize-none" rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Key details, next steps, context..." />
                 </div>
@@ -520,9 +539,45 @@ export default function ClientModal({
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-brand-cream bg-brand-light/50 flex items-center justify-end gap-3">
-                <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">{client ? 'Save Changes' : 'Add Client'}</button>
+              <div className="px-6 py-4 border-t border-brand-cream bg-brand-light/50 space-y-3">
+                {/* Mark as lost */}
+                {client && client.outcome !== 'lost' && onMarkLost && (
+                  <div>
+                    {showLostForm ? (
+                      <div className="flex gap-2">
+                        <input
+                          className="input-field flex-1 text-sm"
+                          value={lostReason}
+                          onChange={e => setLostReason(e.target.value)}
+                          placeholder="Reason for loss (optional)…"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { onMarkLost(lostReason); }}
+                          className="btn-danger flex-shrink-0 text-sm"
+                        >
+                          Confirm Lost
+                        </button>
+                        <button type="button" onClick={() => setShowLostForm(false)} className="btn-secondary flex-shrink-0 text-sm">Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setShowLostForm(true)} className="text-xs text-red-500/70 hover:text-red-600 underline">
+                        Mark this deal as lost
+                      </button>
+                    )}
+                  </div>
+                )}
+                {client && client.outcome === 'lost' && onReactivate && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    <span className="text-xs text-red-600 flex-1">This deal is marked as lost{client.lostReason ? `: "${client.lostReason}"` : '.'}</span>
+                    <button type="button" onClick={onReactivate} className="btn-secondary text-xs py-1">Reactivate</button>
+                  </div>
+                )}
+                <div className="flex items-center justify-end gap-3">
+                  <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                  <button type="submit" className="btn-primary">{client ? 'Save Changes' : 'Add Client'}</button>
+                </div>
               </div>
             </form>
           )}

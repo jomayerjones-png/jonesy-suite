@@ -10,9 +10,10 @@ interface HeaderProps {
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
-  { id: 'pipeline', label: 'Partner Pipeline', icon: '⬡', desc: 'Track founding partners' },
-  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Partner summary' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◉', desc: 'Generate partnership proposals' },
+  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
+  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
+  { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
 ];
 
 export default function Header({
@@ -77,7 +78,7 @@ export default function Header({
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-white/70 text-xs font-medium">{clientCount} partners</span>
+            <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
           </div>
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

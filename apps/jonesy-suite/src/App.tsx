@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Client, SavedProposal, View, SAMPLE_CLIENTS, generateId } from './types';
+import { Client, SavedProposal, StageEvent, View, SAMPLE_CLIENTS, generateId } from './types';
+import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
@@ -31,11 +32,18 @@ function App() {
     localStorage.setItem(STORAGE_KEY_COMPANY, companyName);
   }, [companyName]);
 
+  const today = () => new Date().toISOString().split('T')[0];
+
   const addClient = (clientData: Omit<Client, 'id' | 'createdAt'>) => {
+    const initHistory: StageEvent[] = [{ stage: clientData.stage, date: today() }];
     const newClient: Client = {
       ...clientData,
       id: generateId(),
-      createdAt: new Date().toISOString().split('T')[0],
+      createdAt: today(),
+      industry: clientData.industry || '',
+      outcome: clientData.outcome || 'active',
+      lostReason: clientData.lostReason || '',
+      stageHistory: clientData.stageHistory?.length ? clientData.stageHistory : initHistory,
     };
     setClients(prev => [newClient, ...prev]);
   };
@@ -49,7 +57,35 @@ function App() {
   };
 
   const moveClient = (id: string, newStage: Client['stage']) => {
-    updateClient(id, { stage: newStage, lastContact: new Date().toISOString().split('T')[0] });
+    const d = today();
+    setClients(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      return {
+        ...c,
+        stage: newStage,
+        lastContact: d,
+        outcome: newStage === 'Close' ? 'won' : c.outcome,
+        stageHistory: [...(c.stageHistory ?? []), { stage: newStage, date: d }],
+      };
+    }));
+  };
+
+  const markClientLost = (id: string, reason: string) => {
+    const d = today();
+    setClients(prev => prev.map(c =>
+      c.id !== id ? c : {
+        ...c,
+        outcome: 'lost',
+        lostReason: reason,
+        stageHistory: [...(c.stageHistory ?? []), { stage: c.stage, date: d }],
+      }
+    ));
+  };
+
+  const reactivateClient = (id: string) => {
+    setClients(prev => prev.map(c =>
+      c.id !== id ? c : { ...c, outcome: 'active', lostReason: '' }
+    ));
   };
 
   const saveProposalToClient = (clientId: string, proposal: SavedProposal) => {
@@ -87,6 +123,8 @@ function App() {
             onUpdate={updateClient}
             onDelete={deleteClient}
             onMove={moveClient}
+            onMarkLost={markClientLost}
+            onReactivate={reactivateClient}
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
           />
@@ -100,6 +138,9 @@ function App() {
             clients={clients}
             onSaveToClient={saveProposalToClient}
           />
+        )}
+        {view === 'analytics' && (
+          <AnalyticsView clients={clients} companyName={companyName} />
         )}
       </main>
     </div>

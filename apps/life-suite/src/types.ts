@@ -49,6 +49,11 @@ export const STAGE_CONFIG: Record<
   },
 };
 
+export interface StageEvent {
+  stage: PipelineStage;
+  date: string; // YYYY-MM-DD
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -62,9 +67,13 @@ export interface Client {
   createdAt: string;   // ISO date string
   tags: string[];
   proposals: SavedProposal[];
+  industry: string;
+  outcome: 'active' | 'won' | 'lost';
+  lostReason: string;
+  stageHistory: StageEvent[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics';
 
 export interface SavedProposal {
   id: string;
@@ -134,6 +143,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(18),
     tags: ['tier-1', 'integration', 'technology'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
   {
     id: generateId(),
@@ -148,6 +161,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(30),
     tags: ['tier-1', 'integration', 'technology', 'hardware'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
   {
     id: generateId(),
@@ -162,6 +179,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(10),
     tags: ['tier-1', 'integration', 'creative', 'software'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
 
   // --- Tier 02: Storytelling & Editorial Franchise Partners ---
@@ -178,6 +199,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(35),
     tags: ['tier-2', 'storytelling', 'automotive', 'franchise'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
   {
     id: generateId(),
@@ -192,6 +217,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(22),
     tags: ['tier-2', 'storytelling', 'aviation', 'premium'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
   {
     id: generateId(),
@@ -206,6 +235,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(14),
     tags: ['tier-2', 'storytelling', 'telecom', 'sport', 'la28'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
   {
     id: generateId(),
@@ -220,6 +253,10 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(45),
     tags: ['tier-2', 'storytelling', 'luxury', 'long-term-thinking', 'high-value'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
 
   // --- Tier 03: Brand Access & Cultural Sponsorship ---
@@ -236,5 +273,9 @@ export const SAMPLE_CLIENTS: Client[] = [
     createdAt: daysAgo(12),
     tags: ['tier-3', 'sponsorship', 'luxury', 'fashion'],
     proposals: [],
+    industry: '',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
   },
 ];
