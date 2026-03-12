@@ -28,6 +28,7 @@ const DEFAULT_FORM: ClientFormData = {
   outcome: 'active',
   lostReason: '',
   stageHistory: [],
+  documents: [],
 };
 
 function renderMarkdown(text: string): string {
@@ -323,6 +324,7 @@ export default function ClientModal({
           outcome: client.outcome ?? 'active',
           lostReason: client.lostReason ?? '',
           stageHistory: client.stageHistory ?? [],
+          documents: client.documents ?? [],
         }
       : DEFAULT_FORM
   );
