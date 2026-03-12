@@ -9,7 +9,7 @@ interface ProposalGeneratorProps {
 
 function extractTitle(markdown: string): string {
   const match = markdown.match(/^# (.+)$/m);
-  return match?.[1]?.trim() ?? 'Untitled Proposal';
+  return match?.[1]?.trim() ?? 'Untitled Brief';
 }
 
 const EMPTY_FORM: ProposalFormData = {
@@ -25,69 +25,73 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-const LABYRINTH_SYSTEM_PROMPT = (companyName: string) => `You are a senior strategist and principal writer at ${companyName}, crafting bespoke client proposals using the Labyrinth Framework.
+const LIFE_SYSTEM_PROMPT = (_companyName: string) => `You are the Head of Brand Partnerships at LIFE, the iconic American magazine relaunched as a premium editorial and cultural platform for the modern era. You write bespoke founding partner briefs — compelling, beautifully crafted documents that invite world-class brands into the first year of LIFE's reimagining.
 
-THE LABYRINTH FRAMEWORK
-The Labyrinth Framework structures proposals as an intentional journey — from confusion and complexity into clarity and possibility. Each section is a step deeper into understanding, culminating in a vision of transformation.
+ABOUT LIFE
+LIFE is returning. The most trusted visual storytelling brand in American history is being rebuilt for today — a premium editorial platform at the intersection of culture, ambition, athleticism, and human potential. LIFE Studios produces world-class photography, documentary content, and long-form storytelling across print, digital, and live experiences. The relaunch is a cultural moment, and founding partners are invited to be part of it from day one.
 
-The seven sections of the framework:
+THE LIFE PARTNERSHIP BRIEF FORMAT
+Each partner brief follows this structure:
 
-1. ENTRY POINT — "Where You Stand"
-Open with a precise, resonant articulation of the client's current world. Name their reality without judgment. Show that you truly understand where they are before proposing where they could go.
+1. THE MOMENT — "Why Now"
+Open with the cultural and strategic context for LIFE's return. Frame why this is a singular moment for brands that want to be associated with quality, legacy, and the best storytelling in the world. Make the partner feel the opportunity.
 
-2. THE MAZE — "The Complexity You Navigate"
-Describe the challenges, competing pressures, and systemic tensions they face. Be specific and insightful — this is where you demonstrate deep sector knowledge and empathy for their situation.
+2. YOUR STORY IN OURS — "Why [Brand]"
+Articulate precisely why this brand belongs inside LIFE. What is the alignment between the brand's positioning, values, and audience and LIFE's editorial world? Be specific, flattering, and strategically sharp.
 
-3. MAPPING — "How We See It"
-Present your diagnostic lens on their situation. What patterns do you recognize? What do others miss that you see clearly? This section establishes your intellectual authority.
+3. THE PARTNERSHIP STRUCTURE — "What We're Building Together"
+Describe the specific partnership tier and what it includes. Be concrete about the editorial integrations, content formats, distribution channels, and brand presence across print, digital, and events. Reference the relevant tier:
+- Tier 1 — Integration Partners: Technology and hardware embedded in the LIFE storytelling process itself
+- Tier 2 — Storytelling & Editorial Franchise Partners: Branded content franchises, editorial series, destination storytelling
+- Tier 3 — Brand Access & Cultural Sponsorship: Logo presence, co-branding, launch event access, co-branded marketing
 
-4. THE THREAD — "Our Guiding Philosophy"
-Articulate the core principle or approach that will guide all the work. This is ${companyName}'s distinctive methodology — why your approach is not merely competent but uniquely suited.
+4. THE EDITORIAL VISION — "Stories We'll Tell"
+Paint a vivid, specific picture of the content and storytelling that will live in this partnership. What will the audience experience? What will the brand's narrative be inside LIFE? This section should feel like a creative pitch — ambitious, specific, exciting.
 
-5. PATHWAYS — "What We'll Do Together"
-Detail the specific deliverables, phases, and workstreams. Be concrete about process, collaboration rhythms, and what the client can expect to receive at each stage.
+5. REACH & DISTRIBUTION — "Where Your Brand Lives"
+Describe where the partnership content will appear: the LIFE book (print), lifemagazine.com, LIFE Studios social channels, events, partner distribution. Be specific about the scale and quality of the audience.
 
-6. EMERGENCE — "Where You'll Arrive"
-Paint a vivid, specific picture of the transformed state. Use precise language to describe what success looks like — commercially, culturally, strategically. Make the destination feel real and worth the journey.
+6. THE INVESTMENT — "Founding Partner Value"
+Frame the financial commitment as a founding investment — an opportunity that won't exist again. If budget is provided, structure it clearly. Emphasize the exclusivity and first-mover advantage of being a founding partner. Include what the brand receives in return (exclusivity, credits, co-marketing, events, content assets).
 
-7. THE INVESTMENT — "Your Commitment"
-Frame pricing and timeline as an investment in transformation, not a cost. If budget is provided, structure it thoughtfully. If not, describe the engagement model and value proposition.
+7. PARTNERSHIP TIMELINE — "The First Year"
+Describe the key milestones of the partnership — when the book launches, when events happen, when content goes live, when the brand gets visibility.
 
-8. FIRST STEPS — "How We Begin"
-End with clear, confident next steps. Create momentum. Make it easy to say yes.
+8. NEXT STEPS — "How We Begin"
+End with clear, confident next steps. Make it easy to say yes. Reference any existing relationship or prior conversations naturally.
 
-TONE AND STYLE GUIDELINES:
-- Write with the confidence of a trusted advisor who has seen this situation before
+TONE AND STYLE:
+- Write with the authority of LIFE's legacy and the excitement of a genuine cultural comeback
+- Be warm, elevated, and visually-minded — this is a creative partnership, not a media buy
+- Reference real cultural context where relevant (LA28, AI era, the creator economy, human storytelling)
+- Paragraphs over bullet points — this should read like a letter from an editor, not a rate card
+- Length: 900–1300 words of body content
 - Use sophisticated vocabulary but never obscure meaning with jargon
-- Balance warmth with authority — this is not a vendor pitch, it is a strategic partnership offer
-- Each section should be substantive but not exhaustive — leave room for conversation
-- The proposal should read as a coherent narrative, not a checklist
-- Paragraphs over bullet points wherever possible — this is strategic writing, not a slide deck
-- Length: Aim for a comprehensive but readable proposal (approximately 800-1200 words of body content)
+- Each brief should feel bespoke — written specifically for this brand and this moment
 
-Format using markdown with ## for section headings. Begin with a compelling headline title (# heading) that captures the essence of the engagement.`;
+Format using markdown with ## for section headings. Begin with a compelling headline title (# heading) that captures the essence of the partnership.`;
 
-function buildUserPrompt(form: ProposalFormData, companyName: string): string {
-  return `Please write a full Labyrinth Framework proposal for the following engagement:
+function buildUserPrompt(form: ProposalFormData, _companyName: string): string {
+  return `Please write a full LIFE Partnership Brief for the following founding partner opportunity:
 
-CLIENT: ${form.clientName}
-COMPANY: ${form.company}${form.industry ? `\nINDUSTRY: ${form.industry}` : ''}
+PARTNER CONTACT: ${form.clientName}
+BRAND / COMPANY: ${form.company}${form.industry ? `\nINDUSTRY / CATEGORY: ${form.industry}` : ''}
 
-CHALLENGE / PROBLEM THEY FACE:
+PARTNERSHIP OPPORTUNITY / ANGLE:
 ${form.challenge}
 
-CURRENT STATE (where they are now):
-${form.currentState || 'Not specified — infer from the challenge described above.'}
+CURRENT BRAND SITUATION / CONTEXT:
+${form.currentState || 'Not specified — infer from the partnership angle and industry context above.'}
 
-DESIRED OUTCOME (what success looks like):
+WHAT SUCCESS LOOKS LIKE FOR THIS PARTNER:
 ${form.desiredOutcome}
 
-${form.successMetrics ? `SUCCESS METRICS:\n${form.successMetrics}\n` : ''}
-${form.budget ? `BUDGET RANGE: ${form.budget}\n` : ''}
-${form.timeline ? `DESIRED TIMELINE: ${form.timeline}\n` : ''}
-${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : ''}
+${form.successMetrics ? `KEY METRICS / DELIVERABLES:\n${form.successMetrics}\n` : ''}
+${form.budget ? `PARTNERSHIP INVESTMENT LEVEL: ${form.budget}\n` : ''}
+${form.timeline ? `DESIRED TIMELINE / LAUNCH: ${form.timeline}\n` : ''}
+${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
 
-Write a complete, polished Labyrinth Framework proposal as if you are a senior partner at ${companyName} presenting this to ${form.clientName} at ${form.company}. This should be ready to share with the client.`;
+Write a complete, polished LIFE Partnership Brief as if you are the Head of Brand Partnerships at LIFE presenting this founding partner opportunity to ${form.clientName} at ${form.company}. This should feel like a document worthy of the LIFE name — beautiful, authoritative, and compelling. Ready to share.`;
 }
 
 // Simple markdown-to-HTML renderer for display
@@ -137,10 +141,10 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
   const validateForm = (): string | null => {
     if (!apiKey.trim()) return 'Please enter your Anthropic API key.';
-    if (!form.clientName.trim()) return 'Client name is required.';
-    if (!form.company.trim()) return 'Company name is required.';
-    if (!form.challenge.trim()) return 'The challenge/problem description is required.';
-    if (!form.desiredOutcome.trim()) return 'The desired outcome is required.';
+    if (!form.clientName.trim()) return 'Partner contact name is required.';
+    if (!form.company.trim()) return 'Brand / company name is required.';
+    if (!form.challenge.trim()) return 'The partnership opportunity / angle is required.';
+    if (!form.desiredOutcome.trim()) return 'What success looks like is required.';
     return null;
   };
 
@@ -167,7 +171,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
           model: 'claude-opus-4-6',
           max_tokens: 4096,
           stream: true,
-          system: LABYRINTH_SYSTEM_PROMPT(companyName),
+          system: LIFE_SYSTEM_PROMPT(companyName),
           messages: [{ role: 'user', content: buildUserPrompt(form, companyName) }],
         }),
         signal: abortRef.current.signal,
@@ -241,6 +245,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
       ...prev,
       clientName: client.name,
       company: client.company,
+      industry: client.industry || prev.industry,
       additionalContext: client.notes ? `Pipeline notes: ${client.notes}` : prev.additionalContext,
     }));
     setSelectedClientId(clientId);
@@ -270,8 +275,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
       {/* Form panel */}
       <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden">
         <div className="px-5 py-4 border-b border-brand-cream">
-          <h2 className="font-display text-xl font-semibold text-brand-dark">Proposal Generator</h2>
-          <p className="text-xs text-brand-dark/50 mt-0.5">Powered by the Labyrinth Framework & Claude</p>
+          <h2 className="font-display text-xl font-semibold text-brand-dark">Partner Brief Generator</h2>
+          <p className="text-xs text-brand-dark/50 mt-0.5">LIFE Founding Partner Framework · Powered by Claude</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -287,12 +292,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 value={selectedClientId}
                 onChange={e => loadFromClient(e.target.value)}
               >
-                <option value="">Select a client to pre-fill…</option>
+                <option value="">Select a partner to pre-fill…</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
                 ))}
               </select>
-              <p className="text-xs text-brand-dark/40">Pre-fills name, company & notes</p>
+              <p className="text-xs text-brand-dark/40">Pre-fills contact, brand & pipeline notes</p>
             </div>
           )}
 
@@ -325,80 +330,80 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </p>
           </div>
 
-          {/* Client info */}
-          <FormSection title="Client Information">
+          {/* Partner info */}
+          <FormSection title="Partner Information">
             <div>
-              <label className="label">Client Name *</label>
-              <input className="input-field" value={form.clientName} onChange={e => set('clientName', e.target.value)} placeholder="Sarah Chen" />
+              <label className="label">Contact Name *</label>
+              <input className="input-field" value={form.clientName} onChange={e => set('clientName', e.target.value)} placeholder="Antoine Arnault" />
             </div>
             <div>
-              <label className="label">Company *</label>
-              <input className="input-field" value={form.company} onChange={e => set('company', e.target.value)} placeholder="TechFlow Inc." />
+              <label className="label">Brand / Company *</label>
+              <input className="input-field" value={form.company} onChange={e => set('company', e.target.value)} placeholder="LVMH" />
             </div>
             <div>
-              <label className="label">Industry</label>
-              <input className="input-field" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="FinTech, Healthcare, Retail…" />
+              <label className="label">Industry / Category</label>
+              <input className="input-field" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="Luxury, Technology, Automotive…" />
             </div>
           </FormSection>
 
-          {/* The challenge */}
-          <FormSection title="The Challenge">
+          {/* Partnership angle */}
+          <FormSection title="The Partnership Opportunity">
             <div>
-              <label className="label">Core Challenge / Problem *</label>
+              <label className="label">Partnership Angle / Opportunity *</label>
               <textarea
                 className="input-field resize-none"
                 rows={3}
                 value={form.challenge}
                 onChange={e => set('challenge', e.target.value)}
-                placeholder="What problem are they trying to solve? What's broken or missing? Be specific…"
+                placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for LIFE? What storytelling opportunity exists?"
               />
             </div>
             <div>
-              <label className="label">Current State</label>
+              <label className="label">Brand's Current Context</label>
               <textarea
                 className="input-field resize-none"
                 rows={3}
                 value={form.currentState}
                 onChange={e => set('currentState', e.target.value)}
-                placeholder="Describe where they are today — operations, market position, team, technology…"
+                placeholder="Where is this brand today? Their positioning, campaigns, cultural moment, marketing goals…"
               />
             </div>
           </FormSection>
 
-          {/* Outcomes */}
-          <FormSection title="Desired Outcomes">
+          {/* Partnership goals */}
+          <FormSection title="Partnership Goals">
             <div>
-              <label className="label">Desired Outcome *</label>
+              <label className="label">What Success Looks Like *</label>
               <textarea
                 className="input-field resize-none"
                 rows={3}
                 value={form.desiredOutcome}
                 onChange={e => set('desiredOutcome', e.target.value)}
-                placeholder="What does success look like? What should be true 6 months from now?"
+                placeholder="What does the brand get from this partnership? Brand equity, audience access, content assets, cultural association…"
               />
             </div>
             <div>
-              <label className="label">Success Metrics</label>
+              <label className="label">Key Deliverables / Inclusions</label>
               <textarea
                 className="input-field resize-none"
                 rows={2}
                 value={form.successMetrics}
                 onChange={e => set('successMetrics', e.target.value)}
-                placeholder="Revenue growth, NPS, operational efficiency, brand awareness…"
+                placeholder="Cover placement, editorial series, event access, social content, co-branded assets…"
               />
             </div>
           </FormSection>
 
           {/* Engagement */}
-          <FormSection title="Engagement Details">
+          <FormSection title="Partnership Details">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Budget Range</label>
-                <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$50K–75K" />
+                <label className="label">Investment Level</label>
+                <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$750K–$1.5M" />
               </div>
               <div>
-                <label className="label">Timeline</label>
-                <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="3–6 months" />
+                <label className="label">Launch / Timeline</label>
+                <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="Q3 2025 launch" />
               </div>
             </div>
             <div>
@@ -408,7 +413,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 rows={3}
                 value={form.additionalContext}
                 onChange={e => set('additionalContext', e.target.value)}
-                placeholder="Key stakeholders, prior work done, competitors, sensitivities, tone notes…"
+                placeholder="Prior conversations, key stakeholders, competitive considerations, tone notes, pipeline history…"
               />
             </div>
           </FormSection>
@@ -434,7 +439,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 disabled={loading}
               >
                 <span>◈</span>
-                {proposal ? 'Regenerate Proposal' : 'Generate Proposal'}
+                {proposal ? 'Regenerate Brief' : 'Generate Partner Brief'}
               </button>
             )}
             {proposal && !loading && (
@@ -446,16 +451,16 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         </div>
       </div>
 
-      {/* Proposal output */}
+      {/* Brief output */}
       <div className="flex-1 flex flex-col overflow-hidden bg-brand-light">
-        {/* Proposal toolbar */}
+        {/* Brief toolbar */}
         {proposal && (
           <div className="bg-white border-b border-brand-cream px-6 py-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-sm font-medium text-brand-dark">Proposal Ready</span>
+                  <span className="text-sm font-medium text-brand-dark">Brief Ready</span>
                 </div>
                 {loading && (
                   <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
@@ -470,7 +475,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 </button>
               </div>
             </div>
-            {/* Attach to client */}
+            {/* Attach to partner */}
             {!loading && clients.length > 0 && (
               <div className="flex items-center gap-2 pt-1 border-t border-brand-cream">
                 <span className="text-xs text-brand-dark/50 flex-shrink-0">Attach to:</span>
@@ -479,7 +484,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   value={selectedClientId}
                   onChange={e => setSelectedClientId(e.target.value)}
                 >
-                  <option value="">Select client…</option>
+                  <option value="">Select partner…</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
                   ))}
@@ -505,25 +510,25 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
               <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
-                <span className="text-4xl text-brand-gold/60">◈</span>
+                <span className="font-display text-4xl font-bold text-brand-gold/60">L</span>
               </div>
               <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                The Labyrinth Framework
+                LIFE Founding Partner Framework
               </h3>
               <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                Fill in the brief on the left and generate a bespoke proposal drafted by Claude using{' '}
-                <span className="text-brand-dark font-medium">{companyName}</span>'s Labyrinth Framework.
+                Fill in the brief on the left and generate a bespoke founding partner proposal drafted by Claude using the{' '}
+                <span className="text-brand-dark font-medium">LIFE Partnership Framework</span>.
               </p>
               <div className="grid grid-cols-2 gap-3 w-full max-w-md">
                 {[
-                  { n: '1', title: 'Entry Point', desc: 'Client\'s current reality' },
-                  { n: '2', title: 'The Maze', desc: 'Complexity they face' },
-                  { n: '3', title: 'Mapping', desc: 'Your diagnostic lens' },
-                  { n: '4', title: 'The Thread', desc: 'Your philosophy' },
-                  { n: '5', title: 'Pathways', desc: 'What you\'ll do together' },
-                  { n: '6', title: 'Emergence', desc: 'The transformed state' },
-                  { n: '7', title: 'Investment', desc: 'Value & commitment' },
-                  { n: '8', title: 'First Steps', desc: 'How you begin' },
+                  { n: '1', title: 'The Moment', desc: 'Why now for LIFE' },
+                  { n: '2', title: 'Your Story in Ours', desc: 'Why this brand belongs' },
+                  { n: '3', title: 'Partnership Structure', desc: 'Tier & what\'s included' },
+                  { n: '4', title: 'Editorial Vision', desc: 'Stories we\'ll tell together' },
+                  { n: '5', title: 'Reach & Distribution', desc: 'Where the brand lives' },
+                  { n: '6', title: 'The Investment', desc: 'Founding partner value' },
+                  { n: '7', title: 'Partnership Timeline', desc: 'The first year milestones' },
+                  { n: '8', title: 'Next Steps', desc: 'How we begin' },
                 ].map(item => (
                   <div key={item.n} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
                     <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -541,22 +546,22 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
           {(proposal || loading) && (
             <div ref={proposalRef} className="max-w-3xl mx-auto p-8">
-              {/* Proposal header */}
+              {/* Brief header */}
               <div className="mb-8 pb-6 border-b border-brand-cream">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-                    <span className="font-display text-brand-dark font-bold text-xs">J</span>
+                    <span className="font-display text-brand-dark font-bold text-xs">L</span>
                   </div>
                   <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">Confidential Proposal</span>
+                  <span className="text-xs text-brand-dark/40">Founding Partner Brief · Confidential</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
                 )}
               </div>
 
-              {/* Proposal text */}
+              {/* Brief text */}
               <div
                 className="prose-proposal"
                 dangerouslySetInnerHTML={{
@@ -569,7 +574,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <span className="inline-block w-0.5 h-4 bg-brand-gold animate-pulse ml-0.5" />
               )}
 
-              {/* Proposal footer */}
+              {/* Brief footer */}
               {!loading && proposal && (
                 <div className="mt-12 pt-6 border-t border-brand-cream flex items-center justify-between">
                   <div>
@@ -579,7 +584,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                     </p>
                   </div>
                   <div className="h-8 w-8 rounded bg-brand-gold/20 border border-brand-gold/30 flex items-center justify-center">
-                    <span className="font-display text-brand-gold font-bold text-sm">J</span>
+                    <span className="font-display text-brand-gold font-bold text-sm">L</span>
                   </div>
                 </div>
               )}
