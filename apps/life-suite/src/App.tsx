@@ -143,6 +143,12 @@ function App() {
           <AnalyticsView clients={clients} companyName={companyName} />
         )}
       </main>
+      <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
+        <p className="text-xs text-brand-dark/35 font-medium">
+          CONFIDENTIAL — Property of LIFE. This tool and all information contained within is strictly private and confidential. Unauthorised access, use, or distribution is prohibited.
+        </p>
+        <p className="text-xs text-brand-dark/25 flex-shrink-0 ml-6">© {new Date().getFullYear()} LIFE</p>
+      </footer>
     </div>
   );
 }
