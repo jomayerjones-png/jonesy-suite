@@ -43,8 +43,8 @@ export default function PipelineTracker({
   const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact)).length, [activeClients]);
   const totalValue = useMemo(() => activeClients.reduce((s, c) => s + c.value, 0), [activeClients]);
   const wonValue = useMemo(
-    () => activeClients.filter(c => c.outcome === 'won').reduce((s, c) => s + c.value, 0),
-    [activeClients]
+    () => clients.filter(c => c.outcome === 'won' || c.stage === 'Close').reduce((s, c) => s + c.value, 0),
+    [clients]
   );
 
   const displayClients = showLost ? lostClients : activeClients;
