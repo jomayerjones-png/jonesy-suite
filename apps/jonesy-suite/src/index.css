@@ -123,5 +123,6 @@
   .no-print { display: none !important; }
   .print-only { display: block !important; }
   body { background: white; }
-  .card { box-shadow: none; border: 1px solid #e5e7eb; }
+  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+  textarea { display: none !important; }
 }
