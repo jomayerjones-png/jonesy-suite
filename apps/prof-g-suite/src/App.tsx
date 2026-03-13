@@ -106,6 +106,16 @@ function App() {
     );
   };
 
+  const updateProposalForClient = (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => {
+    setClients(prev =>
+      prev.map(c =>
+        c.id === clientId
+          ? { ...c, proposals: (c.proposals ?? []).map(p => p.id === proposalId ? { ...p, ...updates } : p) }
+          : c
+      )
+    );
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -127,6 +137,7 @@ function App() {
             onReactivate={reactivateClient}
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
+            onUpdateProposal={updateProposalForClient}
           />
         )}
         {view === 'report' && (
