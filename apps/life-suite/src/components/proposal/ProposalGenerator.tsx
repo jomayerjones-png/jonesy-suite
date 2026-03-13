@@ -25,51 +25,108 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-const LIFE_SYSTEM_PROMPT = (_companyName: string) => `You are the Head of Brand Partnerships at LIFE, the iconic American magazine relaunched as a premium editorial and cultural platform for the modern era. You write bespoke founding partner briefs — compelling, beautifully crafted documents that invite world-class brands into the first year of LIFE's reimagining.
+type ProposalLength = 'concise' | 'standard' | 'comprehensive';
+type ProposalTone = 'confident' | 'collaborative' | 'formal';
+type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
+const SECTION_DEFS = [
+  { id: 'moment', label: 'The Moment', desc: 'Why now for LIFE' },
+  { id: 'storyInOurs', label: 'Your Story in Ours', desc: 'Why this brand belongs' },
+  { id: 'structure', label: 'Partnership Structure', desc: 'Tier & what\'s included' },
+  { id: 'vision', label: 'Editorial Vision', desc: 'Stories we\'ll tell together' },
+  { id: 'reach', label: 'Reach & Distribution', desc: 'Where the brand lives' },
+  { id: 'investment', label: 'The Investment', desc: 'Founding partner value' },
+  { id: 'timeline', label: 'Partnership Timeline', desc: 'The first year milestones' },
+  { id: 'nextSteps', label: 'Next Steps', desc: 'How we begin' },
+] as const;
+
+type SectionId = typeof SECTION_DEFS[number]['id'];
+
+const ALL_SECTIONS: Record<SectionId, boolean> = {
+  moment: true, storyInOurs: true, structure: true, vision: true,
+  reach: true, investment: true, timeline: true, nextSteps: true,
+};
+
+const LENGTH_OPTIONS: { value: ProposalLength; label: string; desc: string }[] = [
+  { value: 'concise', label: 'Concise', desc: '~500 words' },
+  { value: 'standard', label: 'Standard', desc: '~900–1300 words' },
+  { value: 'comprehensive', label: 'Comprehensive', desc: '~1500+ words' },
+];
+
+const TONE_OPTIONS: { value: ProposalTone; label: string; desc: string }[] = [
+  { value: 'confident', label: 'Confident', desc: 'Authoritative & bold' },
+  { value: 'collaborative', label: 'Collaborative', desc: 'Partnership-first' },
+  { value: 'formal', label: 'Formal', desc: 'Corporate / institutional' },
+];
+
+const SECTION_INSTRUCTIONS: Record<SectionId, string> = {
+  moment: `1. THE MOMENT — "Why Now"
+Open with the cultural and strategic context for LIFE's return. Frame why this is a singular moment for brands that want to be associated with quality, legacy, and the best storytelling in the world. Make the partner feel the opportunity.`,
+  storyInOurs: `2. YOUR STORY IN OURS — "Why [Brand]"
+Articulate precisely why this brand belongs inside LIFE. What is the alignment between the brand's positioning, values, and audience and LIFE's editorial world? Be specific, flattering, and strategically sharp.`,
+  structure: `3. THE PARTNERSHIP STRUCTURE — "What We're Building Together"
+Describe the specific partnership tier and what it includes. Be concrete about editorial integrations, content formats, distribution channels, and brand presence across print, digital, and events. Reference the relevant tier:
+- Tier 1 — Integration Partners: Technology and hardware embedded in the LIFE storytelling process itself
+- Tier 2 — Storytelling & Editorial Franchise Partners: Branded content franchises, editorial series, destination storytelling
+- Tier 3 — Brand Access & Cultural Sponsorship: Logo presence, co-branding, launch event access, co-branded marketing`,
+  vision: `4. THE EDITORIAL VISION — "Stories We'll Tell"
+Paint a vivid, specific picture of the content and storytelling that will live in this partnership. What will the audience experience? What will the brand's narrative be inside LIFE? This section should feel like a creative pitch — ambitious, specific, exciting.`,
+  reach: `5. REACH & DISTRIBUTION — "Where Your Brand Lives"
+Describe where the partnership content will appear: the LIFE book (print), lifemagazine.com, LIFE Studios social channels, events, partner distribution. Be specific about the scale and quality of the audience.`,
+  investment: `6. THE INVESTMENT — "Founding Partner Value"
+Frame the financial commitment as a founding investment — an opportunity that won't exist again. If budget is provided, structure it clearly. Emphasize exclusivity and first-mover advantage. Include what the brand receives in return (exclusivity, credits, co-marketing, events, content assets).`,
+  timeline: `7. PARTNERSHIP TIMELINE — "The First Year"
+Describe the key milestones of the partnership — when the book launches, when events happen, when content goes live, when the brand gets visibility.`,
+  nextSteps: `8. NEXT STEPS — "How We Begin"
+End with clear, confident next steps. Make it easy to say yes. Reference any existing relationship or prior conversations naturally.`,
+};
+
+function buildSystemPrompt(
+  _companyName: string,
+  length: ProposalLength,
+  tone: ProposalTone,
+  sections: Record<SectionId, boolean>,
+): string {
+  const activeSections = SECTION_DEFS.filter(s => sections[s.id]);
+  const sectionInstructions = activeSections
+    .map(s => SECTION_INSTRUCTIONS[s.id])
+    .join('\n\n');
+
+  const lengthGuide = {
+    concise: 'Keep the brief concise — approximately 400–600 words of body content. Be direct and economical with language. Every sentence should earn its place.',
+    standard: 'Aim for a comprehensive but readable brief — approximately 900–1300 words of body content.',
+    comprehensive: 'Write a thorough, detailed brief — approximately 1500–2000 words of body content. Expand on each section with deeper analysis, richer creative vision, and more specific deliverables.',
+  }[length];
+
+  const toneGuide = {
+    confident: 'Write with the authority of LIFE\'s legacy and the excitement of a genuine cultural comeback. Be bold, direct, and assertive. This is a once-in-a-generation opportunity.',
+    collaborative: 'Write as a collaborative partner. Use "we" and "together" language. Position the partnership as a joint creative venture. Warm, inviting, and energising.',
+    formal: 'Write in a formal, institutional tone. Structured, measured, and precise. Suitable for corporate review processes and brand partnership committees.',
+  }[tone];
+
+  return `You are the Head of Brand Partnerships at LIFE, the iconic American magazine relaunched as a premium editorial and cultural platform for the modern era. You write bespoke founding partner briefs — compelling, beautifully crafted documents that invite world-class brands into the first year of LIFE's reimagining.
 
 ABOUT LIFE
 LIFE is returning. The most trusted visual storytelling brand in American history is being rebuilt for today — a premium editorial platform at the intersection of culture, ambition, athleticism, and human potential. LIFE Studios produces world-class photography, documentary content, and long-form storytelling across print, digital, and live experiences. The relaunch is a cultural moment, and founding partners are invited to be part of it from day one.
 
 THE LIFE PARTNERSHIP BRIEF FORMAT
-Each partner brief follows this structure:
+Include ONLY the following sections, in this order:
 
-1. THE MOMENT — "Why Now"
-Open with the cultural and strategic context for LIFE's return. Frame why this is a singular moment for brands that want to be associated with quality, legacy, and the best storytelling in the world. Make the partner feel the opportunity.
+${sectionInstructions}
 
-2. YOUR STORY IN OURS — "Why [Brand]"
-Articulate precisely why this brand belongs inside LIFE. What is the alignment between the brand's positioning, values, and audience and LIFE's editorial world? Be specific, flattering, and strategically sharp.
+TONE: ${toneGuide}
 
-3. THE PARTNERSHIP STRUCTURE — "What We're Building Together"
-Describe the specific partnership tier and what it includes. Be concrete about the editorial integrations, content formats, distribution channels, and brand presence across print, digital, and events. Reference the relevant tier:
-- Tier 1 — Integration Partners: Technology and hardware embedded in the LIFE storytelling process itself
-- Tier 2 — Storytelling & Editorial Franchise Partners: Branded content franchises, editorial series, destination storytelling
-- Tier 3 — Brand Access & Cultural Sponsorship: Logo presence, co-branding, launch event access, co-branded marketing
+LENGTH: ${lengthGuide}
 
-4. THE EDITORIAL VISION — "Stories We'll Tell"
-Paint a vivid, specific picture of the content and storytelling that will live in this partnership. What will the audience experience? What will the brand's narrative be inside LIFE? This section should feel like a creative pitch — ambitious, specific, exciting.
-
-5. REACH & DISTRIBUTION — "Where Your Brand Lives"
-Describe where the partnership content will appear: the LIFE book (print), lifemagazine.com, LIFE Studios social channels, events, partner distribution. Be specific about the scale and quality of the audience.
-
-6. THE INVESTMENT — "Founding Partner Value"
-Frame the financial commitment as a founding investment — an opportunity that won't exist again. If budget is provided, structure it clearly. Emphasize the exclusivity and first-mover advantage of being a founding partner. Include what the brand receives in return (exclusivity, credits, co-marketing, events, content assets).
-
-7. PARTNERSHIP TIMELINE — "The First Year"
-Describe the key milestones of the partnership — when the book launches, when events happen, when content goes live, when the brand gets visibility.
-
-8. NEXT STEPS — "How We Begin"
-End with clear, confident next steps. Make it easy to say yes. Reference any existing relationship or prior conversations naturally.
-
-TONE AND STYLE:
-- Write with the authority of LIFE's legacy and the excitement of a genuine cultural comeback
+STYLE GUIDELINES:
 - Be warm, elevated, and visually-minded — this is a creative partnership, not a media buy
 - Reference real cultural context where relevant (LA28, AI era, the creator economy, human storytelling)
 - Paragraphs over bullet points — this should read like a letter from an editor, not a rate card
-- Length: 900–1300 words of body content
 - Use sophisticated vocabulary but never obscure meaning with jargon
 - Each brief should feel bespoke — written specifically for this brand and this moment
 
 Format using markdown with ## for section headings. Begin with a compelling headline title (# heading) that captures the essence of the partnership.`;
+}
 
 function buildUserPrompt(form: ProposalFormData, _companyName: string): string {
   return `Please write a full LIFE Partnership Brief for the following founding partner opportunity:
@@ -135,6 +192,19 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const abortRef = useRef<AbortController | null>(null);
   const proposalRef = useRef<HTMLDivElement>(null);
 
+  // Editing, refinement, and options state
+  const [editing, setEditing] = useState(false);
+  const [refinementInput, setRefinementInput] = useState('');
+  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [length, setLength] = useState<ProposalLength>('standard');
+  const [tone, setTone] = useState<ProposalTone>('confident');
+  const [sections, setSections] = useState<Record<SectionId, boolean>>({ ...ALL_SECTIONS });
+  const refinementRef = useRef<HTMLInputElement>(null);
+
+  const toggleSection = (id: SectionId) => {
+    setSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const set = <K extends keyof ProposalFormData>(key: K, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
@@ -148,6 +218,74 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     return null;
   };
 
+  const streamResponse = useCallback(async (messages: ChatMessage[]) => {
+    abortRef.current = new AbortController();
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey.trim(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
+        stream: true,
+        system: buildSystemPrompt(companyName, length, tone, sections),
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+      }),
+      signal: abortRef.current.signal,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const msg = (errData as { error?: { message?: string } })?.error?.message ?? `HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(data) as {
+            type: string;
+            delta?: { type: string; text?: string };
+          };
+          if (
+            parsed.type === 'content_block_delta' &&
+            parsed.delta?.type === 'text_delta' &&
+            parsed.delta.text
+          ) {
+            fullText += parsed.delta.text;
+            setProposal(fullText);
+          }
+        } catch {
+          // skip malformed SSE lines
+        }
+      }
+    }
+
+    return fullText;
+  }, [apiKey, companyName, length, tone, sections]);
+
   const generate = useCallback(async () => {
     const validationError = validateForm();
     if (validationError) { setError(validationError); return; }
@@ -155,69 +293,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setError('');
     setProposal('');
     setLoading(true);
+    setEditing(false);
 
-    abortRef.current = new AbortController();
+    const userMessage: ChatMessage = { role: 'user', content: buildUserPrompt(form, companyName) };
+    const messages = [userMessage];
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-4-6',
-          max_tokens: 4096,
-          stream: true,
-          system: LIFE_SYSTEM_PROMPT(companyName),
-          messages: [{ role: 'user', content: buildUserPrompt(form, companyName) }],
-        }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        const msg = (errData as { error?: { message?: string } })?.error?.message ?? `HTTP ${response.status}`;
-        throw new Error(msg);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data) as {
-              type: string;
-              delta?: { type: string; text?: string };
-            };
-            if (
-              parsed.type === 'content_block_delta' &&
-              parsed.delta?.type === 'text_delta' &&
-              parsed.delta.text
-            ) {
-              setProposal(prev => prev + parsed.delta!.text);
-            }
-          } catch {
-            // skip malformed SSE lines
-          }
-        }
-      }
+      const fullText = await streamResponse(messages);
+      setHistory([userMessage, { role: 'assistant', content: fullText }]);
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -225,7 +308,36 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     } finally {
       setLoading(false);
     }
-  }, [apiKey, form, companyName]);
+  }, [apiKey, form, companyName, streamResponse]);
+
+  const refine = useCallback(async () => {
+    if (!refinementInput.trim() || !proposal) return;
+    if (!apiKey.trim()) { setError('Please enter your Anthropic API key.'); return; }
+
+    setError('');
+    setLoading(true);
+    setEditing(false);
+
+    const refinementMessage: ChatMessage = {
+      role: 'user',
+      content: `Here is the current brief:\n\n${proposal}\n\n---\n\nPlease revise the brief based on this feedback: ${refinementInput}\n\nReturn the COMPLETE revised brief in full — do not return only the changed section. Maintain the same format and structure.`,
+    };
+
+    const messages = [...history, refinementMessage];
+    setProposal('');
+
+    try {
+      const fullText = await streamResponse(messages);
+      setHistory(prev => [...prev, refinementMessage, { role: 'assistant', content: fullText }]);
+      setRefinementInput('');
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiKey, proposal, refinementInput, history, streamResponse]);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -268,7 +380,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setForm(EMPTY_FORM);
     setError('');
     setSavedClientId('');
+    setHistory([]);
+    setEditing(false);
+    setRefinementInput('');
   };
+
+  const enabledCount = Object.values(sections).filter(Boolean).length;
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -417,6 +534,93 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               />
             </div>
           </FormSection>
+
+          {/* Brief Options */}
+          <FormSection title="Brief Options">
+            {/* Length */}
+            <div>
+              <label className="label">Length</label>
+              <div className="flex gap-1.5">
+                {LENGTH_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLength(opt.value)}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                      length === opt.value
+                        ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
+                        : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <span className="block font-semibold">{opt.label}</span>
+                    <span className={`block mt-0.5 ${length === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tone */}
+            <div>
+              <label className="label">Tone</label>
+              <div className="flex gap-1.5">
+                {TONE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTone(opt.value)}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                      tone === opt.value
+                        ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
+                        : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <span className="block font-semibold">{opt.label}</span>
+                    <span className={`block mt-0.5 ${tone === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sections */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">Sections to Include</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allOn = enabledCount === SECTION_DEFS.length;
+                    const next = {} as Record<SectionId, boolean>;
+                    SECTION_DEFS.forEach(s => { next[s.id] = !allOn; });
+                    setSections(next);
+                  }}
+                  className="text-xs text-brand-gold hover:text-brand-gold-dark"
+                >
+                  {enabledCount === SECTION_DEFS.length ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {SECTION_DEFS.map(s => (
+                  <label
+                    key={s.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
+                      sections[s.id] ? 'bg-brand-gold/10 border border-brand-gold/25' : 'bg-brand-light border border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sections[s.id]}
+                      onChange={() => toggleSection(s.id)}
+                      className="accent-brand-gold w-3.5 h-3.5 rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-brand-dark">{s.label}</span>
+                      <span className="text-xs text-brand-dark/40 ml-1.5">{s.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </FormSection>
         </div>
 
         {/* Generate button */}
@@ -465,8 +669,21 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 {loading && (
                   <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
                 )}
+                {history.length > 2 && !loading && (
+                  <span className="text-xs text-brand-dark/40 bg-brand-light rounded-full px-2 py-0.5">
+                    {Math.floor(history.length / 2)} revision{Math.floor(history.length / 2) > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
+                {!loading && (
+                  <button
+                    onClick={() => setEditing(v => !v)}
+                    className={`btn-secondary flex items-center gap-1.5 ${editing ? 'bg-brand-gold/10 border-brand-gold/30 text-brand-dark' : ''}`}
+                  >
+                    {editing ? '◉ Preview' : '✎ Edit'}
+                  </button>
+                )}
                 <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
                   {copied ? '✓ Copied!' : '⎘ Copy'}
                 </button>
@@ -520,22 +737,13 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <span className="text-brand-dark font-medium">LIFE Partnership Framework</span>.
               </p>
               <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                {[
-                  { n: '1', title: 'The Moment', desc: 'Why now for LIFE' },
-                  { n: '2', title: 'Your Story in Ours', desc: 'Why this brand belongs' },
-                  { n: '3', title: 'Partnership Structure', desc: 'Tier & what\'s included' },
-                  { n: '4', title: 'Editorial Vision', desc: 'Stories we\'ll tell together' },
-                  { n: '5', title: 'Reach & Distribution', desc: 'Where the brand lives' },
-                  { n: '6', title: 'The Investment', desc: 'Founding partner value' },
-                  { n: '7', title: 'Partnership Timeline', desc: 'The first year milestones' },
-                  { n: '8', title: 'Next Steps', desc: 'How we begin' },
-                ].map(item => (
-                  <div key={item.n} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                {SECTION_DEFS.map((item, i) => (
+                  <div key={item.id} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
                     <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {item.n}
+                      {i + 1}
                     </span>
                     <div>
-                      <p className="font-semibold text-xs text-brand-dark">{item.title}</p>
+                      <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                       <p className="text-xs text-brand-dark/40">{item.desc}</p>
                     </div>
                   </div>
@@ -561,13 +769,21 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 )}
               </div>
 
-              {/* Brief text */}
-              <div
-                className="prose-proposal"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(proposal) || '',
-                }}
-              />
+              {/* Brief text — edit mode or preview */}
+              {editing ? (
+                <textarea
+                  value={proposal}
+                  onChange={e => setProposal(e.target.value)}
+                  className="w-full min-h-[600px] px-4 py-3 bg-white border border-brand-cream-dark rounded-lg text-sm text-brand-dark font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y"
+                />
+              ) : (
+                <div
+                  className="prose-proposal"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(proposal) || '',
+                  }}
+                />
+              )}
 
               {/* Loading cursor */}
               {loading && (
@@ -575,7 +791,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               )}
 
               {/* Brief footer */}
-              {!loading && proposal && (
+              {!loading && proposal && !editing && (
                 <div className="mt-12 pt-6 border-t border-brand-cream flex items-center justify-between">
                   <div>
                     <p className="font-display text-sm font-semibold text-brand-dark">{companyName}</p>
@@ -591,6 +807,35 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
           )}
         </div>
+
+        {/* Refinement bar */}
+        {proposal && !loading && !editing && (
+          <div className="bg-white border-t border-brand-cream px-6 py-3 flex-shrink-0">
+            <div className="flex items-center gap-2 max-w-3xl mx-auto">
+              <div className="relative flex-1">
+                <input
+                  ref={refinementRef}
+                  type="text"
+                  value={refinementInput}
+                  onChange={e => setRefinementInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && refinementInput.trim()) refine(); }}
+                  placeholder="Refine this brief… e.g. 'Emphasise the LA28 angle' or 'Make the editorial vision more specific'"
+                  className="input-field pr-20 py-2.5 text-sm"
+                />
+                <button
+                  onClick={refine}
+                  disabled={!refinementInput.trim()}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 btn-primary py-1.5 px-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Refine →
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-brand-dark/30 mt-1.5 max-w-3xl mx-auto">
+              Evolve the brief with follow-up instructions instead of regenerating from scratch
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

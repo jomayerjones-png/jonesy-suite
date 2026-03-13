@@ -25,7 +25,81 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-const LABYRINTH_SYSTEM_PROMPT = (companyName: string) => `You are a senior strategist and principal writer at ${companyName}, crafting bespoke client proposals using The Labyrinth Framework™.
+type ProposalLength = 'concise' | 'standard' | 'comprehensive';
+type ProposalTone = 'confident' | 'collaborative' | 'formal';
+type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
+const SECTION_DEFS = [
+  { id: 'context', label: 'Context & Diagnosis', desc: 'Where they stand & what we see' },
+  { id: 'approach', label: 'Approach', desc: 'The Labyrinth Framework™' },
+  { id: 'engagement', label: 'Engagement', desc: 'What we\'ll do together' },
+  { id: 'outcomes', label: 'Outcomes', desc: 'Where they\'ll arrive' },
+  { id: 'commercial', label: 'Commercial Terms', desc: 'Investment structure' },
+  { id: 'gettingStarted', label: 'Getting Started', desc: 'How we begin' },
+] as const;
+
+type SectionId = typeof SECTION_DEFS[number]['id'];
+
+const ALL_SECTIONS: Record<SectionId, boolean> = {
+  context: true, approach: true, engagement: true,
+  outcomes: true, commercial: true, gettingStarted: true,
+};
+
+const LENGTH_OPTIONS: { value: ProposalLength; label: string; desc: string }[] = [
+  { value: 'concise', label: 'Concise', desc: '~500 words' },
+  { value: 'standard', label: 'Standard', desc: '~800–1200 words' },
+  { value: 'comprehensive', label: 'Comprehensive', desc: '~1500+ words' },
+];
+
+const TONE_OPTIONS: { value: ProposalTone; label: string; desc: string }[] = [
+  { value: 'confident', label: 'Confident', desc: 'Authoritative advisor' },
+  { value: 'collaborative', label: 'Collaborative', desc: 'Partnership-first' },
+  { value: 'formal', label: 'Formal', desc: 'Corporate / institutional' },
+];
+
+const SECTION_INSTRUCTIONS: Record<SectionId, string> = {
+  context: `1. CONTEXT & DIAGNOSIS — "Where You Stand — And What We See"
+Open with the client's reality — what they have built, what momentum exists. Then name the specific tension between where they are and where they want to be. Be precise and show deep understanding. Then deliver "Our read:" — a single sentence naming the root cause, followed by a reframe that shifts how they think about the problem.`,
+  approach: `2. APPROACH — "How We Work: The Labyrinth Framework™"
+Present the four-phase framework as a table:
+| Phase | Workstream Focus | Key Deliverable |
+Show which phases are most critical for this client.`,
+  engagement: `3. ENGAGEMENT — "What We Will Do Together"
+State the engagement duration and number of workstreams upfront. Then detail each phase/workstream with a name, the months it covers, and a substantive paragraph describing the work. Be concrete — vague proposals lose.`,
+  outcomes: `4. OUTCOMES — "Where You Will Arrive"
+Paint a vivid, specific picture of the transformed state at the end of the engagement. One powerful paragraph, not a list.`,
+  commercial: `5. COMMERCIAL TERMS — "Your Investment"
+Frame the investment before stating the number. Anchor it to outcomes, not hours. Present as a markdown table:
+| Milestone | Period | Investment |
+With a total row at the bottom. Always state "A fixed fee of $X for the [duration] engagement" before the table.`,
+  gettingStarted: `6. GETTING STARTED — "How We Begin"
+Three specific actions in the first two weeks. Week one: what happens. Week two: what begins. End of month one: first deliverable.`,
+};
+
+function buildSystemPrompt(
+  companyName: string,
+  length: ProposalLength,
+  tone: ProposalTone,
+  sections: Record<SectionId, boolean>,
+): string {
+  const activeSections = SECTION_DEFS.filter(s => sections[s.id]);
+  const sectionInstructions = activeSections
+    .map(s => SECTION_INSTRUCTIONS[s.id])
+    .join('\n\n');
+
+  const lengthGuide = {
+    concise: 'Keep the proposal concise — approximately 400–600 words of body content. Be direct and economical with language. Every sentence should earn its place.',
+    standard: 'Aim for a comprehensive but readable proposal — approximately 800–1200 words of body content.',
+    comprehensive: 'Write a thorough, detailed proposal — approximately 1500–2000 words of body content. Expand on each section with deeper analysis, more specifics, and richer narrative.',
+  }[length];
+
+  const toneGuide = {
+    confident: 'Write with the confidence of a trusted advisor who has seen this situation before. Be direct, authoritative, and assertive in your diagnosis and recommendations.',
+    collaborative: 'Write as a collaborative partner. Use "we" language, invite dialogue, and position the engagement as a joint venture. Warm but professional.',
+    formal: 'Write in a formal, institutional tone. Structured, measured, and precise. Suitable for corporate procurement processes and board presentations.',
+  }[tone];
+
+  return `You are a senior strategist and principal writer at ${companyName}, crafting bespoke client proposals using The Labyrinth Framework™.
 
 THE LABYRINTH FRAMEWORK™
 Every ${companyName} engagement runs through four connected phases. Most organisations run these separately — strategy in one room, sales in another, execution somewhere else. We operate across all four.
@@ -36,40 +110,16 @@ Phase III — Execution & Delivery: Structure agreements, protect scope and marg
 Phase IV — Renewal & Expansion: Measure performance, strengthen relationships, identify growth. Delivers: Renewal strategy + expanded pipeline.
 
 PROPOSAL STRUCTURE
-Every proposal follows this exact sequence and section structure. Use these section headings precisely:
+Include ONLY the following sections, in this order:
 
-1. CONTEXT & DIAGNOSIS — "Where You Stand — And What We See"
-Open with the client's reality — what they have built, what momentum exists. Then name the specific tension between where they are and where they want to be. Be precise and show deep understanding. Then deliver "Our read:" — a single sentence naming the root cause, followed by a reframe that shifts how they think about the problem. This is not a generic problem statement. It is a confident, specific diagnosis.
+${sectionInstructions}
 
-2. APPROACH — "How We Work: The Labyrinth Framework™"
-Present the four-phase framework as a table:
-| Phase | Workstream Focus | Key Deliverable |
-Show which phases are most critical for this client.
-
-3. ENGAGEMENT — "What We Will Do Together"
-State the engagement duration and number of workstreams upfront (e.g. "A six-month engagement across three workstreams"). Then detail each phase/workstream with:
-- A name (e.g. "Phase I — Pipeline Optimisation & Sales Process Design")
-- The months it covers (e.g. "Months 1–3")
-- A substantive paragraph describing the work, not bullet points
-Be concrete — vague proposals lose. Name the specific outputs for each workstream.
-
-4. OUTCOMES — "Where You Will Arrive"
-Paint a vivid, specific picture of the transformed state at the end of the engagement. Describe what their operation looks and feels like at close. Use precise language — commercially, operationally, strategically. This should be one powerful paragraph, not a list.
-
-5. COMMERCIAL TERMS — "Your Investment"
-Frame the investment before stating the number. Anchor it to outcomes, not hours. Front-load fees to reflect where value is created. Present as a markdown table:
-| Milestone | Period | Investment |
-With a total row at the bottom. Always state "A fixed fee of $X for the [duration] engagement" before the table.
-
-6. GETTING STARTED — "How We Begin"
-Three specific actions in the first two weeks. Week one: what happens. Week two: what begins. End of month one: first deliverable.
-
-Always end the proposal with this exact closing line:
+${activeSections.some(s => s.id === 'gettingStarted') ? `Always end the proposal with this exact closing line:
 "If any element of this proposal deserves challenge or refinement, we welcome that conversation."
 
 Then sign off with:
 ${companyName}
-revenue@jonesyco.com
+revenue@jonesyco.com` : ''}
 
 COVER FORMAT
 The proposal title should follow this pattern:
@@ -80,18 +130,20 @@ Then immediately below:
 **[Current Month, Year]**
 *Confidential · Prepared exclusively for [Client Company]*
 
-TONE AND STYLE GUIDELINES:
-- Write with the confidence of a trusted advisor who has seen this situation before
+TONE: ${toneGuide}
+
+LENGTH: ${lengthGuide}
+
+STYLE GUIDELINES:
 - Lead with their reality before presenting your solution
 - Use sophisticated vocabulary but never obscure meaning with jargon
-- Balance warmth with authority — this is not a vendor pitch, it is a strategic partnership offer
 - Paragraphs over bullet points wherever possible — this is strategic writing, not a slide deck
 - Each section should be substantive but not exhaustive — leave room for conversation
 - The proposal should read as a coherent narrative, not a checklist
-- Length: Aim for a comprehensive but readable proposal (approximately 800–1200 words of body content)
 - Use markdown tables for the Framework overview and Investment structure
 
-Format using markdown. Use ## for section headings (CONTEXT & DIAGNOSIS, APPROACH, ENGAGEMENT, OUTCOMES, COMMERCIAL TERMS, GETTING STARTED). Begin with the cover block as described above.`;
+Format using markdown. Use ## for section headings. Begin with the cover block as described above.`;
+}
 
 function buildUserPrompt(form: ProposalFormData, companyName: string): string {
   return `Please write a full Labyrinth Framework proposal for the following engagement:
@@ -157,6 +209,19 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const abortRef = useRef<AbortController | null>(null);
   const proposalRef = useRef<HTMLDivElement>(null);
 
+  // New state for editing, refinement, and options
+  const [editing, setEditing] = useState(false);
+  const [refinementInput, setRefinementInput] = useState('');
+  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [length, setLength] = useState<ProposalLength>('standard');
+  const [tone, setTone] = useState<ProposalTone>('confident');
+  const [sections, setSections] = useState<Record<SectionId, boolean>>({ ...ALL_SECTIONS });
+  const refinementRef = useRef<HTMLInputElement>(null);
+
+  const toggleSection = (id: SectionId) => {
+    setSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const set = <K extends keyof ProposalFormData>(key: K, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
@@ -170,6 +235,74 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     return null;
   };
 
+  const streamResponse = useCallback(async (messages: ChatMessage[]) => {
+    abortRef.current = new AbortController();
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey.trim(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
+        stream: true,
+        system: buildSystemPrompt(companyName, length, tone, sections),
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+      }),
+      signal: abortRef.current.signal,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const msg = (errData as { error?: { message?: string } })?.error?.message ?? `HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(data) as {
+            type: string;
+            delta?: { type: string; text?: string };
+          };
+          if (
+            parsed.type === 'content_block_delta' &&
+            parsed.delta?.type === 'text_delta' &&
+            parsed.delta.text
+          ) {
+            fullText += parsed.delta.text;
+            setProposal(fullText);
+          }
+        } catch {
+          // skip malformed SSE lines
+        }
+      }
+    }
+
+    return fullText;
+  }, [apiKey, companyName, length, tone, sections]);
+
   const generate = useCallback(async () => {
     const validationError = validateForm();
     if (validationError) { setError(validationError); return; }
@@ -177,69 +310,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setError('');
     setProposal('');
     setLoading(true);
+    setEditing(false);
 
-    abortRef.current = new AbortController();
+    const userMessage: ChatMessage = { role: 'user', content: buildUserPrompt(form, companyName) };
+    const messages = [userMessage];
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-4-6',
-          max_tokens: 4096,
-          stream: true,
-          system: LABYRINTH_SYSTEM_PROMPT(companyName),
-          messages: [{ role: 'user', content: buildUserPrompt(form, companyName) }],
-        }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        const msg = (errData as { error?: { message?: string } })?.error?.message ?? `HTTP ${response.status}`;
-        throw new Error(msg);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data) as {
-              type: string;
-              delta?: { type: string; text?: string };
-            };
-            if (
-              parsed.type === 'content_block_delta' &&
-              parsed.delta?.type === 'text_delta' &&
-              parsed.delta.text
-            ) {
-              setProposal(prev => prev + parsed.delta!.text);
-            }
-          } catch {
-            // skip malformed SSE lines
-          }
-        }
-      }
+      const fullText = await streamResponse(messages);
+      setHistory([userMessage, { role: 'assistant', content: fullText }]);
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -247,7 +325,36 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     } finally {
       setLoading(false);
     }
-  }, [apiKey, form, companyName]);
+  }, [apiKey, form, companyName, streamResponse]);
+
+  const refine = useCallback(async () => {
+    if (!refinementInput.trim() || !proposal) return;
+    if (!apiKey.trim()) { setError('Please enter your Anthropic API key.'); return; }
+
+    setError('');
+    setLoading(true);
+    setEditing(false);
+
+    const refinementMessage: ChatMessage = {
+      role: 'user',
+      content: `Here is the current proposal:\n\n${proposal}\n\n---\n\nPlease revise the proposal based on this feedback: ${refinementInput}\n\nReturn the COMPLETE revised proposal in full — do not return only the changed section. Maintain the same format and structure.`,
+    };
+
+    const messages = [...history, refinementMessage];
+    setProposal('');
+
+    try {
+      const fullText = await streamResponse(messages);
+      setHistory(prev => [...prev, refinementMessage, { role: 'assistant', content: fullText }]);
+      setRefinementInput('');
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiKey, proposal, refinementInput, history, streamResponse]);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -289,7 +396,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setForm(EMPTY_FORM);
     setError('');
     setSavedClientId('');
+    setHistory([]);
+    setEditing(false);
+    setRefinementInput('');
   };
+
+  const enabledCount = Object.values(sections).filter(Boolean).length;
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -438,6 +550,93 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               />
             </div>
           </FormSection>
+
+          {/* Proposal Options */}
+          <FormSection title="Proposal Options">
+            {/* Length */}
+            <div>
+              <label className="label">Length</label>
+              <div className="flex gap-1.5">
+                {LENGTH_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLength(opt.value)}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                      length === opt.value
+                        ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
+                        : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <span className="block font-semibold">{opt.label}</span>
+                    <span className={`block mt-0.5 ${length === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tone */}
+            <div>
+              <label className="label">Tone</label>
+              <div className="flex gap-1.5">
+                {TONE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTone(opt.value)}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                      tone === opt.value
+                        ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
+                        : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <span className="block font-semibold">{opt.label}</span>
+                    <span className={`block mt-0.5 ${tone === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sections */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">Sections to Include</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allOn = enabledCount === SECTION_DEFS.length;
+                    const next = {} as Record<SectionId, boolean>;
+                    SECTION_DEFS.forEach(s => { next[s.id] = !allOn; });
+                    setSections(next);
+                  }}
+                  className="text-xs text-brand-gold hover:text-brand-gold-dark"
+                >
+                  {enabledCount === SECTION_DEFS.length ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {SECTION_DEFS.map(s => (
+                  <label
+                    key={s.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
+                      sections[s.id] ? 'bg-brand-gold/10 border border-brand-gold/25' : 'bg-brand-light border border-brand-cream hover:border-brand-cream-dark'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sections[s.id]}
+                      onChange={() => toggleSection(s.id)}
+                      className="accent-brand-gold w-3.5 h-3.5 rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-brand-dark">{s.label}</span>
+                      <span className="text-xs text-brand-dark/40 ml-1.5">{s.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </FormSection>
         </div>
 
         {/* Generate button */}
@@ -486,8 +685,21 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 {loading && (
                   <span className="text-xs text-brand-dark/50 animate-shimmer">Generating…</span>
                 )}
+                {history.length > 2 && !loading && (
+                  <span className="text-xs text-brand-dark/40 bg-brand-light rounded-full px-2 py-0.5">
+                    {Math.floor(history.length / 2)} revision{Math.floor(history.length / 2) > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
+                {!loading && (
+                  <button
+                    onClick={() => setEditing(v => !v)}
+                    className={`btn-secondary flex items-center gap-1.5 ${editing ? 'bg-brand-gold/10 border-brand-gold/30 text-brand-dark' : ''}`}
+                  >
+                    {editing ? '◉ Preview' : '✎ Edit'}
+                  </button>
+                )}
                 <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
                   {copied ? '✓ Copied!' : '⎘ Copy'}
                 </button>
@@ -541,20 +753,13 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <span className="text-brand-dark font-medium">{companyName}</span>'s Labyrinth Framework.
               </p>
               <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                {[
-                  { n: '1', title: 'Context & Diagnosis', desc: 'Where they stand & what we see' },
-                  { n: '2', title: 'Approach', desc: 'The Labyrinth Framework™' },
-                  { n: '3', title: 'Engagement', desc: 'What we\'ll do together' },
-                  { n: '4', title: 'Outcomes', desc: 'Where they\'ll arrive' },
-                  { n: '5', title: 'Commercial Terms', desc: 'Investment structure' },
-                  { n: '6', title: 'Getting Started', desc: 'How we begin' },
-                ].map(item => (
-                  <div key={item.n} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                {SECTION_DEFS.map((item, i) => (
+                  <div key={item.id} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
                     <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {item.n}
+                      {i + 1}
                     </span>
                     <div>
-                      <p className="font-semibold text-xs text-brand-dark">{item.title}</p>
+                      <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                       <p className="text-xs text-brand-dark/40">{item.desc}</p>
                     </div>
                   </div>
@@ -580,13 +785,21 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 )}
               </div>
 
-              {/* Proposal text */}
-              <div
-                className="prose-proposal"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(proposal) || '',
-                }}
-              />
+              {/* Proposal text — edit mode or preview */}
+              {editing ? (
+                <textarea
+                  value={proposal}
+                  onChange={e => setProposal(e.target.value)}
+                  className="w-full min-h-[600px] px-4 py-3 bg-white border border-brand-cream-dark rounded-lg text-sm text-brand-dark font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y"
+                />
+              ) : (
+                <div
+                  className="prose-proposal"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(proposal) || '',
+                  }}
+                />
+              )}
 
               {/* Loading cursor */}
               {loading && (
@@ -594,7 +807,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               )}
 
               {/* Proposal footer */}
-              {!loading && proposal && (
+              {!loading && proposal && !editing && (
                 <div className="mt-12 pt-6 border-t border-brand-cream flex items-center justify-between">
                   <div>
                     <p className="font-display text-sm font-semibold text-brand-dark">{companyName}</p>
@@ -610,6 +823,35 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
           )}
         </div>
+
+        {/* Refinement bar */}
+        {proposal && !loading && !editing && (
+          <div className="bg-white border-t border-brand-cream px-6 py-3 flex-shrink-0">
+            <div className="flex items-center gap-2 max-w-3xl mx-auto">
+              <div className="relative flex-1">
+                <input
+                  ref={refinementRef}
+                  type="text"
+                  value={refinementInput}
+                  onChange={e => setRefinementInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && refinementInput.trim()) refine(); }}
+                  placeholder="Refine this proposal… e.g. 'Make the diagnosis sharper' or 'Add a case study reference'"
+                  className="input-field pr-20 py-2.5 text-sm"
+                />
+                <button
+                  onClick={refine}
+                  disabled={!refinementInput.trim()}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 btn-primary py-1.5 px-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Refine →
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-brand-dark/30 mt-1.5 max-w-3xl mx-auto">
+              Evolve the proposal with follow-up instructions instead of regenerating from scratch
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
