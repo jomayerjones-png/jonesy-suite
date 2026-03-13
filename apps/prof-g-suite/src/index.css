@@ -5,7 +5,7 @@
 @layer base {
   html {
     font-family: 'DM Sans', system-ui, sans-serif;
-    background-color: #FAFAFA;
+    background-color: #F0F5F1;
     color: #1A1A1A;
   }
 
@@ -18,21 +18,21 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #F0F0F0;
+    background: #E0EBE3;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #DC2626;
+    background: #2D8A4E;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #B91C1C;
+    background: #1E6B38;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-brand-gold hover:bg-brand-gold-light active:bg-brand-gold-dark text-white font-semibold px-4 py-2 rounded-lg transition-all duration-150 text-sm tracking-wide;
+    @apply bg-brand-gold hover:bg-brand-gold-light active:bg-brand-gold-dark text-brand-dark font-semibold px-4 py-2 rounded-lg transition-all duration-150 text-sm tracking-wide;
   }
   .btn-secondary {
     @apply bg-white hover:bg-brand-cream active:bg-brand-cream-dark text-brand-dark border border-brand-cream-dark font-medium px-4 py-2 rounded-lg transition-all duration-150 text-sm;

@@ -274,7 +274,7 @@ function ProposalViewer({
       <div className="bg-brand-dark px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-white font-bold text-xs">L</span>
+            <span className="font-display text-brand-dark font-bold text-xs">L</span>
           </div>
           <div>
             <p className="font-display text-sm font-semibold text-white">{proposal.title}</p>

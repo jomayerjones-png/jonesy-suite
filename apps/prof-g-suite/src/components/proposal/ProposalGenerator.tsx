@@ -30,13 +30,13 @@ type ProposalTone = 'confident' | 'collaborative' | 'formal';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 const SECTION_DEFS = [
-  { id: 'moment', label: 'The Moment', desc: 'Why now for LIFE' },
-  { id: 'storyInOurs', label: 'Your Story in Ours', desc: 'Why this brand belongs' },
-  { id: 'structure', label: 'Partnership Structure', desc: 'Tier & what\'s included' },
-  { id: 'vision', label: 'Editorial Vision', desc: 'Stories we\'ll tell together' },
-  { id: 'reach', label: 'Reach & Distribution', desc: 'Where the brand lives' },
-  { id: 'investment', label: 'The Investment', desc: 'Founding partner value' },
-  { id: 'timeline', label: 'Partnership Timeline', desc: 'The first year milestones' },
+  { id: 'moment', label: 'The Opportunity', desc: 'Why now for Prof G' },
+  { id: 'storyInOurs', label: 'Strategic Alignment', desc: 'Why this brand fits' },
+  { id: 'structure', label: 'Partnership Structure', desc: 'What\'s included' },
+  { id: 'vision', label: 'Content Vision', desc: 'What we\'ll create together' },
+  { id: 'reach', label: 'Reach & Distribution', desc: 'Audience & channels' },
+  { id: 'investment', label: 'The Investment', desc: 'Partnership value' },
+  { id: 'timeline', label: 'Partnership Timeline', desc: 'Key milestones' },
   { id: 'nextSteps', label: 'Next Steps', desc: 'How we begin' },
 ] as const;
 
@@ -60,23 +60,20 @@ const TONE_OPTIONS: { value: ProposalTone; label: string; desc: string }[] = [
 ];
 
 const SECTION_INSTRUCTIONS: Record<SectionId, string> = {
-  moment: `1. THE MOMENT — "Why Now"
-Open with the cultural and strategic context for LIFE's return. Frame why this is a singular moment for brands that want to be associated with quality, legacy, and the best storytelling in the world. Make the partner feel the opportunity.`,
-  storyInOurs: `2. YOUR STORY IN OURS — "Why [Brand]"
-Articulate precisely why this brand belongs inside LIFE. What is the alignment between the brand's positioning, values, and audience and LIFE's editorial world? Be specific, flattering, and strategically sharp.`,
+  moment: `1. THE OPPORTUNITY — "Why Now"
+Open with the strategic and cultural context for why this partnership matters right now. Frame the Prof G media ecosystem — podcasts, education, events, and content — as a unique platform at the intersection of business, technology, and culture. Make the partner feel the urgency and scale.`,
+  storyInOurs: `2. STRATEGIC ALIGNMENT — "Why [Brand]"
+Articulate precisely why this brand belongs in the Prof G ecosystem. What is the alignment between the brand's positioning, audience, and values and Prof G's audience of ambitious professionals, entrepreneurs, and business leaders? Be specific and strategically sharp.`,
   structure: `3. THE PARTNERSHIP STRUCTURE — "What We're Building Together"
-Describe the specific partnership tier and what it includes. Be concrete about editorial integrations, content formats, distribution channels, and brand presence across print, digital, and events. Reference the relevant tier:
-- Tier 1 — Integration Partners: Technology and hardware embedded in the LIFE storytelling process itself
-- Tier 2 — Storytelling & Editorial Franchise Partners: Branded content franchises, editorial series, destination storytelling
-- Tier 3 — Brand Access & Cultural Sponsorship: Logo presence, co-branding, launch event access, co-branded marketing`,
-  vision: `4. THE EDITORIAL VISION — "Stories We'll Tell"
-Paint a vivid, specific picture of the content and storytelling that will live in this partnership. What will the audience experience? What will the brand's narrative be inside LIFE? This section should feel like a creative pitch — ambitious, specific, exciting.`,
+Describe what the partnership includes. Be concrete about content integrations, sponsorship formats, distribution channels, and brand presence across podcasts, digital content, live events, and education platforms.`,
+  vision: `4. THE CONTENT VISION — "What We'll Create"
+Paint a vivid, specific picture of the content that will live in this partnership. What will the audience experience? How will the brand's narrative integrate into Prof G's content? This should feel like a creative pitch — ambitious, specific, exciting.`,
   reach: `5. REACH & DISTRIBUTION — "Where Your Brand Lives"
-Describe where the partnership content will appear: the LIFE book (print), lifemagazine.com, LIFE Studios social channels, events, partner distribution. Be specific about the scale and quality of the audience.`,
-  investment: `6. THE INVESTMENT — "Founding Partner Value"
-Frame the financial commitment as a founding investment — an opportunity that won't exist again. If budget is provided, structure it clearly. Emphasize exclusivity and first-mover advantage. Include what the brand receives in return (exclusivity, credits, co-marketing, events, content assets).`,
-  timeline: `7. PARTNERSHIP TIMELINE — "The First Year"
-Describe the key milestones of the partnership — when the book launches, when events happen, when content goes live, when the brand gets visibility.`,
+Describe where the partnership content will appear: Prof G Pod, Pivot, No Mercy / No Malice newsletter, Prof G Education, live events, social channels. Be specific about audience scale, demographics, and engagement.`,
+  investment: `6. THE INVESTMENT — "Partnership Value"
+Frame the financial commitment as a strategic investment. If budget is provided, structure it clearly. Emphasize the value of reaching Prof G's engaged, high-income professional audience. Include what the brand receives in return.`,
+  timeline: `7. PARTNERSHIP TIMELINE — "Key Milestones"
+Describe the key milestones of the partnership — content launches, event integrations, campaign moments, and reporting cadences.`,
   nextSteps: `8. NEXT STEPS — "How We Begin"
 End with clear, confident next steps. Make it easy to say yes. Reference any existing relationship or prior conversations naturally.`,
 };
@@ -99,17 +96,17 @@ function buildSystemPrompt(
   }[length];
 
   const toneGuide = {
-    confident: 'Write with the authority of LIFE\'s legacy and the excitement of a genuine cultural comeback. Be bold, direct, and assertive. This is a once-in-a-generation opportunity.',
+    confident: 'Write with the authority of Prof G\'s brand and track record. Be bold, direct, and assertive. Channel Scott Galloway\'s signature blend of data-driven insight and provocative honesty.',
     collaborative: 'Write as a collaborative partner. Use "we" and "together" language. Position the partnership as a joint creative venture. Warm, inviting, and energising.',
     formal: 'Write in a formal, institutional tone. Structured, measured, and precise. Suitable for corporate review processes and brand partnership committees.',
   }[tone];
 
-  return `You are the Head of Brand Partnerships at LIFE, the iconic American magazine relaunched as a premium editorial and cultural platform for the modern era. You write bespoke founding partner briefs — compelling, beautifully crafted documents that invite world-class brands into the first year of LIFE's reimagining.
+  return `You are the Head of Brand Partnerships at Prof G Media, the media and education company founded by Scott Galloway. You write bespoke partnership briefs — compelling, strategically sharp documents that invite brands to partner with the Prof G ecosystem.
 
-ABOUT LIFE
-LIFE is returning. The most trusted visual storytelling brand in American history is being rebuilt for today — a premium editorial platform at the intersection of culture, ambition, athleticism, and human potential. LIFE Studios produces world-class photography, documentary content, and long-form storytelling across print, digital, and live experiences. The relaunch is a cultural moment, and founding partners are invited to be part of it from day one.
+ABOUT PROF G MEDIA
+Prof G Media is a leading business media and education company built around NYU Stern professor and bestselling author Scott Galloway. The ecosystem includes the Prof G Pod, Pivot (with Kara Swisher), the No Mercy / No Malice newsletter, Prof G Education (online business courses), and a robust events and speaking business. Prof G reaches millions of ambitious professionals, entrepreneurs, and business leaders who value data-driven analysis, provocative thinking, and actionable business insight.
 
-THE LIFE PARTNERSHIP BRIEF FORMAT
+THE PROF G PARTNERSHIP BRIEF FORMAT
 Include ONLY the following sections, in this order:
 
 ${sectionInstructions}
@@ -129,7 +126,7 @@ Format using markdown with ## for section headings. Begin with a compelling head
 }
 
 function buildUserPrompt(form: ProposalFormData, _companyName: string): string {
-  return `Please write a full LIFE Partnership Brief for the following founding partner opportunity:
+  return `Please write a full Prof G Partnership Brief for the following opportunity:
 
 PARTNER CONTACT: ${form.clientName}
 BRAND / COMPANY: ${form.company}${form.industry ? `\nINDUSTRY / CATEGORY: ${form.industry}` : ''}
@@ -148,7 +145,7 @@ ${form.budget ? `PARTNERSHIP INVESTMENT LEVEL: ${form.budget}\n` : ''}
 ${form.timeline ? `DESIRED TIMELINE / LAUNCH: ${form.timeline}\n` : ''}
 ${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
 
-Write a complete, polished LIFE Partnership Brief as if you are the Head of Brand Partnerships at LIFE presenting this founding partner opportunity to ${form.clientName} at ${form.company}. This should feel like a document worthy of the LIFE name — beautiful, authoritative, and compelling. Ready to share.`;
+Write a complete, polished Prof G Partnership Brief as if you are the Head of Brand Partnerships at Prof G Media presenting this opportunity to ${form.clientName} at ${form.company}. This should feel strategically sharp, data-informed, and compelling. Ready to share.`;
 }
 
 // Simple markdown-to-HTML renderer for display
@@ -396,7 +393,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
       <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden">
         <div className="px-5 py-4 border-b border-brand-cream">
           <h2 className="font-display text-xl font-semibold text-brand-dark">Partner Brief Generator</h2>
-          <p className="text-xs text-brand-dark/50 mt-0.5">LIFE Founding Partner Framework · Powered by Claude</p>
+          <p className="text-xs text-brand-dark/50 mt-0.5">Prof G Partnership Framework · Powered by Claude</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -475,7 +472,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 rows={3}
                 value={form.challenge}
                 onChange={e => set('challenge', e.target.value)}
-                placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for LIFE? What storytelling opportunity exists?"
+                placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for Prof G? What content opportunity exists?"
               />
             </div>
             <div>
@@ -730,14 +727,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
               <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
-                <span className="font-display text-4xl font-bold text-brand-gold/60">L</span>
+                <span className="font-display text-4xl font-bold text-brand-gold/60">G</span>
               </div>
               <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                LIFE Founding Partner Framework
+                Prof G Partnership Framework
               </h3>
               <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                Fill in the brief on the left and generate a bespoke founding partner proposal drafted by Claude using the{' '}
-                <span className="text-brand-dark font-medium">LIFE Partnership Framework</span>.
+                Fill in the brief on the left and generate a bespoke partnership proposal drafted by Claude using the{' '}
+                <span className="text-brand-dark font-medium">Prof G Partnership Framework</span>.
               </p>
               <div className="grid grid-cols-2 gap-3 w-full max-w-md">
                 {SECTION_DEFS.map((item, i) => (
@@ -761,11 +758,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               <div className="mb-8 pb-6 border-b border-brand-cream">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-                    <span className="font-display text-white font-bold text-xs">L</span>
+                    <span className="font-display text-brand-dark font-bold text-xs">G</span>
                   </div>
                   <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">Founding Partner Brief · Confidential</span>
+                  <span className="text-xs text-brand-dark/40">Partnership Brief · Confidential</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
