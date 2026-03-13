@@ -246,6 +246,17 @@ function ImportProposalModal({
   );
 }
 
+// ── Briefing Detail Row ──────────────────────────────────────────────────────
+function BriefingRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-sm text-brand-dark/80 leading-relaxed whitespace-pre-line">{value}</p>
+    </div>
+  );
+}
+
 // ── Proposal Viewer ───────────────────────────────────────────────────────────
 function ProposalViewer({
   proposal,
@@ -254,6 +265,11 @@ function ProposalViewer({
   proposal: SavedProposal;
   onClose: () => void;
 }) {
+  const [showBriefing, setShowBriefing] = useState(false);
+  const b = proposal.briefing;
+  const hasBriefing = b && (b.clientName || b.company || b.challenge || b.desiredOutcome);
+  const hasNotes = !!proposal.clientNotes;
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-brand-light">
       <div className="bg-brand-dark px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -271,6 +287,14 @@ function ProposalViewer({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(hasBriefing || hasNotes) && (
+            <button
+              onClick={() => setShowBriefing(v => !v)}
+              className={`btn-secondary text-xs py-1.5 flex items-center gap-1.5 ${showBriefing ? 'bg-brand-gold/10 border-brand-gold/30' : ''}`}
+            >
+              {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
+            </button>
+          )}
           <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
             ⎘ Copy
           </button>
@@ -280,6 +304,51 @@ function ProposalViewer({
       <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark flex-shrink-0" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto p-8">
+          {/* Briefing & Notes panel */}
+          {showBriefing && (hasBriefing || hasNotes) && (
+            <div className="mb-8 card p-6 space-y-5 border-brand-gold/20 bg-brand-gold/5">
+              <div className="flex items-center gap-2 pb-3 border-b border-brand-gold/20">
+                <span className="text-brand-gold text-sm">◎</span>
+                <h3 className="font-display text-base font-semibold text-brand-dark">Briefing Document & Notes</h3>
+              </div>
+
+              {b && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <BriefingRow label="Client" value={b.clientName} />
+                  <BriefingRow label="Company" value={b.company} />
+                  {b.industry && <BriefingRow label="Industry" value={b.industry} />}
+                  {b.budget && <BriefingRow label="Budget Range" value={b.budget} />}
+                  {b.timeline && <BriefingRow label="Timeline" value={b.timeline} />}
+                </div>
+              )}
+
+              {b?.challenge && (
+                <BriefingRow label="Core Challenge / Problem" value={b.challenge} />
+              )}
+              {b?.currentState && (
+                <BriefingRow label="Current State" value={b.currentState} />
+              )}
+              {b?.desiredOutcome && (
+                <BriefingRow label="Desired Outcome" value={b.desiredOutcome} />
+              )}
+              {b?.successMetrics && (
+                <BriefingRow label="Success Metrics" value={b.successMetrics} />
+              )}
+              {b?.additionalContext && (
+                <BriefingRow label="Additional Context" value={b.additionalContext} />
+              )}
+
+              {hasNotes && (
+                <div className="pt-4 border-t border-brand-gold/20">
+                  <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-1">Pipeline Notes</p>
+                  <p className="text-sm text-brand-dark/70 leading-relaxed whitespace-pre-line bg-white rounded-lg p-3 border border-brand-cream">
+                    {proposal.clientNotes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div
             className="prose-proposal"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}

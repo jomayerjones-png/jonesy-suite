@@ -365,11 +365,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
   const saveToClient = () => {
     if (!selectedClientId || !proposal) return;
+    const client = clients.find(c => c.id === selectedClientId);
     const saved: SavedProposal = {
       id: generateId(),
       title: extractTitle(proposal),
       content: proposal,
       createdAt: new Date().toISOString(),
+      briefing: { ...form },
+      clientNotes: client?.notes || '',
     };
     onSaveToClient(selectedClientId, saved);
     setSavedClientId(selectedClientId);
