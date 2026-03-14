@@ -1,5 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Client, ProposalFormData, SavedProposal, generateId } from '../../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
 
 // --- Reference Documents ---
 interface RefDoc {
@@ -30,6 +36,28 @@ async function readFileAsText(file: File): Promise<string> {
     reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
     reader.readAsText(file);
   });
+}
+
+async function readPdfAsText(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(text);
+  }
+  return pages.join('\n\n');
+}
+
+async function readFileContent(file: File): Promise<string> {
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    return readPdfAsText(file);
+  }
+  return readFileAsText(file);
 }
 
 interface ProposalGeneratorProps {
@@ -257,7 +285,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     try {
       const newDocs: RefDoc[] = [];
       for (const file of Array.from(files)) {
-        const content = await readFileAsText(file);
+        const content = await readFileContent(file);
         newDocs.push({
           id: generateId(),
           name: file.name,
@@ -565,7 +593,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,.csv,.json,.html,.rtf"
+              accept=".txt,.md,.csv,.json,.html,.rtf,.pdf"
               multiple
               className="hidden"
               onChange={e => handleFileUpload(e.target.files)}
@@ -582,8 +610,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               )}
             </button>
             <p className="text-xs text-brand-dark/40 leading-relaxed">
-              Upload frameworks, past proposals, brand docs, or any text files. Content is weighted 60/40 against Claude's knowledge.
-              Accepts .txt, .md, .csv, .json, .html, .rtf
+              Upload briefs, frameworks, past proposals, brand docs, or any reference files. Content is weighted 60/40 against Claude's knowledge.
+              Accepts .pdf, .md, .txt, .csv, .json, .html, .rtf
             </p>
           </div>
 
