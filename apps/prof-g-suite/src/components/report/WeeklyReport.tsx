@@ -5,7 +5,6 @@ import {
   PipelineStage,
   STAGE_CONFIG,
   formatCurrency,
-  formatDate,
   daysSince,
   isStale,
   generateId,
@@ -57,16 +56,35 @@ interface ArchivedReport {
   stats: ArchivedStats;
 }
 
+const PRINT_STYLE = `
+@media print {
+  @page { margin: 0.8cm; size: A4; }
+  body { background: white !important; font-size: 8.5pt; line-height: 1.3; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; padding: 6px 10px !important; margin-bottom: 2px !important; }
+  .metric-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; padding: 4px 8px !important; }
+  .print-compact > * + * { margin-top: 4px !important; }
+  h1 { font-size: 14pt !important; }
+  h2 { font-size: 9pt !important; }
+  h3 { font-size: 8.5pt !important; }
+  h1, h2, h3 { page-break-after: avoid; }
+  .print-header { padding: 8px 12px !important; }
+  .print-metrics { gap: 4px !important; margin-bottom: 4px !important; }
+  .print-stage-bar { height: 12px !important; }
+  .print-stage-row { gap: 4px !important; }
+  .print-stage-row + .print-stage-row { margin-top: 2px !important; }
+}
+`;
+
 function EditableSection({
   title,
-  icon,
   placeholder,
   value,
   onChange,
   printLabel,
 }: {
   title: string;
-  icon: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
@@ -75,63 +93,49 @@ function EditableSection({
   const lines = value.split('\n').filter(l => l.trim());
 
   return (
-    <div className="card p-6">
+    <div className="card p-4">
       <div className="no-print">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">{icon}</span>
-          <h2 className="font-display text-lg font-semibold text-brand-dark">{title}</h2>
-        </div>
+        <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-2">{title}</h2>
         <textarea
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          rows={4}
-          className="w-full px-3 py-2.5 bg-brand-light border border-brand-cream-dark rounded-lg text-sm text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y transition-all duration-150 font-sans leading-relaxed"
+          rows={3}
+          className="w-full px-3 py-2 bg-brand-light border border-brand-cream-dark rounded-lg text-sm text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y transition-all duration-150 font-sans leading-relaxed"
         />
-        <p className="text-xs text-brand-dark/30 mt-1.5">One item per line</p>
+        <p className="text-xs text-brand-dark/30 mt-1">One item per line</p>
       </div>
-      <div className="print-only hidden">
-        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-          <span className="text-base">{icon}</span>
-          <h2 className="font-display text-lg font-semibold text-gray-900">{printLabel ?? title}</h2>
-        </div>
-        {lines.length > 0 ? (
-          <ul className="space-y-1.5">
+      {lines.length > 0 && (
+        <div className="print-only hidden">
+          <h2 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1 pb-0.5 border-b border-gray-200">{printLabel ?? title}</h2>
+          <ul className="space-y-0.5">
             {lines.map((line, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+              <li key={i} className="flex items-start gap-1.5 text-xs text-gray-800 leading-snug">
+                <span className="mt-1 w-1 h-1 rounded-full bg-gray-400 flex-shrink-0" />
                 <span>{line}</span>
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-sm text-gray-400 italic">No items recorded.</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function NotesReadOnly({ title, icon, value }: { title: string; icon: string; value: string }) {
+function NotesReadOnly({ title, value }: { title: string; value: string }) {
   const lines = value.split('\n').filter(l => l.trim());
+  if (lines.length === 0) return null;
   return (
-    <div className="card p-6">
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-brand-cream">
-        <span className="text-base">{icon}</span>
-        <h2 className="font-display text-lg font-semibold text-brand-dark">{title}</h2>
-      </div>
-      {lines.length > 0 ? (
-        <ul className="space-y-1.5">
-          {lines.map((line, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-brand-dark/80">
-              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-gold flex-shrink-0" />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-brand-dark/30 italic">Nothing recorded.</p>
-      )}
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-2 pb-1.5 border-b border-brand-cream">{title}</h2>
+      <ul className="space-y-1">
+        {lines.map((line, i) => (
+          <li key={i} className="flex items-start gap-1.5 text-sm text-brand-dark/80">
+            <span className="mt-1.5 w-1 h-1 rounded-full bg-brand-gold flex-shrink-0" />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -150,15 +154,7 @@ function ArchivedReportView({
 
   return (
     <div className="fixed inset-0 z-50 bg-brand-light overflow-auto">
-      <style>{`
-        @media print {
-          @page { margin: 1.5cm; size: A4; }
-          body { background: white !important; font-size: 11pt; }
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; }
-        }
-      `}</style>
+      <style>{PRINT_STYLE}</style>
 
       {/* Archive viewer toolbar */}
       <div className="no-print bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between sticky top-0 z-10">
@@ -173,40 +169,37 @@ function ArchivedReportView({
           </div>
         </div>
         <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
-          <span>⎙</span> Download PDF
+          Download PDF
         </button>
       </div>
 
       {/* Archived report content */}
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="p-5">
+        <div className="max-w-4xl mx-auto space-y-4 print-compact">
 
           {/* Header */}
           <div className="card overflow-hidden">
-            <div className="bg-brand-dark px-8 py-6">
+            <div className="bg-brand-dark px-6 py-4 print-header">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Weekly Business Report — Archived</p>
-                  <h1 className="font-display text-3xl font-bold text-white">{archive.companyName}</h1>
-                  <p className="text-white/50 text-sm mt-1">Saved {savedDate}</p>
+                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Weekly Business Report</p>
+                  <h1 className="font-display text-2xl font-bold text-white">{archive.companyName}</h1>
+                  <p className="text-white/50 text-xs mt-0.5">Saved {savedDate}</p>
                 </div>
                 <div className="text-right hidden sm:block">
-                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
-                  <p className="text-white font-medium">{archive.weekLabel}</p>
-                  <p className="text-white/50 text-xs mt-1">{archive.stats.clientCount} clients</p>
+                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Week of</p>
+                  <p className="text-white font-medium text-sm">{archive.weekLabel}</p>
+                  <p className="text-white/50 text-xs mt-0.5">{archive.stats.clientCount} clients</p>
                 </div>
               </div>
             </div>
-            <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+            <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
           </div>
 
           {/* Pipeline Metrics */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-base">📊</span>
-              <h2 className="font-display text-lg font-semibold text-brand-dark">Pipeline Metrics</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="card p-4">
+            <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
               {[
                 { label: 'Total Pipeline', value: formatCurrency(archive.stats.totalValue), color: 'text-brand-dark' },
                 { label: 'Active Value', value: formatCurrency(archive.stats.activeValue), color: 'text-brand-gold' },
@@ -215,51 +208,48 @@ function ArchivedReportView({
               ].map(m => (
                 <div key={m.label} className="metric-card">
                   <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
-                  <p className={`font-display text-2xl font-bold ${m.color}`}>{m.value}</p>
+                  <p className={`font-display text-xl font-bold ${m.color}`}>{m.value}</p>
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-3 print-metrics mb-4">
               {[
-                { label: 'New Clients', value: archive.stats.newThisWeek, icon: '✦', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-                { label: 'Contacted', value: archive.stats.contactedThisWeek, icon: '◎', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-                { label: 'Stale (7d+)', value: archive.stats.staleCount, icon: '⚠', color: archive.stats.staleCount > 0 ? 'text-amber-700' : 'text-emerald-600', bg: archive.stats.staleCount > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: archive.stats.staleCount > 0 ? 'border-amber-100' : 'border-emerald-100' },
+                { label: 'New', value: archive.stats.newThisWeek, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+                { label: 'Contacted', value: archive.stats.contactedThisWeek, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+                { label: 'Stale (7d+)', value: archive.stats.staleCount, color: archive.stats.staleCount > 0 ? 'text-amber-700' : 'text-emerald-600', bg: archive.stats.staleCount > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: archive.stats.staleCount > 0 ? 'border-amber-100' : 'border-emerald-100' },
               ].map(item => (
-                <div key={item.label} className={`rounded-lg p-4 flex items-center gap-3 ${item.bg} border ${item.border}`}>
-                  <div className={`text-2xl ${item.color}`}>{item.icon}</div>
-                  <div>
-                    <p className={`font-display text-2xl font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
-                  </div>
+                <div key={item.label} className={`rounded-lg px-3 py-2 text-center ${item.bg} border ${item.border}`}>
+                  <p className={`font-display text-xl font-bold ${item.color}`}>{item.value}</p>
+                  <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
                 </div>
               ))}
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-brand-dark/60 uppercase tracking-wider mb-3">Stage Breakdown</h3>
-              <div className="space-y-2.5">
+              <h3 className="text-xs font-semibold text-brand-dark/60 uppercase tracking-wider mb-2">Stage Breakdown</h3>
+              <div className="space-y-1.5">
                 {PIPELINE_STAGES.map(stage => {
                   const s = archive.stats.byStage[stage] ?? { count: 0, value: 0 };
                   const cfg = STAGE_CONFIG[stage];
                   return (
-                    <div key={stage} className="flex items-center gap-4">
-                      <div className="w-32 flex-shrink-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                          <span className="text-sm font-medium text-brand-dark">{stage}</span>
+                    <div key={stage} className="flex items-center gap-3 print-stage-row">
+                      <div className="w-28 flex-shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          <span className="text-xs font-medium text-brand-dark">{stage}</span>
                         </div>
                       </div>
                       <div className="flex-1">
-                        <div className="h-6 bg-brand-light rounded-full overflow-hidden">
+                        <div className="h-4 print-stage-bar bg-brand-light rounded-full overflow-hidden">
                           <div
-                            className={`h-full ${cfg.dot} rounded-full transition-all duration-500 flex items-center justify-end pr-2`}
+                            className={`h-full ${cfg.dot} rounded-full transition-all duration-500 flex items-center justify-end pr-1.5`}
                             style={{ width: `${Math.max((s.count / maxCount) * 100, 4)}%` }}
                           >
-                            {s.count > 0 && <span className="text-white text-xs font-bold">{s.count}</span>}
+                            {s.count > 0 && <span className="text-white text-xs font-bold leading-none">{s.count}</span>}
                           </div>
                         </div>
                       </div>
-                      <div className="w-24 text-right flex-shrink-0">
-                        <span className="text-sm font-semibold text-brand-gold">{formatCurrency(s.value)}</span>
+                      <div className="w-20 text-right flex-shrink-0">
+                        <span className="text-xs font-semibold text-brand-gold">{formatCurrency(s.value)}</span>
                       </div>
                     </div>
                   );
@@ -268,24 +258,23 @@ function ArchivedReportView({
             </div>
           </div>
 
-          {archive.notes.pipelineUpdates && <NotesReadOnly title="Pipeline Updates" icon="🔄" value={archive.notes.pipelineUpdates} />}
+          {archive.notes.pipelineUpdates && <NotesReadOnly title="Pipeline Updates" value={archive.notes.pipelineUpdates} />}
 
           {/* Top opportunities */}
           {archive.stats.topClients.length > 0 && (
-            <div className="card p-6">
-              <h2 className="font-display text-lg font-semibold text-brand-dark mb-4">Top Opportunities</h2>
-              <div className="space-y-2.5">
+            <div className="card p-4">
+              <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Top Opportunities</h2>
+              <div className="space-y-1.5">
                 {archive.stats.topClients.map((client, i) => {
                   const cfg = STAGE_CONFIG[client.stage];
                   return (
-                    <div key={i} className={`flex items-center gap-4 p-3 rounded-lg ${client.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                      <span className="w-7 h-7 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-sm flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                    <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${client.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
+                      <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-brand-dark truncate">{client.name}</p>
-                        <p className="text-xs text-brand-dark/50 truncate">{client.company}</p>
+                        <p className="font-semibold text-xs text-brand-dark truncate">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
                       </div>
-                      <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{cfg.icon} {client.stage}</span>
-                      <span className="font-bold text-brand-gold text-sm flex-shrink-0">{formatCurrency(client.value)}</span>
+                      <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
+                      <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(client.value)}</span>
                     </div>
                   );
                 })}
@@ -293,14 +282,14 @@ function ArchivedReportView({
             </div>
           )}
 
-          {archive.notes.meetings && <NotesReadOnly title="Meetings Attended" icon="🤝" value={archive.notes.meetings} />}
-          {archive.notes.actions && <NotesReadOnly title="Actions Taken & Completed" icon="✅" value={archive.notes.actions} />}
-          {archive.notes.nextFocus && <NotesReadOnly title="Next Week's Areas of Focus" icon="🎯" value={archive.notes.nextFocus} />}
+          {archive.notes.meetings && <NotesReadOnly title="Meetings Attended" value={archive.notes.meetings} />}
+          {archive.notes.actions && <NotesReadOnly title="Actions Taken & Completed" value={archive.notes.actions} />}
+          {archive.notes.nextFocus && <NotesReadOnly title="Next Week's Focus" value={archive.notes.nextFocus} />}
 
           {/* Footer */}
-          <div className="text-center py-4 border-t border-brand-cream">
+          <div className="text-center py-2 border-t border-brand-cream">
             <p className="text-xs text-brand-dark/30">
-              {archive.companyName} Suite · Week of {archive.weekLabel} · Archived {savedDate}
+              {archive.companyName} Suite · Week of {archive.weekLabel}
             </p>
           </div>
         </div>
@@ -444,25 +433,15 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
   return (
     <>
-      <style>{`
-        @media print {
-          @page { margin: 1.5cm; size: A4; }
-          body { background: white !important; font-size: 11pt; }
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; }
-          .metric-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-          h1, h2, h3 { page-break-after: avoid; }
-        }
-      `}</style>
+      <style>{PRINT_STYLE}</style>
 
       <div className="flex flex-col h-full">
         {/* Toolbar */}
-        <div className="bg-white border-b border-brand-cream px-6 py-4 flex items-center justify-between no-print">
+        <div className="bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between no-print">
           <div>
-            <h1 className="font-display text-xl font-semibold text-brand-dark">Weekly Report</h1>
-            <p className="text-sm text-brand-dark/50 mt-0.5">
-              {showArchives ? `${archives.length} saved report${archives.length !== 1 ? 's' : ''}` : `Week of ${weekLabel} · Fill in sections below, then save or download`}
+            <h1 className="font-display text-lg font-semibold text-brand-dark">Weekly Report</h1>
+            <p className="text-xs text-brand-dark/50 mt-0.5">
+              {showArchives ? `${archives.length} saved report${archives.length !== 1 ? 's' : ''}` : `Week of ${weekLabel}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -477,8 +456,8 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 >
                   {saveLabel}
                 </button>
-                <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 text-sm">
-                  <span>⎙</span> Download PDF
+                <button onClick={() => window.print()} className="btn-primary text-sm">
+                  Download PDF
                 </button>
               </>
             )}
@@ -490,7 +469,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                   : 'bg-white text-brand-dark/60 border-brand-cream hover:text-brand-dark'
               }`}
             >
-              ◑ Archives {archives.length > 0 && (
+              Archives {archives.length > 0 && (
                 <span className={`rounded-full px-1.5 text-xs ${showArchives ? 'bg-brand-dark/20 text-brand-dark' : 'bg-brand-gold/20 text-brand-gold'}`}>
                   {archives.length}
                 </span>
@@ -501,32 +480,28 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
         {/* Archives panel */}
         {showArchives ? (
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-5">
             <div className="max-w-3xl mx-auto">
               {archives.length === 0 ? (
-                <div className="text-center py-20 text-brand-dark/40">
-                  <p className="text-4xl mb-4">◑</p>
+                <div className="text-center py-16 text-brand-dark/40">
                   <p className="font-medium text-brand-dark/50 mb-1">No saved reports yet</p>
-                  <p className="text-sm">Click "Save Report" on the current week's report to archive it here.</p>
+                  <p className="text-sm">Save a report to archive it here.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {archives.map(archive => {
                     const saved = new Date(archive.savedAt).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
                     });
                     return (
-                      <div key={archive.id} className="card p-5 flex items-center gap-5">
-                        <div className="w-10 h-10 rounded-full bg-brand-gold/15 border border-brand-gold/25 flex items-center justify-center flex-shrink-0">
-                          <span className="text-brand-gold font-display font-bold text-sm">◑</span>
-                        </div>
+                      <div key={archive.id} className="card p-4 flex items-center gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-brand-dark">Week of {archive.weekLabel}</p>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="text-xs text-brand-dark/40">Saved {saved}</span>
-                            <span className="text-xs text-brand-dark/25">·</span>
-                            <span className="text-xs text-brand-gold font-medium">{formatCurrency(archive.stats.totalValue)} pipeline</span>
-                            <span className="text-xs text-brand-dark/25">·</span>
+                          <p className="font-semibold text-sm text-brand-dark">Week of {archive.weekLabel}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs text-brand-dark/40">{saved}</span>
+                            <span className="text-xs text-brand-dark/20">·</span>
+                            <span className="text-xs text-brand-gold font-medium">{formatCurrency(archive.stats.totalValue)}</span>
+                            <span className="text-xs text-brand-dark/20">·</span>
                             <span className="text-xs text-brand-dark/50">{archive.stats.clientCount} clients</span>
                           </div>
                         </div>
@@ -535,12 +510,12 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                             onClick={() => setViewingArchive(archive)}
                             className="btn-primary py-1.5 px-3 text-sm"
                           >
-                            View & Download
+                            View
                           </button>
                           <button
                             onClick={() => deleteArchive(archive.id)}
                             className="text-brand-dark/30 hover:text-red-500 transition-colors text-sm px-2 py-1.5"
-                            title="Delete archive"
+                            title="Delete"
                           >
                             ✕
                           </button>
@@ -554,93 +529,85 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
           </div>
         ) : (
           /* Current report */
-          <div className="flex-1 overflow-auto p-6">
-            <div ref={reportRef} className="max-w-4xl mx-auto space-y-6">
+          <div className="flex-1 overflow-auto p-5">
+            <div ref={reportRef} className="max-w-4xl mx-auto space-y-4 print-compact">
 
               {/* Report header */}
               <div className="card overflow-hidden">
-                <div className="bg-brand-dark px-8 py-6">
+                <div className="bg-brand-dark px-6 py-4 print-header">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Weekly Business Report</p>
-                      <h1 className="font-display text-3xl font-bold text-white">{companyName}</h1>
-                      <p className="text-white/50 text-sm mt-1">{reportDate}</p>
+                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Weekly Business Report</p>
+                      <h1 className="font-display text-2xl font-bold text-white">{companyName}</h1>
+                      <p className="text-white/50 text-xs mt-0.5">{reportDate}</p>
                     </div>
                     <div className="text-right hidden sm:block">
-                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
-                      <p className="text-white font-medium">{weekLabel}</p>
-                      <p className="text-white/50 text-xs mt-1">{clients.length} active clients</p>
+                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Week of</p>
+                      <p className="text-white font-medium text-sm">{weekLabel}</p>
+                      <p className="text-white/50 text-xs mt-0.5">{clients.length} active clients</p>
                     </div>
                   </div>
                 </div>
-                <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+                <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
               </div>
 
               {/* Pipeline Metrics */}
-              <div className="card p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-base">📊</span>
-                  <h2 className="font-display text-lg font-semibold text-brand-dark">Pipeline Metrics</h2>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="card p-4">
+                <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
                   {[
                     { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), sub: 'All active deals', color: 'text-brand-dark' },
-                    { label: 'Active Value', value: formatCurrency(stats.activeValue), sub: 'Excl. closed deals', color: 'text-brand-gold' },
-                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), sub: `${stats.byStage.Close.length} deals closed`, color: 'text-emerald-600' },
-                    { label: 'Avg. Deal Size', value: formatCurrency(stats.avgDeal), sub: `Across ${clients.length} clients`, color: 'text-brand-dark' },
+                    { label: 'Active Value', value: formatCurrency(stats.activeValue), sub: 'Excl. closed', color: 'text-brand-gold' },
+                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), sub: `${stats.byStage.Close.length} closed`, color: 'text-emerald-600' },
+                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), sub: `${clients.length} clients`, color: 'text-brand-dark' },
                   ].map(m => (
                     <div key={m.label} className="metric-card">
                       <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
-                      <p className={`font-display text-2xl font-bold ${m.color}`}>{m.value}</p>
-                      <p className="text-xs text-brand-dark/40">{m.sub}</p>
+                      <p className={`font-display text-xl font-bold ${m.color}`}>{m.value}</p>
+                      <p className="text-xs text-brand-dark/40 no-print">{m.sub}</p>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-3 gap-3 print-metrics mb-4">
                   {[
-                    { label: 'New Clients', value: stats.newThisWeek.length, icon: '✦', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-                    { label: 'Contacted This Week', value: stats.contactedThisWeek.length, icon: '◎', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-                    { label: 'Stale (7d+)', value: stats.staleClients.length, icon: '⚠', color: stats.staleClients.length > 0 ? 'text-amber-700' : 'text-emerald-600', bg: stats.staleClients.length > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: stats.staleClients.length > 0 ? 'border-amber-100' : 'border-emerald-100' },
+                    { label: 'New', value: stats.newThisWeek.length, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+                    { label: 'Contacted', value: stats.contactedThisWeek.length, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+                    { label: 'Stale (7d+)', value: stats.staleClients.length, color: stats.staleClients.length > 0 ? 'text-amber-700' : 'text-emerald-600', bg: stats.staleClients.length > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: stats.staleClients.length > 0 ? 'border-amber-100' : 'border-emerald-100' },
                   ].map(item => (
-                    <div key={item.label} className={`rounded-lg p-4 flex items-center gap-3 ${item.bg} border ${item.border}`}>
-                      <div className={`text-2xl ${item.color}`}>{item.icon}</div>
-                      <div>
-                        <p className={`font-display text-2xl font-bold ${item.color}`}>{item.value}</p>
-                        <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
-                      </div>
+                    <div key={item.label} className={`rounded-lg px-3 py-2 text-center ${item.bg} border ${item.border}`}>
+                      <p className={`font-display text-xl font-bold ${item.color}`}>{item.value}</p>
+                      <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-brand-dark/60 uppercase tracking-wider mb-3">Stage Breakdown</h3>
-                  <div className="space-y-2.5">
+                  <h3 className="text-xs font-semibold text-brand-dark/60 uppercase tracking-wider mb-2">Stage Breakdown</h3>
+                  <div className="space-y-1.5">
                     {PIPELINE_STAGES.map(stage => {
                       const stageClients = stats.byStage[stage];
                       const value = stageClients.reduce((s, c) => s + c.value, 0);
-                      const pct = Math.round((stageClients.length / Math.max(clients.length, 1)) * 100);
                       const cfg = STAGE_CONFIG[stage];
                       return (
-                        <div key={stage} className="flex items-center gap-4">
-                          <div className="w-32 flex-shrink-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                              <span className="text-sm font-medium text-brand-dark">{stage}</span>
+                        <div key={stage} className="flex items-center gap-3 print-stage-row">
+                          <div className="w-28 flex-shrink-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                              <span className="text-xs font-medium text-brand-dark">{stage}</span>
                             </div>
                           </div>
                           <div className="flex-1">
-                            <div className="h-6 bg-brand-light rounded-full overflow-hidden">
+                            <div className="h-4 print-stage-bar bg-brand-light rounded-full overflow-hidden">
                               <div
-                                className={`h-full ${cfg.dot} rounded-full transition-all duration-500 flex items-center justify-end pr-2`}
+                                className={`h-full ${cfg.dot} rounded-full transition-all duration-500 flex items-center justify-end pr-1.5`}
                                 style={{ width: `${Math.max((stageClients.length / maxCount) * 100, 4)}%` }}
                               >
-                                {stageClients.length > 0 && <span className="text-white text-xs font-bold">{stageClients.length}</span>}
+                                {stageClients.length > 0 && <span className="text-white text-xs font-bold leading-none">{stageClients.length}</span>}
                               </div>
                             </div>
                           </div>
-                          <div className="w-24 text-right flex-shrink-0">
-                            <span className="text-sm font-semibold text-brand-gold">{formatCurrency(value)}</span>
+                          <div className="w-20 text-right flex-shrink-0">
+                            <span className="text-xs font-semibold text-brand-gold">{formatCurrency(value)}</span>
                           </div>
-                          <div className="w-10 text-right flex-shrink-0 text-xs text-brand-dark/40">{pct}%</div>
                         </div>
                       );
                     })}
@@ -650,31 +617,29 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
               <EditableSection
                 title="Pipeline Updates"
-                icon="🔄"
                 placeholder={`e.g.\nRolex follow-up call completed — awaiting revised scope feedback\nSamsung proposal at decision stage, chasing CMO sign-off\nNew intro to Verizon sport team via Diego`}
                 value={notes.pipelineUpdates}
                 onChange={setNote('pipelineUpdates')}
               />
 
               {stats.topClients.length > 0 && (
-                <div className="card p-6">
-                  <h2 className="font-display text-lg font-semibold text-brand-dark mb-4">Top Opportunities</h2>
-                  <div className="space-y-2.5">
+                <div className="card p-4">
+                  <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Top Opportunities</h2>
+                  <div className="space-y-1.5">
                     {stats.topClients.map((client, i) => {
                       const cfg = STAGE_CONFIG[client.stage];
                       const stale = isStale(client.lastContact);
                       return (
-                        <div key={client.id} className={`flex items-center gap-4 p-3 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                          <span className="w-7 h-7 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-sm flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                        <div key={client.id} className={`flex items-center gap-3 p-2 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
+                          <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-sm text-brand-dark truncate">{client.name}</p>
-                              {stale && <span className="stale-indicator text-xs">⚠ stale</span>}
-                            </div>
-                            <p className="text-xs text-brand-dark/50 truncate">{client.company}</p>
+                            <p className="font-semibold text-xs text-brand-dark truncate">
+                              {client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span>
+                              {stale && <span className="ml-1 text-amber-600 text-xs">stale</span>}
+                            </p>
                           </div>
-                          <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{cfg.icon} {client.stage}</span>
-                          <span className="font-bold text-brand-gold text-sm flex-shrink-0">{formatCurrency(client.value)}</span>
+                          <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
+                          <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(client.value)}</span>
                         </div>
                       );
                     })}
@@ -683,32 +648,27 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               )}
 
               {stats.staleClients.length > 0 && (
-                <div className="card border-amber-200 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">⚠</div>
-                    <div>
-                      <h2 className="font-display text-lg font-semibold text-brand-dark">Requires Attention</h2>
-                      <p className="text-xs text-amber-700">{stats.staleClients.length} client{stats.staleClients.length > 1 ? 's' : ''} not contacted in 7+ days</p>
-                    </div>
+                <div className="card border-amber-200 p-4">
+                  <div className="mb-3">
+                    <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Requires Attention</h2>
+                    <p className="text-xs text-amber-700">{stats.staleClients.length} client{stats.staleClients.length > 1 ? 's' : ''} not contacted in 7+ days</p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {stats.staleClients
                       .sort((a, b) => daysSince(b.lastContact) - daysSince(a.lastContact))
                       .map(client => {
                         const days = daysSince(client.lastContact);
                         const cfg = STAGE_CONFIG[client.stage];
                         return (
-                          <div key={client.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
-                            <div className="flex items-center gap-3">
+                          <div key={client.id} className="flex items-center justify-between p-2 bg-amber-50 rounded-lg border border-amber-100">
+                            <div className="flex items-center gap-2">
                               <div>
-                                <p className="font-semibold text-sm text-brand-dark">{client.name}</p>
-                                <p className="text-xs text-brand-dark/50">{client.company}</p>
+                                <p className="font-semibold text-xs text-brand-dark">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
                               </div>
-                              <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
+                              <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-bold text-amber-700">{days} days</p>
-                              <p className="text-xs text-brand-dark/50">{formatDate(client.lastContact)}</p>
+                              <p className="text-xs font-bold text-amber-700">{days}d</p>
                             </div>
                           </div>
                         );
@@ -719,7 +679,6 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
               <EditableSection
                 title="Meetings Attended"
-                icon="🤝"
                 placeholder={`e.g.\nRolex — Arnaud Boetsch — scope clarification call (Tue)\nMeta partnerships team — Chris Cox — intro meeting (Wed)\nInternal strategy sync with team (Thu)`}
                 value={notes.meetings}
                 onChange={setNote('meetings')}
@@ -727,35 +686,32 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
               <EditableSection
                 title="Actions Taken & Completed"
-                icon="✅"
-                placeholder={`e.g.\nSent revised Spotify proposal with updated distribution scope\nFollowed up with CNN on programming decision timeline\nOnboarded HubSpot contact to Prof G content partnership deck`}
+                placeholder={`e.g.\nSent revised Samsung proposal with updated integration scope\nFollowed up with Toyota on end-of-month decision timeline\nOnboarded HubSpot contact to Prof G content partnership deck`}
                 value={notes.actions}
                 onChange={setNote('actions')}
               />
 
               <EditableSection
-                title="Next Week's Areas of Focus"
-                icon="🎯"
+                title="Next Week's Focus"
                 placeholder={`e.g.\nClose Samsung partnership — final sign-off\nSecond meeting with United Airlines — destination storytelling examples\nInitiate LVMH event co-branding conversation`}
                 value={notes.nextFocus}
                 onChange={setNote('nextFocus')}
-                printLabel="Next Week's Areas of Focus"
               />
 
               {stats.newThisWeek.length > 0 && (
-                <div className="card p-6">
-                  <h2 className="font-display text-lg font-semibold text-brand-dark mb-4">New This Week</h2>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="card p-4">
+                  <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">New This Week</h2>
+                  <div className="grid grid-cols-2 gap-2">
                     {stats.newThisWeek.map(client => {
                       const cfg = STAGE_CONFIG[client.stage];
                       return (
-                        <div key={client.id} className="flex items-center gap-3 p-3 bg-brand-light rounded-lg">
+                        <div key={client.id} className="flex items-center gap-2 p-2 bg-brand-light rounded-lg">
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-brand-dark truncate">{client.name}</p>
+                            <p className="font-semibold text-xs text-brand-dark truncate">{client.name}</p>
                             <p className="text-xs text-brand-dark/50 truncate">{client.company}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border block mb-1`}>{client.stage}</span>
+                            <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border block mb-0.5`}>{client.stage}</span>
                             <span className="text-xs font-bold text-brand-gold">{formatCurrency(client.value)}</span>
                           </div>
                         </div>
@@ -765,9 +721,9 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 </div>
               )}
 
-              <div className="text-center py-4 border-t border-brand-cream">
+              <div className="text-center py-2 border-t border-brand-cream">
                 <p className="text-xs text-brand-dark/30">
-                  Generated by {companyName} Suite · {reportDate}
+                  {companyName} Suite · {reportDate}
                 </p>
               </div>
 
