@@ -495,13 +495,37 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
   const enabledCount = Object.values(sections).filter(Boolean).length;
 
+  const shareProposal = () => {
+    const title = proposal ? extractTitle(proposal) : 'Brief';
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(`Please find the attached brief: ${title}\n\nTo download the PDF, open the brief in ${companyName} Suite and click "Download PDF".`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+  };
+
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* Form panel */}
-      <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden">
-        <div className="px-5 py-4 border-b border-brand-cream">
-          <h2 className="font-display text-xl font-semibold text-brand-dark">Partner Brief Generator</h2>
-          <p className="text-xs text-brand-dark/50 mt-0.5">Prof G Partnership Framework · Powered by Claude</p>
+    <>
+      <style>{`
+        @media print {
+          @page { margin: 1cm; size: A4; }
+          body { background: white !important; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          .proposal-form-panel { display: none !important; }
+          .proposal-toolbar { display: none !important; }
+          .proposal-refinement { display: none !important; }
+          .proposal-output { overflow: visible !important; }
+          .proposal-output > div { overflow: visible !important; }
+          .prose-proposal { font-size: 10pt; line-height: 1.4; }
+          .prose-proposal h1 { font-size: 18pt !important; }
+          .prose-proposal h2 { font-size: 13pt !important; }
+          .prose-proposal h3 { font-size: 11pt !important; }
+        }
+      `}</style>
+      <div className="flex h-full overflow-hidden">
+        {/* Form panel */}
+        <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden proposal-form-panel">
+          <div className="px-5 py-4 border-b border-brand-cream">
+            <h2 className="font-display text-xl font-semibold text-brand-dark">Partner Brief Generator</h2>
+            <p className="text-xs text-brand-dark/50 mt-0.5">Prof G Partnership Framework · Powered by Claude</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -824,10 +848,10 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
       </div>
 
       {/* Brief output */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-brand-light">
+      <div className="flex-1 flex flex-col overflow-hidden bg-brand-light proposal-output">
         {/* Brief toolbar */}
         {proposal && (
-          <div className="bg-white border-b border-brand-cream px-6 py-3 space-y-2">
+          <div className="bg-white border-b border-brand-cream px-6 py-3 space-y-2 proposal-toolbar">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
@@ -855,8 +879,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <button onClick={copyProposal} className="btn-secondary flex items-center gap-1.5">
                   {copied ? '✓ Copied!' : '⎘ Copy'}
                 </button>
-                <button onClick={() => window.print()} className="btn-secondary flex items-center gap-1.5">
-                  ⎙ Print
+                <button onClick={shareProposal} className="btn-secondary flex items-center gap-1.5">
+                  Share
+                </button>
+                <button onClick={() => window.print()} className="btn-primary flex items-center gap-1.5">
+                  Download PDF
                 </button>
               </div>
             </div>
@@ -983,7 +1010,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
         {/* Refinement bar */}
         {proposal && !loading && !editing && (
-          <div className="bg-white border-t border-brand-cream px-6 py-3 flex-shrink-0">
+          <div className="bg-white border-t border-brand-cream px-6 py-3 flex-shrink-0 proposal-refinement">
             <div className="flex items-center gap-2 max-w-3xl mx-auto">
               <div className="relative flex-1">
                 <input
@@ -1011,5 +1038,6 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         )}
       </div>
     </div>
+    </>
   );
 }
