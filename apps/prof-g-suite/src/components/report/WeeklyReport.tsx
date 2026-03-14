@@ -59,20 +59,21 @@ interface ArchivedReport {
 const PRINT_STYLE = `
 @media print {
   @page { margin: 0.8cm; size: A4; }
-  body { background: white !important; font-size: 8.5pt; line-height: 1.3; }
+  body { background: white !important; font-size: 8.5pt; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #111 !important; }
   .no-print { display: none !important; }
   .print-only { display: block !important; }
-  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; padding: 6px 10px !important; margin-bottom: 2px !important; }
-  .metric-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; padding: 4px 8px !important; }
+  .card { box-shadow: none !important; border: 1px solid #d1d5db !important; break-inside: avoid; padding: 8px 12px !important; margin-bottom: 3px !important; }
+  .metric-card { box-shadow: none !important; border: 1px solid #d1d5db !important; padding: 6px 10px !important; }
   .print-compact > * + * { margin-top: 4px !important; }
   h1 { font-size: 14pt !important; }
-  h2 { font-size: 9pt !important; }
+  h2 { font-size: 9.5pt !important; font-weight: 700 !important; }
   h3 { font-size: 8.5pt !important; }
   h1, h2, h3 { page-break-after: avoid; }
-  .print-header { padding: 8px 12px !important; }
-  .print-metrics { gap: 4px !important; margin-bottom: 4px !important; }
-  .print-stage-bar { height: 12px !important; }
-  .print-stage-row { gap: 4px !important; }
+  .print-header { padding: 10px 14px !important; background-color: #15803d !important; }
+  .print-accent { background: #15803d !important; }
+  .print-metrics { gap: 6px !important; margin-bottom: 6px !important; }
+  .print-stage-bar { height: 14px !important; }
+  .print-stage-row { gap: 6px !important; }
   .print-stage-row + .print-stage-row { margin-top: 2px !important; }
 }
 `;
@@ -193,7 +194,7 @@ function ArchivedReportView({
                 </div>
               </div>
             </div>
-            <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+            <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark print-accent" />
           </div>
 
           {/* Pipeline Metrics */}
@@ -548,7 +549,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                     </div>
                   </div>
                 </div>
-                <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+                <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark print-accent" />
               </div>
 
               {/* Pipeline Metrics */}
@@ -697,29 +698,6 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 value={notes.nextFocus}
                 onChange={setNote('nextFocus')}
               />
-
-              {stats.newThisWeek.length > 0 && (
-                <div className="card p-4">
-                  <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">New This Week</h2>
-                  <div className="grid grid-cols-2 gap-2">
-                    {stats.newThisWeek.map(client => {
-                      const cfg = STAGE_CONFIG[client.stage];
-                      return (
-                        <div key={client.id} className="flex items-center gap-2 p-2 bg-brand-light rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-xs text-brand-dark truncate">{client.name}</p>
-                            <p className="text-xs text-brand-dark/50 truncate">{client.company}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border block mb-0.5`}>{client.stage}</span>
-                            <span className="text-xs font-bold text-brand-gold">{formatCurrency(client.value)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="text-center py-2 border-t border-brand-cream">
                 <p className="text-xs text-brand-dark/30">
