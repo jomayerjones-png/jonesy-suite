@@ -141,6 +141,39 @@ function NotesReadOnly({ title, value }: { title: string; value: string }) {
   );
 }
 
+function SectionWrapper({
+  title,
+  hidden,
+  onToggle,
+  children,
+}: {
+  title: string;
+  hidden: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  if (hidden) {
+    return (
+      <div className="no-print flex items-center gap-2 px-4 py-2 bg-brand-light/50 border border-dashed border-brand-cream rounded-lg cursor-pointer hover:border-brand-cream-dark transition-colors" onClick={onToggle}>
+        <span className="text-xs text-brand-dark/30 flex-1">{title}</span>
+        <span className="text-xs text-brand-dark/40">Show</span>
+      </div>
+    );
+  }
+  return (
+    <div className="relative group">
+      <button
+        onClick={onToggle}
+        className="no-print absolute top-2.5 right-2.5 z-10 text-xs text-brand-dark/20 group-hover:text-brand-dark/50 hover:!text-brand-dark transition-colors px-1.5 py-0.5 rounded"
+        title="Hide section from PDF"
+      >
+        Hide
+      </button>
+      {children}
+    </div>
+  );
+}
+
 function ArchivedReportView({
   archive,
   onClose,
@@ -322,6 +355,8 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
   const [saveLabel, setSaveLabel] = useState('Save Report');
+  const [hiddenSections, setHiddenSections] = useState<Record<string, boolean>>({});
+  const toggleSection = (key: string) => setHiddenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_REPORT, JSON.stringify(notes));
@@ -553,6 +588,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               </div>
 
               {/* Pipeline Metrics */}
+              <SectionWrapper title="Pipeline Metrics" hidden={!!hiddenSections.metrics} onToggle={() => toggleSection('metrics')}>
               <div className="card p-4">
                 <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
@@ -615,15 +651,19 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                   </div>
                 </div>
               </div>
+              </SectionWrapper>
 
+              <SectionWrapper title="Pipeline Updates" hidden={!!hiddenSections.pipelineUpdates} onToggle={() => toggleSection('pipelineUpdates')}>
               <EditableSection
                 title="Pipeline Updates"
                 placeholder={`e.g.\nRolex follow-up call completed — awaiting revised scope feedback\nSamsung proposal at decision stage, chasing CMO sign-off\nNew intro to Verizon sport team via Diego`}
                 value={notes.pipelineUpdates}
                 onChange={setNote('pipelineUpdates')}
               />
+              </SectionWrapper>
 
               {stats.topClients.length > 0 && (
+                <SectionWrapper title="Top Opportunities" hidden={!!hiddenSections.topOpportunities} onToggle={() => toggleSection('topOpportunities')}>
                 <div className="card p-4">
                   <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Top Opportunities</h2>
                   <div className="space-y-1.5">
@@ -646,9 +686,11 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                     })}
                   </div>
                 </div>
+                </SectionWrapper>
               )}
 
               {stats.staleClients.length > 0 && (
+                <SectionWrapper title="Requires Attention" hidden={!!hiddenSections.attention} onToggle={() => toggleSection('attention')}>
                 <div className="card border-amber-200 p-4">
                   <div className="mb-3">
                     <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Requires Attention</h2>
@@ -676,28 +718,35 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                       })}
                   </div>
                 </div>
+                </SectionWrapper>
               )}
 
+              <SectionWrapper title="Meetings Attended" hidden={!!hiddenSections.meetings} onToggle={() => toggleSection('meetings')}>
               <EditableSection
                 title="Meetings Attended"
                 placeholder={`e.g.\nRolex — Arnaud Boetsch — scope clarification call (Tue)\nMeta partnerships team — Chris Cox — intro meeting (Wed)\nInternal strategy sync with team (Thu)`}
                 value={notes.meetings}
                 onChange={setNote('meetings')}
               />
+              </SectionWrapper>
 
+              <SectionWrapper title="Actions Taken & Completed" hidden={!!hiddenSections.actions} onToggle={() => toggleSection('actions')}>
               <EditableSection
                 title="Actions Taken & Completed"
                 placeholder={`e.g.\nSent revised Samsung proposal with updated integration scope\nFollowed up with Toyota on end-of-month decision timeline\nOnboarded HubSpot contact to Prof G content partnership deck`}
                 value={notes.actions}
                 onChange={setNote('actions')}
               />
+              </SectionWrapper>
 
+              <SectionWrapper title="Next Week's Focus" hidden={!!hiddenSections.nextFocus} onToggle={() => toggleSection('nextFocus')}>
               <EditableSection
                 title="Next Week's Focus"
                 placeholder={`e.g.\nClose Samsung partnership — final sign-off\nSecond meeting with United Airlines — destination storytelling examples\nInitiate LVMH event co-branding conversation`}
                 value={notes.nextFocus}
                 onChange={setNote('nextFocus')}
               />
+              </SectionWrapper>
 
               <div className="text-center py-2 border-t border-brand-cream">
                 <p className="text-xs text-brand-dark/30">
