@@ -1,5 +1,64 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Client, ProposalFormData, SavedProposal, generateId } from '../../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
+
+// --- Reference Documents ---
+interface RefDoc {
+  id: string;
+  name: string;
+  content: string;
+  addedAt: string;
+}
+
+const REF_DOCS_STORAGE_KEY = 'jonesy_ref_docs';
+
+function loadRefDocs(): RefDoc[] {
+  try {
+    const stored = localStorage.getItem(REF_DOCS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as RefDoc[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveRefDocs(docs: RefDoc[]) {
+  localStorage.setItem(REF_DOCS_STORAGE_KEY, JSON.stringify(docs));
+}
+
+async function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+    reader.readAsText(file);
+  });
+}
+
+async function readPdfAsText(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(text);
+  }
+  return pages.join('\n\n');
+}
+
+async function readFileContent(file: File): Promise<string> {
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    return readPdfAsText(file);
+  }
+  return readFileAsText(file);
+}
 
 interface ProposalGeneratorProps {
   companyName: string;
@@ -81,6 +140,7 @@ function buildSystemPrompt(
   length: ProposalLength,
   tone: ProposalTone,
   sections: Record<SectionId, boolean>,
+  referenceDocs: RefDoc[] = [],
 ): string {
   const activeSections = SECTION_DEFS.filter(s => sections[s.id]);
   const sectionInstructions = activeSections
@@ -142,7 +202,19 @@ STYLE GUIDELINES:
 - The proposal should read as a coherent narrative, not a checklist
 - Use markdown tables for the Framework overview and Investment structure
 
-Format using markdown. Use ## for section headings. Begin with the cover block as described above.`;
+Format using markdown. Use ## for section headings. Begin with the cover block as described above.`
+
+  + (referenceDocs.length > 0 ? `
+
+REFERENCE MATERIAL WEIGHTING
+You have been provided with reference documents below. These are the primary source of truth for this proposal.
+- Draw approximately 60% of your content, frameworks, language, positioning, and specifics from the reference material.
+- Use approximately 40% of your own knowledge to fill gaps, add strategic context, ensure coherence, and enhance the proposal.
+- When the reference material contains specific data points, frameworks, case studies, pricing, or positioning language, prefer those over generic content.
+- Mirror the tone, terminology, and strategic framing found in the reference material.
+
+REFERENCE DOCUMENTS:
+${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
 }
 
 function buildUserPrompt(form: ProposalFormData, companyName: string): string {
@@ -218,6 +290,42 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const [sections, setSections] = useState<Record<SectionId, boolean>>({ ...ALL_SECTIONS });
   const refinementRef = useRef<HTMLInputElement>(null);
 
+  // Reference documents
+  const [refDocs, setRefDocs] = useState<RefDoc[]>(loadRefDocs);
+  const [uploadingRef, setUploadingRef] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    saveRefDocs(refDocs);
+  }, [refDocs]);
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingRef(true);
+    try {
+      const newDocs: RefDoc[] = [];
+      for (const file of Array.from(files)) {
+        const content = await readFileContent(file);
+        newDocs.push({
+          id: generateId(),
+          name: file.name,
+          content,
+          addedAt: new Date().toISOString(),
+        });
+      }
+      setRefDocs(prev => [...prev, ...newDocs]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to read file');
+    } finally {
+      setUploadingRef(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeRefDoc = (id: string) => {
+    setRefDocs(prev => prev.filter(d => d.id !== id));
+  };
+
   const toggleSection = (id: SectionId) => {
     setSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -250,7 +358,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         stream: true,
-        system: buildSystemPrompt(companyName, length, tone, sections),
+        system: buildSystemPrompt(companyName, length, tone, sections, refDocs),
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
@@ -301,7 +409,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     }
 
     return fullText;
-  }, [apiKey, companyName, length, tone, sections]);
+  }, [apiKey, companyName, length, tone, sections, refDocs]);
 
   const generate = useCallback(async () => {
     const validationError = validateForm();
@@ -463,6 +571,66 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               Your key is used only in-browser and never stored or transmitted to any third party.
               Get one at{' '}
               <span className="text-brand-gold underline cursor-default">console.anthropic.com</span>
+            </p>
+          </div>
+
+          {/* Reference Documents */}
+          <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-gold text-sm">📄</span>
+                <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Reference Documents</label>
+              </div>
+              {refDocs.length > 0 && (
+                <span className="text-xs text-brand-dark/40 bg-brand-gold/10 rounded-full px-2 py-0.5 font-medium">
+                  60% weighted
+                </span>
+              )}
+            </div>
+
+            {refDocs.length > 0 && (
+              <div className="space-y-1.5">
+                {refDocs.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-brand-cream">
+                    <span className="text-xs">📎</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-brand-dark truncate">{doc.name}</p>
+                      <p className="text-xs text-brand-dark/35">{(doc.content.length / 1000).toFixed(1)}k chars</p>
+                    </div>
+                    <button
+                      onClick={() => removeRefDoc(doc.id)}
+                      className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 px-1"
+                      title="Remove document"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,.csv,.json,.html,.rtf,.pdf"
+              multiple
+              className="hidden"
+              onChange={e => handleFileUpload(e.target.files)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingRef}
+              className="btn-secondary w-full text-xs py-2 flex items-center justify-center gap-1.5"
+            >
+              {uploadingRef ? (
+                <span className="animate-shimmer">Reading files…</span>
+              ) : (
+                <>+ Upload Reference Files</>
+              )}
+            </button>
+            <p className="text-xs text-brand-dark/40 leading-relaxed">
+              Upload briefs, frameworks, past proposals, brand docs, or any reference files. Content is weighted 60/40 against Claude's knowledge.
+              Accepts .pdf, .md, .txt, .csv, .json, .html, .rtf
             </p>
           </div>
 
