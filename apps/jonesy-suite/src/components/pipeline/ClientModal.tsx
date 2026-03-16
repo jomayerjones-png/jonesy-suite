@@ -1,5 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { Client, SavedProposal, PIPELINE_STAGES, generateId } from '../../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
+
+async function readPdfAsText(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(text);
+  }
+  return pages.join('\n\n');
+}
 
 type ClientFormData = Omit<Client, 'id' | 'createdAt'>;
 
@@ -98,9 +119,18 @@ function ImportProposalModal({
     setError('');
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const text = await readPdfAsText(file);
+        loadText(text, file.name);
+      } catch {
+        setError('Failed to read PDF. The file may be corrupted or password-protected.');
+      }
+      return;
+    }
     if (!file.name.match(/\.(txt|md|markdown)$/i)) {
-      setError('Please upload a .txt or .md file. Export your Google Doc via File → Download → Plain Text.');
+      setError('Please upload a .pdf, .txt, or .md file.');
       return;
     }
     const reader = new FileReader();
@@ -205,7 +235,7 @@ function ImportProposalModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.markdown"
+                accept=".txt,.md,.markdown,.pdf"
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
               />
@@ -219,7 +249,7 @@ function ImportProposalModal({
                 <>
                   <span className="text-3xl text-brand-dark/20">⬆</span>
                   <p className="text-sm font-semibold text-brand-dark/60">Drop file here or click to browse</p>
-                  <p className="text-xs text-brand-dark/40">Accepts .txt and .md files</p>
+                  <p className="text-xs text-brand-dark/40">Accepts .pdf, .txt, and .md files</p>
                 </>
               )}
             </div>
