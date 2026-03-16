@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Client, ProposalFormData, SavedProposal, generateId } from '../../types';
+import { Client, ProposalFormData, SavedProposal, generateId, formatCurrency, daysSince } from '../../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -84,7 +84,7 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-type ProposalFormat = 'full' | 'onesheet';
+type ProposalFormat = 'full' | 'onesheet' | 'reversebrief';
 type ProposalLength = 'concise' | 'standard' | 'comprehensive';
 type ProposalTone = 'confident' | 'collaborative' | 'formal';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -92,6 +92,7 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string };
 const FORMAT_OPTIONS: { value: ProposalFormat; label: string; desc: string }[] = [
   { value: 'full', label: 'Full Proposal', desc: 'Labyrinth Framework' },
   { value: 'onesheet', label: 'One Sheet', desc: 'Commercial Strategy Brief' },
+  { value: 'reversebrief', label: 'Reverse Brief', desc: 'Qualify & discover' },
 ];
 
 const SECTION_DEFS = [
@@ -343,6 +344,132 @@ ${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : 
 Write the complete one-sheet as ${companyName} presenting this to ${form.clientName} at ${form.company}. This should be ready to share with the client.`;
 }
 
+function buildReverseBriefSystemPrompt(
+  companyName: string,
+  tone: ProposalTone,
+  referenceDocs: RefDoc[] = [],
+): string {
+  const toneGuide = {
+    confident: 'Write with the confidence of someone who has done their homework. Be direct about what you see and what you still need to learn.',
+    collaborative: 'Write as a collaborative partner exploring the opportunity together. Warm but analytically rigorous.',
+    formal: 'Write in a formal, structured tone. Precise and measured.',
+  }[tone];
+
+  return `You are a senior strategist at ${companyName}, preparing an internal Reverse Brief — a pre-proposal qualifying document that captures your understanding of a prospective client BEFORE writing a formal proposal.
+
+PURPOSE:
+The Reverse Brief is NOT a proposal. It is an internal document that:
+1. Forces structured thinking about whether this is the right engagement
+2. Surfaces what we know vs. what we're assuming
+3. Identifies the specific questions we need answered before committing to a proposal
+4. Assesses strategic, commercial, and timing fit
+5. Sketches what the engagement would look like IF we proceed
+
+IMPORTANT PERSPECTIVE:
+- "We" = ${companyName}
+- This is written FOR the ${companyName} team, not for the client
+- Be candid — this is where honest assessment happens
+- Flag assumptions explicitly
+- Distinguish between what we know (from conversations, public info) and what we're inferring
+
+DOCUMENT STRUCTURE — follow this exact structure:
+
+# Reverse Brief — [Client Company]
+**Prepared by ${companyName} | [Current Month Year]**
+*Internal document — not for client distribution*
+
+## What We Know
+A substantive summary of the prospect's business, market position, current situation, and what has surfaced in conversations so far. Be specific. Cite what came from conversation vs. public information. If reference documents are provided, draw heavily from them. End with a clear statement of what the prospect has asked for or expressed interest in.
+
+## What We Think We See
+${companyName}'s hypothesis — the strategic tension or opportunity we believe exists, even if the prospect hasn't fully articulated it. This is the "diagnosis before the pitch." Be bold but flag it as a hypothesis. Frame it as: "Based on what we know, our read is..."
+
+## Open Questions
+A numbered list of 6–8 specific questions that MUST be answered before a proposal can be written. These should surface:
+1. Budget / investment appetite — not "what's your budget?" but smarter versions
+2. Decision-making structure — who decides, who influences, what's the process
+3. Timeline and urgency — why now, what happens if they wait
+4. Prior attempts — what they've tried, why it didn't work
+5. Success criteria — what does the client actually measure
+6. Internal constraints — politics, sensitivities, competing priorities
+7. Competitive landscape — who else they're talking to
+8. Scope boundaries — what's in, what's explicitly out
+
+Each question should include a brief note on WHY we need this answer and what it would change about our approach.
+
+## Fit Assessment
+A candid, structured assessment using three dimensions:
+
+**Strategic Fit** — Does this align with what ${companyName} does best? Is this the kind of problem we solve? Rate: Strong / Moderate / Weak, with a sentence explaining why.
+
+**Commercial Fit** — Is the likely value proportional to the effort? Is there a path to the right fee level? Rate: Strong / Moderate / Weak / Unknown, with reasoning.
+
+**Timing Fit** — Are they ready to act? Is there urgency or is this exploratory? Rate: Ready / Warming / Early, with evidence.
+
+**Overall Assessment** — One sentence: proceed, proceed with caution, or pass — and why.
+
+## If We Proceed
+A sketch of what the engagement would likely look like — not a full proposal, but enough to test the shape:
+- Likely workstreams (2–3, named and described in one sentence each)
+- Estimated duration
+- Investment range (if enough information exists to estimate)
+- Which phase of the Labyrinth Framework™ this maps to
+- Key risks or dependencies
+
+Sign off with:
+**${companyName}** | Internal Use Only
+
+TONE: ${toneGuide}
+
+LENGTH: Thorough but efficient — approximately 600–900 words. This is a working document, not a presentation.
+
+STYLE:
+- Analytical and candid — no sales language
+- Use bold headers and bullets for scannability
+- Flag assumptions with [ASSUMPTION] tags where relevant
+- Distinguish facts from inferences
+- Use markdown formatting throughout`
+
+  + (referenceDocs.length > 0 ? `
+
+REFERENCE MATERIAL:
+These documents contain information about the prospect. Use them as primary source material.
+
+${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
+}
+
+function buildReverseBriefUserPrompt(form: ProposalFormData, companyName: string, clientContext: string): string {
+  return `Prepare a Reverse Brief for the following prospect:
+
+CLIENT: ${form.clientName}
+COMPANY: ${form.company}${form.industry ? `\nINDUSTRY: ${form.industry}` : ''}
+
+WHAT WE KNOW SO FAR:
+${form.challenge || 'Limited information — use reference documents and public knowledge to build the picture.'}
+
+${form.currentState ? `CURRENT SITUATION:\n${form.currentState}\n` : ''}
+${form.desiredOutcome ? `WHAT THEY'VE EXPRESSED INTEREST IN:\n${form.desiredOutcome}\n` : ''}
+${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
+${clientContext ? `\nPIPELINE DATA:\n${clientContext}\n` : ''}
+
+Write the complete Reverse Brief as ${companyName}'s internal qualifying document. Be candid and analytical — this is for our team, not the client.`;
+}
+
+function buildClientContext(client: Client): string {
+  const parts: string[] = [];
+  parts.push(`Pipeline Stage: ${client.stage}`);
+  parts.push(`Deal Value: ${formatCurrency(client.value)}`);
+  if (client.industry) parts.push(`Industry: ${client.industry}`);
+  if (client.tags.length > 0) parts.push(`Tags: ${client.tags.join(', ')}`);
+  parts.push(`Days in Pipeline: ${daysSince(client.createdAt)}`);
+  if (client.proposals.length > 0) {
+    parts.push(`Previous Proposals: ${client.proposals.length} (latest: "${client.proposals[client.proposals.length - 1].title}", ${new Date(client.proposals[client.proposals.length - 1].createdAt).toLocaleDateString()})`);
+  }
+  if (client.notes) parts.push(`Pipeline Notes: ${client.notes}`);
+  if (client.outcome !== 'active') parts.push(`Outcome: ${client.outcome}${client.lostReason ? ` — ${client.lostReason}` : ''}`);
+  return parts.join('\n');
+}
+
 // Simple markdown-to-HTML renderer for display
 function renderMarkdown(text: string): string {
   return text
@@ -442,6 +569,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     if (!apiKey.trim()) return 'Please enter your Anthropic API key.';
     if (!form.clientName.trim()) return 'Client name is required.';
     if (!form.company.trim()) return 'Company name is required.';
+    if (format === 'reversebrief') return null; // reverse brief needs minimal input
     if (!form.challenge.trim()) return 'The challenge/problem description is required.';
     if (!form.desiredOutcome.trim()) return 'The desired outcome is required.';
     return null;
@@ -462,9 +590,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         stream: true,
-        system: format === 'onesheet'
-          ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
-          : buildSystemPrompt(companyName, length, tone, sections, refDocs),
+        system: format === 'reversebrief'
+          ? buildReverseBriefSystemPrompt(companyName, tone, refDocs)
+          : format === 'onesheet'
+            ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
+            : buildSystemPrompt(companyName, length, tone, sections, refDocs),
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
@@ -526,11 +656,26 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setLoading(true);
     setEditing(false);
 
+    const selectedClient = clients.find(c => c.id === selectedClientId);
+    const clientCtx = selectedClient ? buildClientContext(selectedClient) : '';
+
+    // For non-reverse-brief formats, inject reverse brief from client's proposals if available
+    let enrichedForm = form;
+    if (format !== 'reversebrief' && selectedClient) {
+      const existingReverseBrief = selectedClient.proposals.find(p => p.title.startsWith('Reverse Brief'));
+      if (existingReverseBrief) {
+        const reverseBriefContext = `\n\n--- REVERSE BRIEF (internal qualifying document) ---\n${existingReverseBrief.content}\n--- END REVERSE BRIEF ---`;
+        enrichedForm = { ...form, additionalContext: (form.additionalContext || '') + reverseBriefContext };
+      }
+    }
+
     const userMessage: ChatMessage = {
       role: 'user',
-      content: format === 'onesheet'
-        ? buildOneSheetUserPrompt(form, companyName)
-        : buildUserPrompt(form, companyName),
+      content: format === 'reversebrief'
+        ? buildReverseBriefUserPrompt(form, companyName, clientCtx)
+        : format === 'onesheet'
+          ? buildOneSheetUserPrompt(enrichedForm, companyName)
+          : buildUserPrompt(enrichedForm, companyName),
     };
     const messages = [userMessage];
 
@@ -593,6 +738,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
       ...prev,
       clientName: client.name,
       company: client.company,
+      industry: client.industry || prev.industry,
       additionalContext: client.notes ? `Pipeline notes: ${client.notes}` : prev.additionalContext,
     }));
     setSelectedClientId(clientId);
@@ -785,77 +931,140 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
           </FormSection>
 
-          {/* The challenge */}
-          <FormSection title="The Challenge">
-            <div>
-              <label className="label">Core Challenge / Problem *</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.challenge}
-                onChange={e => set('challenge', e.target.value)}
-                placeholder="What problem are they trying to solve? What's broken or missing? Be specific…"
-              />
-            </div>
-            <div>
-              <label className="label">Current State</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.currentState}
-                onChange={e => set('currentState', e.target.value)}
-                placeholder="Describe where they are today — operations, market position, team, technology…"
-              />
-            </div>
-          </FormSection>
+          {/* Reverse brief context badge */}
+          {format !== 'reversebrief' && selectedClientId && (() => {
+            const cl = clients.find(c => c.id === selectedClientId);
+            const rb = cl?.proposals.find(p => p.title.startsWith('Reverse Brief'));
+            return rb ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
+                <span className="text-emerald-500 text-sm mt-0.5">◈</span>
+                <div>
+                  <p className="text-xs font-semibold text-emerald-700">Reverse Brief available — context loaded</p>
+                  <p className="text-xs text-emerald-600/60 mt-0.5">"{rb.title}" will be injected as qualifying context into your proposal.</p>
+                </div>
+              </div>
+            ) : null;
+          })()}
 
-          {/* Outcomes */}
-          <FormSection title="Desired Outcomes">
-            <div>
-              <label className="label">Desired Outcome *</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.desiredOutcome}
-                onChange={e => set('desiredOutcome', e.target.value)}
-                placeholder="What does success look like? What should be true 6 months from now?"
-              />
-            </div>
-            <div>
-              <label className="label">Success Metrics</label>
-              <textarea
-                className="input-field resize-none"
-                rows={2}
-                value={form.successMetrics}
-                onChange={e => set('successMetrics', e.target.value)}
-                placeholder="Revenue growth, NPS, operational efficiency, brand awareness…"
-              />
-            </div>
-          </FormSection>
-
-          {/* Engagement */}
-          <FormSection title="Engagement Details">
-            <div className="grid grid-cols-2 gap-3">
+          {/* Reverse brief: simplified input */}
+          {format === 'reversebrief' ? (
+            <FormSection title="What We Know">
               <div>
-                <label className="label">Budget Range</label>
-                <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$50K–75K" />
+                <label className="label">What we know so far</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={5}
+                  value={form.challenge}
+                  onChange={e => set('challenge', e.target.value)}
+                  placeholder="Everything we know about this prospect — conversations, public info, mutual connections, what they've expressed interest in…"
+                />
               </div>
               <div>
-                <label className="label">Timeline</label>
-                <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="3–6 months" />
+                <label className="label">Current situation</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={3}
+                  value={form.currentState}
+                  onChange={e => set('currentState', e.target.value)}
+                  placeholder="Their market position, team, recent moves, competitive landscape…"
+                />
               </div>
-            </div>
-            <div>
-              <label className="label">Additional Context</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.additionalContext}
-                onChange={e => set('additionalContext', e.target.value)}
-                placeholder="Key stakeholders, prior work done, competitors, sensitivities, tone notes…"
-              />
-            </div>
-          </FormSection>
+              <div>
+                <label className="label">What they've expressed interest in</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={2}
+                  value={form.desiredOutcome}
+                  onChange={e => set('desiredOutcome', e.target.value)}
+                  placeholder="Any specific ask or area of interest they've mentioned…"
+                />
+              </div>
+              <div>
+                <label className="label">Additional notes</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={2}
+                  value={form.additionalContext}
+                  onChange={e => set('additionalContext', e.target.value)}
+                  placeholder="Internal context, who introduced them, sensitivities, anything relevant…"
+                />
+              </div>
+            </FormSection>
+          ) : (
+            <>
+              {/* The challenge */}
+              <FormSection title="The Challenge">
+                <div>
+                  <label className="label">Core Challenge / Problem *</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.challenge}
+                    onChange={e => set('challenge', e.target.value)}
+                    placeholder="What problem are they trying to solve? What's broken or missing? Be specific…"
+                  />
+                </div>
+                <div>
+                  <label className="label">Current State</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.currentState}
+                    onChange={e => set('currentState', e.target.value)}
+                    placeholder="Describe where they are today — operations, market position, team, technology…"
+                  />
+                </div>
+              </FormSection>
+
+              {/* Outcomes */}
+              <FormSection title="Desired Outcomes">
+                <div>
+                  <label className="label">Desired Outcome *</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.desiredOutcome}
+                    onChange={e => set('desiredOutcome', e.target.value)}
+                    placeholder="What does success look like? What should be true 6 months from now?"
+                  />
+                </div>
+                <div>
+                  <label className="label">Success Metrics</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={2}
+                    value={form.successMetrics}
+                    onChange={e => set('successMetrics', e.target.value)}
+                    placeholder="Revenue growth, NPS, operational efficiency, brand awareness…"
+                  />
+                </div>
+              </FormSection>
+
+              {/* Engagement */}
+              <FormSection title="Engagement Details">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Budget Range</label>
+                    <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$50K–75K" />
+                  </div>
+                  <div>
+                    <label className="label">Timeline</label>
+                    <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="3–6 months" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Additional Context</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.additionalContext}
+                    onChange={e => set('additionalContext', e.target.value)}
+                    placeholder="Key stakeholders, prior work done, competitors, sensitivities, tone notes…"
+                  />
+                </div>
+              </FormSection>
+            </>
+          )}
 
           {/* Proposal Options */}
           <FormSection title="Proposal Options">
@@ -882,7 +1091,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
 
             {/* Length — full proposal only */}
-            {format === 'full' && (
+            {format !== 'onesheet' && format !== 'reversebrief' && (
               <div>
                 <label className="label">Length</label>
                 <div className="flex gap-1.5">
@@ -928,7 +1137,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
 
             {/* Sections — full proposal only */}
-            {format === 'full' && (
+            {format !== 'onesheet' && format !== 'reversebrief' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Sections to Include</label>
@@ -991,7 +1200,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 disabled={loading}
               >
                 <span>◈</span>
-                {proposal ? 'Regenerate' : 'Generate'} {format === 'onesheet' ? 'One Sheet' : 'Proposal'}
+                {proposal ? 'Regenerate' : 'Generate'} {format === 'reversebrief' ? 'Reverse Brief' : format === 'onesheet' ? 'One Sheet' : 'Proposal'}
               </button>
             )}
             {proposal && !loading && (
@@ -1080,7 +1289,37 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
                 <span className="text-4xl text-brand-gold/60">◈</span>
               </div>
-              {format === 'onesheet' ? (
+              {format === 'reversebrief' ? (
+                <>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
+                    Reverse Brief
+                  </h3>
+                  <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
+                    An internal qualifying document — captures what{' '}
+                    <span className="text-brand-dark font-medium">{companyName}</span>{' '}
+                    knows, what we think we see, and what we need to learn before writing a proposal.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                    {[
+                      { label: 'What We Know', desc: 'Facts from conversations & research' },
+                      { label: 'What We Think We See', desc: 'Our hypothesis & diagnosis' },
+                      { label: 'Open Questions', desc: 'What must be answered first' },
+                      { label: 'Fit Assessment', desc: 'Strategic, commercial & timing fit' },
+                      { label: 'If We Proceed', desc: 'Sketch of likely engagement' },
+                    ].map((item, i) => (
+                      <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
+                          <p className="text-xs text-brand-dark/40">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : format === 'onesheet' ? (
                 <>
                   <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
                     Commercial Strategy Brief
@@ -1147,7 +1386,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   </div>
                   <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">{format === 'onesheet' ? 'Commercial Strategy Brief' : 'Confidential Proposal'}</span>
+                  <span className="text-xs text-brand-dark/40">{format === 'reversebrief' ? 'Reverse Brief · Internal' : format === 'onesheet' ? 'Commercial Strategy Brief' : 'Confidential Proposal'}</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>

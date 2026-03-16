@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Client, ProposalFormData, SavedProposal, generateId } from '../../types';
+import { Client, ProposalFormData, SavedProposal, generateId, formatCurrency, daysSince } from '../../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -84,7 +84,7 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-type ProposalFormat = 'full' | 'onesheet';
+type ProposalFormat = 'full' | 'onesheet' | 'reversebrief';
 type ProposalLength = 'concise' | 'standard' | 'comprehensive';
 type ProposalTone = 'confident' | 'collaborative' | 'formal';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -92,6 +92,7 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string };
 const FORMAT_OPTIONS: { value: ProposalFormat; label: string; desc: string }[] = [
   { value: 'full', label: 'Full Brief', desc: 'Partnership Brief' },
   { value: 'onesheet', label: 'One Sheet', desc: 'Commercial Strategy Brief' },
+  { value: 'reversebrief', label: 'Reverse Brief', desc: 'Qualify & discover' },
 ];
 
 const SECTION_DEFS = [
@@ -326,6 +327,132 @@ ${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : 
 Write the complete one-sheet as ${companyName} presenting this to ${form.clientName} at ${form.company}. This should be ready to share with the client.`;
 }
 
+function buildReverseBriefSystemPrompt(
+  _companyName: string,
+  tone: ProposalTone,
+  referenceDocs: RefDoc[] = [],
+): string {
+  const toneGuide = {
+    confident: 'Write with the confidence of someone who has done their homework. Be direct about what you see and what you still need to learn.',
+    collaborative: 'Write as a collaborative partner exploring the opportunity together. Warm but analytically rigorous.',
+    formal: 'Write in a formal, structured tone. Precise and measured.',
+  }[tone];
+
+  return `You are the Head of Brand Partnerships at LIFE, preparing an internal Reverse Brief — a pre-proposal qualifying document that captures your understanding of a prospective founding partner BEFORE writing a formal partnership brief.
+
+ABOUT LIFE:
+LIFE is returning — the most trusted visual storytelling brand in American history, rebuilt for today as a premium editorial platform at the intersection of culture, ambition, athleticism, and human potential. LIFE partners through three tiers:
+- Tier 1 — Integration Partners: Technology and hardware embedded in the LIFE storytelling process
+- Tier 2 — Storytelling & Editorial Franchise Partners: Branded content franchises, editorial series, destination storytelling
+- Tier 3 — Brand Access & Cultural Sponsorship: Logo presence, co-branding, launch event access
+
+PURPOSE:
+The Reverse Brief is NOT a proposal. It is an internal document that:
+1. Forces structured thinking about whether this brand is the right founding partner
+2. Surfaces what we know vs. what we're assuming about the brand
+3. Identifies specific questions we need answered before committing to a partnership brief
+4. Assesses brand fit, commercial fit, and timing fit
+5. Sketches what the partnership would look like IF we proceed
+
+IMPORTANT PERSPECTIVE:
+- "We" = LIFE / the LIFE partnerships team
+- This is written FOR the LIFE team, not for the partner
+- Be candid — this is where honest assessment happens
+- Flag assumptions explicitly
+
+DOCUMENT STRUCTURE — follow this exact structure:
+
+# Reverse Brief — [Brand/Company]
+**Prepared by LIFE Partnerships | [Current Month Year]**
+*Internal document — not for partner distribution*
+
+## What We Know
+Summary of the brand's business, market position, audience, recent campaigns, and any conversations or introductions so far. Distinguish between conversation intel and public information. End with what the brand has expressed interest in or what angle they seem drawn to.
+
+## What We Think We See
+LIFE's hypothesis — the brand alignment story we believe exists. Why does this brand belong inside LIFE? What cultural territory do we share? Which LIFE tier feels like the natural fit? Be bold but flag it as a hypothesis.
+
+## Open Questions
+A numbered list of 6–8 specific questions that must be answered before a partnership brief can be written:
+1. Partnership investment level — what budget range is realistic for this brand
+2. Decision-making structure — brand team vs. agency, who signs off
+3. Content appetite — do they want editorial integration or logo placement
+4. Exclusivity expectations — category exclusivity, competitive concerns
+5. Timeline — launch alignment, campaign calendar, fiscal year timing
+6. Creative control — how much brand approval is needed on editorial content
+7. Success metrics — what does the brand actually measure (awareness, sentiment, leads)
+8. Prior partnerships — what media partnerships have they done, what worked
+
+Each question should include a brief note on WHY we need this answer.
+
+## Fit Assessment
+**Brand Fit** — Does this brand elevate the LIFE platform? Is there authentic cultural alignment? Rate: Strong / Moderate / Weak, with reasoning.
+
+**Commercial Fit** — Is the likely investment proportional to the partnership value? Which tier is realistic? Rate: Strong / Moderate / Weak / Unknown, with reasoning.
+
+**Timing Fit** — Are they ready to commit? Does their timeline align with LIFE's launch phases? Rate: Ready / Warming / Early, with evidence.
+
+**Overall Assessment** — One sentence: proceed, proceed with caution, or pass — and why.
+
+## If We Proceed
+A sketch of the likely partnership:
+- Recommended tier (1, 2, or 3) and why
+- Likely content formats and editorial integrations
+- Estimated investment range
+- Key activation moments (launch events, editorial series, etc.)
+- Risks or dependencies
+
+Sign off with:
+**LIFE Partnerships** | Internal Use Only
+
+TONE: ${toneGuide}
+
+LENGTH: Thorough but efficient — approximately 600–900 words.
+
+STYLE:
+- Analytical and candid — no sales language
+- Bold headers and bullets for scannability
+- Flag assumptions with [ASSUMPTION] tags
+- Use markdown formatting throughout`
+
+  + (referenceDocs.length > 0 ? `
+
+REFERENCE MATERIAL:
+${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
+}
+
+function buildReverseBriefUserPrompt(form: ProposalFormData, _companyName: string, clientContext: string): string {
+  return `Prepare a Reverse Brief for the following prospective founding partner:
+
+PARTNER CONTACT: ${form.clientName}
+BRAND / COMPANY: ${form.company}${form.industry ? `\nINDUSTRY / CATEGORY: ${form.industry}` : ''}
+
+WHAT WE KNOW SO FAR:
+${form.challenge || 'Limited information — use reference documents and public knowledge to build the picture.'}
+
+${form.currentState ? `CURRENT BRAND SITUATION / CONTEXT:\n${form.currentState}\n` : ''}
+${form.desiredOutcome ? `WHAT THEY'VE EXPRESSED INTEREST IN:\n${form.desiredOutcome}\n` : ''}
+${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
+${clientContext ? `\nPIPELINE DATA:\n${clientContext}\n` : ''}
+
+Write the complete Reverse Brief as LIFE's internal qualifying document. Be candid and analytical — this is for our partnerships team, not the brand.`;
+}
+
+function buildClientContext(client: Client): string {
+  const parts: string[] = [];
+  parts.push(`Pipeline Stage: ${client.stage}`);
+  parts.push(`Deal Value: ${formatCurrency(client.value)}`);
+  if (client.industry) parts.push(`Industry: ${client.industry}`);
+  if (client.tags.length > 0) parts.push(`Tags: ${client.tags.join(', ')}`);
+  parts.push(`Days in Pipeline: ${daysSince(client.createdAt)}`);
+  if (client.proposals.length > 0) {
+    parts.push(`Previous Briefs: ${client.proposals.length} (latest: "${client.proposals[client.proposals.length - 1].title}", ${new Date(client.proposals[client.proposals.length - 1].createdAt).toLocaleDateString()})`);
+  }
+  if (client.notes) parts.push(`Pipeline Notes: ${client.notes}`);
+  if (client.outcome !== 'active') parts.push(`Outcome: ${client.outcome}${client.lostReason ? ` — ${client.lostReason}` : ''}`);
+  return parts.join('\n');
+}
+
 // Simple markdown-to-HTML renderer for display
 function renderMarkdown(text: string): string {
   return text
@@ -425,6 +552,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     if (!apiKey.trim()) return 'Please enter your Anthropic API key.';
     if (!form.clientName.trim()) return 'Partner contact name is required.';
     if (!form.company.trim()) return 'Brand / company name is required.';
+    if (format === 'reversebrief') return null;
     if (!form.challenge.trim()) return 'The partnership opportunity / angle is required.';
     if (!form.desiredOutcome.trim()) return 'What success looks like is required.';
     return null;
@@ -445,9 +573,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         stream: true,
-        system: format === 'onesheet'
-          ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
-          : buildSystemPrompt(companyName, length, tone, sections, refDocs),
+        system: format === 'reversebrief'
+          ? buildReverseBriefSystemPrompt(companyName, tone, refDocs)
+          : format === 'onesheet'
+            ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
+            : buildSystemPrompt(companyName, length, tone, sections, refDocs),
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
@@ -509,11 +639,25 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setLoading(true);
     setEditing(false);
 
+    const selectedClient = clients.find(c => c.id === selectedClientId);
+    const clientCtx = selectedClient ? buildClientContext(selectedClient) : '';
+
+    let enrichedForm = form;
+    if (format !== 'reversebrief' && selectedClient) {
+      const existingReverseBrief = selectedClient.proposals.find(p => p.title.startsWith('Reverse Brief'));
+      if (existingReverseBrief) {
+        const reverseBriefContext = `\n\n--- REVERSE BRIEF (internal qualifying document) ---\n${existingReverseBrief.content}\n--- END REVERSE BRIEF ---`;
+        enrichedForm = { ...form, additionalContext: (form.additionalContext || '') + reverseBriefContext };
+      }
+    }
+
     const userMessage: ChatMessage = {
       role: 'user',
-      content: format === 'onesheet'
-        ? buildOneSheetUserPrompt(form, companyName)
-        : buildUserPrompt(form, companyName),
+      content: format === 'reversebrief'
+        ? buildReverseBriefUserPrompt(form, companyName, clientCtx)
+        : format === 'onesheet'
+          ? buildOneSheetUserPrompt(enrichedForm, companyName)
+          : buildUserPrompt(enrichedForm, companyName),
     };
     const messages = [userMessage];
 
@@ -770,76 +914,136 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
           </FormSection>
 
           {/* Partnership angle */}
-          <FormSection title="The Partnership Opportunity">
-            <div>
-              <label className="label">Partnership Angle / Opportunity *</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.challenge}
-                onChange={e => set('challenge', e.target.value)}
-                placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for LIFE? What storytelling opportunity exists?"
-              />
-            </div>
-            <div>
-              <label className="label">Brand's Current Context</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.currentState}
-                onChange={e => set('currentState', e.target.value)}
-                placeholder="Where is this brand today? Their positioning, campaigns, cultural moment, marketing goals…"
-              />
-            </div>
-          </FormSection>
+          {/* Reverse brief context badge */}
+          {format !== 'reversebrief' && selectedClientId && (() => {
+            const cl = clients.find(c => c.id === selectedClientId);
+            const rb = cl?.proposals.find(p => p.title.startsWith('Reverse Brief'));
+            return rb ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
+                <span className="text-emerald-500 text-sm mt-0.5">◈</span>
+                <div>
+                  <p className="text-xs font-semibold text-emerald-700">Reverse Brief available — context loaded</p>
+                  <p className="text-xs text-emerald-600/60 mt-0.5">"{rb.title}" will be injected as qualifying context into your brief.</p>
+                </div>
+              </div>
+            ) : null;
+          })()}
 
-          {/* Partnership goals */}
-          <FormSection title="Partnership Goals">
-            <div>
-              <label className="label">What Success Looks Like *</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.desiredOutcome}
-                onChange={e => set('desiredOutcome', e.target.value)}
-                placeholder="What does the brand get from this partnership? Brand equity, audience access, content assets, cultural association…"
-              />
-            </div>
-            <div>
-              <label className="label">Key Deliverables / Inclusions</label>
-              <textarea
-                className="input-field resize-none"
-                rows={2}
-                value={form.successMetrics}
-                onChange={e => set('successMetrics', e.target.value)}
-                placeholder="Cover placement, editorial series, event access, social content, co-branded assets…"
-              />
-            </div>
-          </FormSection>
-
-          {/* Engagement */}
-          <FormSection title="Partnership Details">
-            <div className="grid grid-cols-2 gap-3">
+          {format === 'reversebrief' ? (
+            <FormSection title="What We Know">
               <div>
-                <label className="label">Investment Level</label>
-                <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$750K–$1.5M" />
+                <label className="label">What we know so far</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={5}
+                  value={form.challenge}
+                  onChange={e => set('challenge', e.target.value)}
+                  placeholder="Everything we know about this brand — conversations, public info, mutual connections, what they've expressed interest in…"
+                />
               </div>
               <div>
-                <label className="label">Launch / Timeline</label>
-                <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="Q3 2025 launch" />
+                <label className="label">Current brand situation</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={3}
+                  value={form.currentState}
+                  onChange={e => set('currentState', e.target.value)}
+                  placeholder="Their positioning, campaigns, cultural moment, marketing goals…"
+                />
               </div>
-            </div>
-            <div>
-              <label className="label">Additional Context</label>
-              <textarea
-                className="input-field resize-none"
-                rows={3}
-                value={form.additionalContext}
-                onChange={e => set('additionalContext', e.target.value)}
-                placeholder="Prior conversations, key stakeholders, competitive considerations, tone notes, pipeline history…"
-              />
-            </div>
-          </FormSection>
+              <div>
+                <label className="label">What they've expressed interest in</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={2}
+                  value={form.desiredOutcome}
+                  onChange={e => set('desiredOutcome', e.target.value)}
+                  placeholder="Any specific partnership tier, content format, or activation they've mentioned…"
+                />
+              </div>
+              <div>
+                <label className="label">Additional notes</label>
+                <textarea
+                  className="input-field resize-none"
+                  rows={2}
+                  value={form.additionalContext}
+                  onChange={e => set('additionalContext', e.target.value)}
+                  placeholder="Internal context, who introduced them, sensitivities, anything relevant…"
+                />
+              </div>
+            </FormSection>
+          ) : (
+            <>
+              <FormSection title="The Partnership Opportunity">
+                <div>
+                  <label className="label">Partnership Angle / Opportunity *</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.challenge}
+                    onChange={e => set('challenge', e.target.value)}
+                    placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for LIFE? What storytelling opportunity exists?"
+                  />
+                </div>
+                <div>
+                  <label className="label">Brand's Current Context</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.currentState}
+                    onChange={e => set('currentState', e.target.value)}
+                    placeholder="Where is this brand today? Their positioning, campaigns, cultural moment, marketing goals…"
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Partnership Goals">
+                <div>
+                  <label className="label">What Success Looks Like *</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.desiredOutcome}
+                    onChange={e => set('desiredOutcome', e.target.value)}
+                    placeholder="What does the brand get from this partnership? Brand equity, audience access, content assets, cultural association…"
+                  />
+                </div>
+                <div>
+                  <label className="label">Key Deliverables / Inclusions</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={2}
+                    value={form.successMetrics}
+                    onChange={e => set('successMetrics', e.target.value)}
+                    placeholder="Cover placement, editorial series, event access, social content, co-branded assets…"
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Partnership Details">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Investment Level</label>
+                    <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$750K–$1.5M" />
+                  </div>
+                  <div>
+                    <label className="label">Launch / Timeline</label>
+                    <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="Q3 2025 launch" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Additional Context</label>
+                  <textarea
+                    className="input-field resize-none"
+                    rows={3}
+                    value={form.additionalContext}
+                    onChange={e => set('additionalContext', e.target.value)}
+                    placeholder="Prior conversations, key stakeholders, competitive considerations, tone notes, pipeline history…"
+                  />
+                </div>
+              </FormSection>
+            </>
+          )}
 
           {/* Brief Options */}
           <FormSection title="Brief Options">
@@ -866,7 +1070,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
 
             {/* Length — full brief only */}
-            {format === 'full' && (
+            {format !== 'onesheet' && format !== 'reversebrief' && (
               <div>
                 <label className="label">Length</label>
                 <div className="flex gap-1.5">
@@ -912,7 +1116,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
 
             {/* Sections — full brief only */}
-            {format === 'full' && (
+            {format !== 'onesheet' && format !== 'reversebrief' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Sections to Include</label>
@@ -975,7 +1179,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 disabled={loading}
               >
                 <span>◈</span>
-                {proposal ? 'Regenerate' : 'Generate'} {format === 'onesheet' ? 'One Sheet' : 'Partner Brief'}
+                {proposal ? 'Regenerate' : 'Generate'} {format === 'reversebrief' ? 'Reverse Brief' : format === 'onesheet' ? 'One Sheet' : 'Partner Brief'}
               </button>
             )}
             {proposal && !loading && (
@@ -1064,7 +1268,35 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
                 <span className="font-display text-4xl font-bold text-brand-gold/60">L</span>
               </div>
-              {format === 'onesheet' ? (
+              {format === 'reversebrief' ? (
+                <>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
+                    Reverse Brief
+                  </h3>
+                  <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
+                    An internal qualifying document — captures what the LIFE partnerships team knows, what we think we see, and what we need to learn before writing a partnership brief.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                    {[
+                      { label: 'What We Know', desc: 'Facts from conversations & research' },
+                      { label: 'What We Think We See', desc: 'Brand alignment hypothesis' },
+                      { label: 'Open Questions', desc: 'What must be answered first' },
+                      { label: 'Fit Assessment', desc: 'Brand, commercial & timing fit' },
+                      { label: 'If We Proceed', desc: 'Likely tier & partnership shape' },
+                    ].map((item, i) => (
+                      <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
+                          <p className="text-xs text-brand-dark/40">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : format === 'onesheet' ? (
                 <>
                   <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
                     Commercial Strategy Brief
@@ -1131,7 +1363,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   </div>
                   <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">{format === 'onesheet' ? 'Commercial Strategy Brief' : 'Founding Partner Brief · Confidential'}</span>
+                  <span className="text-xs text-brand-dark/40">{format === 'reversebrief' ? 'Reverse Brief · Internal' : format === 'onesheet' ? 'Commercial Strategy Brief' : 'Founding Partner Brief · Confidential'}</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
