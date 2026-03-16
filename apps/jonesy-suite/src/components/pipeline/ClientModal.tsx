@@ -46,6 +46,22 @@ function renderMarkdown(text: string): string {
     .trim();
 }
 
+function downloadProposalPdf(proposal: SavedProposal) {
+  const html = renderMarkdown(proposal.content);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  printWindow.document.write(`<!DOCTYPE html><html><head><title>${proposal.title}</title><style>
+    @page { margin: 1cm; size: A4; }
+    body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.5; margin: 0; padding: 2cm; }
+    h1 { font-size: 18pt; margin: 0 0 8pt; } h2 { font-size: 13pt; margin: 16pt 0 6pt; } h3 { font-size: 11pt; margin: 12pt 0 4pt; }
+    ul, ol { padding-left: 1.2em; margin: 4pt 0; } li { margin: 2pt 0; }
+    blockquote { border-left: 3px solid #d4af37; padding-left: 12pt; margin: 8pt 0; color: #555; }
+    strong { font-weight: 600; } p { margin: 4pt 0; }
+  </style></head><body><div class="prose-proposal">${html}</div></body></html>`);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.focus(); printWindow.print(); }, 250);
+}
+
 function extractFirstLine(text: string): string {
   return (
     text
@@ -295,6 +311,9 @@ function ProposalViewer({
               {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
             </button>
           )}
+          <button onClick={() => downloadProposalPdf(proposal)} className="btn-secondary text-xs py-1.5">
+            ↓ Download PDF
+          </button>
           <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
             ⎘ Copy
           </button>
@@ -697,6 +716,7 @@ export default function ClientModal({
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => setViewingProposal(p)} className="btn-secondary py-1 px-2.5 text-xs">View</button>
+                        <button onClick={() => downloadProposalPdf(p)} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
                         {confirmDeleteId === p.id ? (
                           <button
                             onClick={() => { onDeleteProposal?.(p.id); setConfirmDeleteId(null); }}
