@@ -84,9 +84,15 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
+type ProposalFormat = 'full' | 'onesheet';
 type ProposalLength = 'concise' | 'standard' | 'comprehensive';
 type ProposalTone = 'confident' | 'collaborative' | 'formal';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
+const FORMAT_OPTIONS: { value: ProposalFormat; label: string; desc: string }[] = [
+  { value: 'full', label: 'Full Brief', desc: 'Partnership Brief' },
+  { value: 'onesheet', label: 'One Sheet', desc: 'Commercial Strategy Brief' },
+];
 
 const SECTION_DEFS = [
   { id: 'moment', label: 'The Moment', desc: 'Why now for LIFE' },
@@ -223,6 +229,103 @@ ${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContex
 Write a complete, polished LIFE Partnership Brief as if you are the Head of Brand Partnerships at LIFE presenting this founding partner opportunity to ${form.clientName} at ${form.company}. This should feel like a document worthy of the LIFE name — beautiful, authoritative, and compelling. Ready to share.`;
 }
 
+function buildOneSheetSystemPrompt(
+  companyName: string,
+  tone: ProposalTone,
+  referenceDocs: RefDoc[] = [],
+): string {
+  const toneGuide = {
+    confident: 'Write with the confidence of a trusted advisor who has done the listening. Be direct and authoritative.',
+    collaborative: 'Write as a collaborative partner. Warm but professional, positioning the engagement as a joint venture.',
+    formal: 'Write in a formal, institutional tone. Structured, measured, and precise.',
+  }[tone];
+
+  return `You are a senior strategist at ${companyName}, writing a one-page Commercial Strategy Brief for a prospective client.
+
+IMPORTANT PERSPECTIVE:
+This document is written FROM ${companyName}'s perspective ABOUT the client. You are the expert who has done the listening.
+- "We" always refers to ${companyName}
+- Refer to the client by their company name or "you" / "your"
+- Position ${companyName} as the knowledgeable advisor presenting back what they have understood
+
+DOCUMENT STRUCTURE — follow this exact structure:
+
+# [CLIENT COMPANY] — Commercial Strategy Brief
+**Prepared for [Contact Name] | [Current Month Year]**
+
+## The Business
+A concise paragraph describing the client's business, key brands/products, and market position. Demonstrate that ${companyName} has done the research and understands their world. End with a single sentence identifying the core strategic tension — product-market fit exists, but what's missing.
+
+## The Opportunity
+Describe the specific commercial opportunity ${companyName} has identified. Include concrete numbers from the brief if available (pipeline size, deal velocity issues, new concepts needing validation). Be specific about what's working and where friction exists.
+
+## Scope
+Break the engagement into clearly defined workstreams. For each workstream:
+**Workstream [N] — [Name]**
+* Bullet-pointed deliverables and activities
+* Each bullet should be concrete and actionable
+* 3–5 bullets per workstream
+
+## What Success Looks Like
+* 4–6 bullet points describing measurable or observable outcomes
+* Each bullet should be specific enough to evaluate against
+* Include both immediate deliverables and lasting capability improvements
+* Final bullet should reference the team's ability to operate independently
+
+## Constraints
+* 3–4 bullet points identifying non-negotiable boundaries
+* These show awareness of the client's reality and build trust
+* Include operational, editorial/brand, and timeline constraints
+
+## Investment
+A single paragraph: "We propose a fixed-fee engagement structured around milestones and outcomes, not hours. The engagement will be phased, with actionable findings from an initial diagnostic stage delivered within the first 30 days."
+
+Then sign off with:
+**${companyName}** | Johanna Mayer-Jones | jomayerjones@gmail.com
+
+TONE: ${toneGuide}
+
+LENGTH: This is a one-sheet brief — keep it tight and scannable. Approximately 400–600 words total. Every sentence must earn its place. No padding.
+
+STYLE:
+- Clean, confident, no jargon
+- Bullet points are appropriate here — this is a brief, not a narrative proposal
+- No emojis, no decorative elements
+- The document should feel like something a senior consultant hands across the table
+- Use markdown formatting throughout`
+
+  + (referenceDocs.length > 0 ? `
+
+REFERENCE MATERIAL WEIGHTING
+Draw approximately 60% of content from the reference material below. Use 40% of your own knowledge to fill gaps.
+
+REFERENCE DOCUMENTS:
+${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
+}
+
+function buildOneSheetUserPrompt(form: ProposalFormData, companyName: string): string {
+  return `Write a Commercial Strategy Brief (one-sheet) for the following engagement:
+
+CLIENT: ${form.clientName}
+COMPANY: ${form.company}${form.industry ? `\nINDUSTRY: ${form.industry}` : ''}
+
+CHALLENGE / OPPORTUNITY:
+${form.challenge}
+
+CURRENT STATE:
+${form.currentState || 'Not specified — infer from the challenge described above.'}
+
+DESIRED OUTCOME:
+${form.desiredOutcome}
+
+${form.successMetrics ? `SUCCESS METRICS:\n${form.successMetrics}\n` : ''}
+${form.budget ? `BUDGET RANGE: ${form.budget}\n` : ''}
+${form.timeline ? `DESIRED TIMELINE: ${form.timeline}\n` : ''}
+${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : ''}
+
+Write the complete one-sheet as ${companyName} presenting this to ${form.clientName} at ${form.company}. This should be ready to share with the client.`;
+}
+
 // Simple markdown-to-HTML renderer for display
 function renderMarkdown(text: string): string {
   return text
@@ -268,6 +371,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const [editing, setEditing] = useState(false);
   const [refinementInput, setRefinementInput] = useState('');
   const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [format, setFormat] = useState<ProposalFormat>('full');
   const [length, setLength] = useState<ProposalLength>('standard');
   const [tone, setTone] = useState<ProposalTone>('confident');
   const [sections, setSections] = useState<Record<SectionId, boolean>>({ ...ALL_SECTIONS });
@@ -341,7 +445,9 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         stream: true,
-        system: buildSystemPrompt(companyName, length, tone, sections, refDocs),
+        system: format === 'onesheet'
+          ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
+          : buildSystemPrompt(companyName, length, tone, sections, refDocs),
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
@@ -392,7 +498,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     }
 
     return fullText;
-  }, [apiKey, companyName, length, tone, sections, refDocs]);
+  }, [apiKey, companyName, format, length, tone, sections, refDocs]);
 
   const generate = useCallback(async () => {
     const validationError = validateForm();
@@ -403,7 +509,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setLoading(true);
     setEditing(false);
 
-    const userMessage: ChatMessage = { role: 'user', content: buildUserPrompt(form, companyName) };
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: format === 'onesheet'
+        ? buildOneSheetUserPrompt(form, companyName)
+        : buildUserPrompt(form, companyName),
+    };
     const messages = [userMessage];
 
     try {
@@ -732,27 +843,51 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
           {/* Brief Options */}
           <FormSection title="Brief Options">
-            {/* Length */}
+            {/* Format */}
             <div>
-              <label className="label">Length</label>
+              <label className="label">Format</label>
               <div className="flex gap-1.5">
-                {LENGTH_OPTIONS.map(opt => (
+                {FORMAT_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setLength(opt.value)}
+                    onClick={() => setFormat(opt.value)}
                     className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
-                      length === opt.value
+                      format === opt.value
                         ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
                         : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
                     }`}
                   >
                     <span className="block font-semibold">{opt.label}</span>
-                    <span className={`block mt-0.5 ${length === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                    <span className={`block mt-0.5 ${format === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Length — full brief only */}
+            {format === 'full' && (
+              <div>
+                <label className="label">Length</label>
+                <div className="flex gap-1.5">
+                  {LENGTH_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setLength(opt.value)}
+                      className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                        length === opt.value
+                          ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
+                          : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
+                      }`}
+                    >
+                      <span className="block font-semibold">{opt.label}</span>
+                      <span className={`block mt-0.5 ${length === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Tone */}
             <div>
@@ -776,45 +911,47 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               </div>
             </div>
 
-            {/* Sections */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="label mb-0">Sections to Include</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const allOn = enabledCount === SECTION_DEFS.length;
-                    const next = {} as Record<SectionId, boolean>;
-                    SECTION_DEFS.forEach(s => { next[s.id] = !allOn; });
-                    setSections(next);
-                  }}
-                  className="text-xs text-brand-gold hover:text-brand-gold-dark"
-                >
-                  {enabledCount === SECTION_DEFS.length ? 'Deselect all' : 'Select all'}
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {SECTION_DEFS.map(s => (
-                  <label
-                    key={s.id}
-                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
-                      sections[s.id] ? 'bg-brand-gold/10 border border-brand-gold/25' : 'bg-brand-light border border-brand-cream hover:border-brand-cream-dark'
-                    }`}
+            {/* Sections — full brief only */}
+            {format === 'full' && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="label mb-0">Sections to Include</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allOn = enabledCount === SECTION_DEFS.length;
+                      const next = {} as Record<SectionId, boolean>;
+                      SECTION_DEFS.forEach(s => { next[s.id] = !allOn; });
+                      setSections(next);
+                    }}
+                    className="text-xs text-brand-gold hover:text-brand-gold-dark"
                   >
-                    <input
-                      type="checkbox"
-                      checked={sections[s.id]}
-                      onChange={() => toggleSection(s.id)}
-                      className="accent-brand-gold w-3.5 h-3.5 rounded"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs font-semibold text-brand-dark">{s.label}</span>
-                      <span className="text-xs text-brand-dark/40 ml-1.5">{s.desc}</span>
-                    </div>
-                  </label>
-                ))}
+                    {enabledCount === SECTION_DEFS.length ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {SECTION_DEFS.map(s => (
+                    <label
+                      key={s.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
+                        sections[s.id] ? 'bg-brand-gold/10 border border-brand-gold/25' : 'bg-brand-light border border-brand-cream hover:border-brand-cream-dark'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={sections[s.id]}
+                        onChange={() => toggleSection(s.id)}
+                        className="accent-brand-gold w-3.5 h-3.5 rounded"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-brand-dark">{s.label}</span>
+                        <span className="text-xs text-brand-dark/40 ml-1.5">{s.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </FormSection>
         </div>
 
@@ -838,7 +975,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 disabled={loading}
               >
                 <span>◈</span>
-                {proposal ? 'Regenerate Brief' : 'Generate Partner Brief'}
+                {proposal ? 'Regenerate' : 'Generate'} {format === 'onesheet' ? 'One Sheet' : 'Partner Brief'}
               </button>
             )}
             {proposal && !loading && (
@@ -927,26 +1064,60 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
                 <span className="font-display text-4xl font-bold text-brand-gold/60">L</span>
               </div>
-              <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                LIFE Founding Partner Framework
-              </h3>
-              <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                Fill in the brief on the left and generate a bespoke founding partner proposal drafted by Claude using the{' '}
-                <span className="text-brand-dark font-medium">LIFE Partnership Framework</span>.
-              </p>
-              <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                {SECTION_DEFS.map((item, i) => (
-                  <div key={item.id} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                    <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
-                      <p className="text-xs text-brand-dark/40">{item.desc}</p>
-                    </div>
+              {format === 'onesheet' ? (
+                <>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
+                    Commercial Strategy Brief
+                  </h3>
+                  <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
+                    A one-page brief written from{' '}
+                    <span className="text-brand-dark font-medium">{companyName}</span>'s perspective — positioning you as the expert who has done the listening.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                    {[
+                      { label: 'The Business', desc: 'Your understanding of their world' },
+                      { label: 'The Opportunity', desc: 'What you see they\'re missing' },
+                      { label: 'Scope', desc: 'Defined workstreams & deliverables' },
+                      { label: 'What Success Looks Like', desc: 'Measurable outcomes' },
+                      { label: 'Constraints', desc: 'Non-negotiable boundaries' },
+                      { label: 'Investment', desc: 'Fixed-fee, milestone-based' },
+                    ].map((item, i) => (
+                      <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
+                          <p className="text-xs text-brand-dark/40">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
+                    LIFE Founding Partner Framework
+                  </h3>
+                  <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
+                    Fill in the brief on the left and generate a bespoke founding partner proposal drafted by Claude using the{' '}
+                    <span className="text-brand-dark font-medium">LIFE Partnership Framework</span>.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                    {SECTION_DEFS.map((item, i) => (
+                      <div key={item.id} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
+                          <p className="text-xs text-brand-dark/40">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -960,7 +1131,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   </div>
                   <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">Founding Partner Brief · Confidential</span>
+                  <span className="text-xs text-brand-dark/40">{format === 'onesheet' ? 'Commercial Strategy Brief' : 'Founding Partner Brief · Confidential'}</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
