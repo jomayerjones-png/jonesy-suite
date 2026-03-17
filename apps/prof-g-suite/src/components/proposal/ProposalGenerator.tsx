@@ -512,6 +512,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const [uploadingRef, setUploadingRef] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Proposal Library
+  const [view, setView] = useState<'generator' | 'library'>('generator');
+  const [libraryProposal, setLibraryProposal] = useState<{ proposal: SavedProposal; clientName: string; company: string } | null>(null);
+  const [libraryFilter, setLibraryFilter] = useState<'final' | 'all'>('final');
+
   useEffect(() => {
     saveRefDocs(refDocs);
   }, [refDocs]);
@@ -762,6 +767,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     const body = encodeURIComponent(`Please find the attached brief: ${title}\n\nTo download the PDF, open the brief in ${companyName} Suite and click "Download PDF".`);
     window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
   };
+
+  // Proposal Library data
+  const allProposals = clients.flatMap(c =>
+    c.proposals.map(p => ({ proposal: p, clientName: c.name, company: c.company }))
+  ).sort((a, b) => new Date(b.proposal.createdAt).getTime() - new Date(a.proposal.createdAt).getTime());
+
+  const finalProposals = allProposals.filter(p => p.proposal.title.toLowerCase().includes('final'));
+  const libraryItems = libraryFilter === 'final' ? finalProposals : allProposals;
 
   return (
     <>
@@ -1196,8 +1209,155 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
       {/* Brief output */}
       <div className="flex-1 flex flex-col overflow-hidden bg-brand-light proposal-output">
-        {/* Brief toolbar */}
-        {proposal && (
+        {/* View toggle: Generator / Library */}
+        <div className="bg-white border-b border-brand-cream px-6 py-2 flex items-center gap-1 no-print">
+          <button
+            onClick={() => { setView('generator'); setLibraryProposal(null); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'generator' ? 'bg-brand-gold/15 text-brand-dark border border-brand-gold/30' : 'text-brand-dark/40 hover:text-brand-dark/60'}`}
+          >
+            Generator
+          </button>
+          <button
+            onClick={() => setView('library')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${view === 'library' ? 'bg-brand-gold/15 text-brand-dark border border-brand-gold/30' : 'text-brand-dark/40 hover:text-brand-dark/60'}`}
+          >
+            Brief Library
+            {finalProposals.length > 0 && (
+              <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${view === 'library' ? 'bg-brand-gold/20 text-brand-dark' : 'bg-brand-cream text-brand-dark/50'}`}>
+                {finalProposals.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Library view */}
+        {view === 'library' && (
+          <div className="flex-1 overflow-y-auto">
+            {libraryProposal ? (
+              <div className="max-w-3xl mx-auto p-8">
+                <button
+                  onClick={() => setLibraryProposal(null)}
+                  className="text-xs text-brand-dark/50 hover:text-brand-dark mb-4 flex items-center gap-1"
+                >
+                  ← Back to library
+                </button>
+                <div className="mb-6 pb-4 border-b border-brand-cream">
+                  <h2 className="font-display text-xl font-semibold text-brand-dark">{libraryProposal.proposal.title}</h2>
+                  <p className="text-xs text-brand-dark/50 mt-1">
+                    {libraryProposal.clientName} — {libraryProposal.company} · {new Date(libraryProposal.proposal.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <div
+                  className="prose-proposal"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(libraryProposal.proposal.content) || '' }}
+                />
+                <div className="mt-8 pt-4 border-t border-brand-cream flex gap-2">
+                  <button
+                    onClick={async () => { await navigator.clipboard.writeText(libraryProposal.proposal.content); }}
+                    className="btn-secondary text-xs"
+                  >
+                    Copy
+                  </button>
+                  <button onClick={() => window.print()} className="btn-primary text-xs">
+                    Download PDF
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6">
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="font-display text-lg font-semibold text-brand-dark">Brief Library</h3>
+                      <p className="text-xs text-brand-dark/50 mt-0.5">
+                        {libraryFilter === 'final'
+                          ? `${finalProposals.length} final brief${finalProposals.length !== 1 ? 's' : ''} across all partners`
+                          : `${allProposals.length} brief${allProposals.length !== 1 ? 's' : ''} across all partners`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-brand-light rounded-lg p-0.5 border border-brand-cream">
+                      <button
+                        onClick={() => setLibraryFilter('final')}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${libraryFilter === 'final' ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark/60'}`}
+                      >
+                        Finals Only
+                      </button>
+                      <button
+                        onClick={() => setLibraryFilter('all')}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${libraryFilter === 'all' ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark/60'}`}
+                      >
+                        All Briefs
+                      </button>
+                    </div>
+                  </div>
+
+                  {libraryItems.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mx-auto mb-4">
+                        <span className="text-2xl text-brand-gold/60">📋</span>
+                      </div>
+                      <p className="text-sm text-brand-dark/50 mb-1">
+                        {libraryFilter === 'final' ? 'No final briefs yet' : 'No briefs yet'}
+                      </p>
+                      <p className="text-xs text-brand-dark/30">
+                        {libraryFilter === 'final'
+                          ? 'Save briefs with "final" in the title to collect them here'
+                          : 'Generate and save briefs to partners to build your library'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {libraryItems.map(item => {
+                        const isFinal = item.proposal.title.toLowerCase().includes('final');
+                        return (
+                          <button
+                            key={item.proposal.id}
+                            onClick={() => setLibraryProposal(item)}
+                            className="w-full text-left bg-white rounded-xl border border-brand-cream hover:border-brand-gold/30 hover:shadow-sm transition-all p-4 group"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-sm text-brand-dark truncate group-hover:text-brand-gold transition-colors">
+                                    {item.proposal.title}
+                                  </h4>
+                                  {isFinal && (
+                                    <span className="flex-shrink-0 text-xs font-bold bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">
+                                      FINAL
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-brand-dark/50">
+                                  {item.clientName} — {item.company}
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs text-brand-dark/40">
+                                  {new Date(item.proposal.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                                <p className="text-xs text-brand-dark/30 mt-0.5">
+                                  {(item.proposal.content.length / 1000).toFixed(1)}k chars
+                                </p>
+                              </div>
+                            </div>
+                            {item.proposal.content && (
+                              <p className="text-xs text-brand-dark/40 mt-2 line-clamp-2 leading-relaxed">
+                                {item.proposal.content.slice(0, 200).replace(/[#*_\-]/g, '')}…
+                              </p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Generator view */}
+        {view === 'generator' && proposal && (
           <div className="bg-white border-b border-brand-cream px-6 py-3 space-y-2 proposal-toolbar">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1265,6 +1425,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         )}
 
         {/* Content area */}
+        {view === 'generator' && (
         <div className="flex-1 overflow-y-auto">
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
@@ -1416,9 +1577,10 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </div>
           )}
         </div>
+        )}
 
         {/* Refinement bar */}
-        {proposal && !loading && !editing && (
+        {view === 'generator' && proposal && !loading && !editing && (
           <div className="bg-white border-t border-brand-cream px-6 py-3 flex-shrink-0 proposal-refinement">
             <div className="flex items-center gap-2 max-w-3xl mx-auto">
               <div className="relative flex-1">
