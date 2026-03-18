@@ -40,6 +40,7 @@ interface ClientModalProps {
   onReactivate?: () => void;
   onDeleteProposal?: (proposalId: string) => void;
   onAddProposal?: (proposal: SavedProposal) => void;
+  onUpdateProposal?: (proposalId: string, updates: Partial<SavedProposal>) => void;
 }
 
 const DEFAULT_FORM: ClientFormData = {
@@ -426,14 +427,35 @@ function BriefingRow({ label, value }: { label: string; value: string }) {
 function ProposalViewer({
   proposal,
   onClose,
+  onUpdate,
 }: {
   proposal: SavedProposal;
   onClose: () => void;
+  onUpdate?: (updates: Partial<SavedProposal>) => void;
 }) {
   const [showBriefing, setShowBriefing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(proposal.title);
+  const [editContent, setEditContent] = useState(proposal.content);
   const b = proposal.briefing;
   const hasBriefing = b && (b.clientName || b.company || b.challenge || b.desiredOutcome);
   const hasNotes = !!proposal.clientNotes;
+  const hasChanges = editTitle !== proposal.title || editContent !== proposal.content;
+
+  const handleSave = () => {
+    if (!editContent.trim()) return;
+    onUpdate?.({
+      title: editTitle.trim() || extractFirstLine(editContent),
+      content: editContent,
+    });
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditTitle(proposal.title);
+    setEditContent(proposal.content);
+    setEditing(false);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-brand-light">
@@ -443,7 +465,16 @@ function ProposalViewer({
             <span className="font-display text-brand-dark font-bold text-xs">J</span>
           </div>
           <div>
-            <p className="font-display text-sm font-semibold text-white">{proposal.title}</p>
+            {editing ? (
+              <input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                className="bg-white/10 border border-white/20 rounded px-2 py-0.5 text-sm font-semibold text-white font-display focus:outline-none focus:ring-2 focus:ring-brand-gold/50 w-72"
+                placeholder="Proposal title…"
+              />
+            ) : (
+              <p className="font-display text-sm font-semibold text-white">{proposal.title}</p>
+            )}
             <p className="text-white/40 text-xs">
               {new Date(proposal.createdAt).toLocaleDateString('en-US', {
                 month: 'long', day: 'numeric', year: 'numeric',
@@ -452,28 +483,48 @@ function ProposalViewer({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {(hasBriefing || hasNotes) && (
-            <button
-              onClick={() => setShowBriefing(v => !v)}
-              className={`btn-secondary text-xs py-1.5 flex items-center gap-1.5 ${showBriefing ? 'bg-brand-gold/10 border-brand-gold/30' : ''}`}
-            >
-              {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
-            </button>
+          {editing ? (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={!editContent.trim() || !hasChanges}
+                className="btn-primary text-xs py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Save Changes
+              </button>
+              <button onClick={handleCancel} className="btn-secondary text-xs py-1.5">Cancel</button>
+            </>
+          ) : (
+            <>
+              {(hasBriefing || hasNotes) && (
+                <button
+                  onClick={() => setShowBriefing(v => !v)}
+                  className={`btn-secondary text-xs py-1.5 flex items-center gap-1.5 ${showBriefing ? 'bg-brand-gold/10 border-brand-gold/30' : ''}`}
+                >
+                  {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
+                </button>
+              )}
+              {onUpdate && (
+                <button onClick={() => setEditing(true)} className="btn-secondary text-xs py-1.5 flex items-center gap-1.5">
+                  ✎ Edit
+                </button>
+              )}
+              <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'Jonesy&Co', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
+                ↓ Download PDF
+              </button>
+              <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
+                ⎘ Copy
+              </button>
+              <button onClick={onClose} className="btn-secondary text-xs py-1.5">✕ Close</button>
+            </>
           )}
-          <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'Jonesy&Co', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
-            ↓ Download PDF
-          </button>
-          <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
-            ⎘ Copy
-          </button>
-          <button onClick={onClose} className="btn-secondary text-xs py-1.5">✕ Close</button>
         </div>
       </div>
       <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark flex-shrink-0" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto p-8">
           {/* Briefing & Notes panel */}
-          {showBriefing && (hasBriefing || hasNotes) && (
+          {showBriefing && !editing && (hasBriefing || hasNotes) && (
             <div className="mb-8 card p-6 space-y-5 border-brand-gold/20 bg-brand-gold/5">
               <div className="flex items-center gap-2 pb-3 border-b border-brand-gold/20">
                 <span className="text-brand-gold text-sm">◎</span>
@@ -517,10 +568,19 @@ function ProposalViewer({
             </div>
           )}
 
-          <div
-            className="prose-proposal"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}
-          />
+          {editing ? (
+            <textarea
+              value={editContent}
+              onChange={e => setEditContent(e.target.value)}
+              className="w-full min-h-[60vh] px-4 py-3 bg-white border border-brand-cream rounded-lg text-sm text-brand-dark font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y"
+              placeholder="Proposal content (Markdown supported)…"
+            />
+          ) : (
+            <div
+              className="prose-proposal"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -536,6 +596,7 @@ export default function ClientModal({
   onReactivate,
   onDeleteProposal,
   onAddProposal,
+  onUpdateProposal,
 }: ClientModalProps) {
   const [tab, setTab] = useState<'details' | 'proposals'>('details');
   const [viewingProposal, setViewingProposal] = useState<SavedProposal | null>(null);
@@ -612,7 +673,14 @@ export default function ClientModal({
   return (
     <>
       {viewingProposal && (
-        <ProposalViewer proposal={viewingProposal} onClose={() => setViewingProposal(null)} />
+        <ProposalViewer
+          proposal={viewingProposal}
+          onClose={() => setViewingProposal(null)}
+          onUpdate={onUpdateProposal ? (updates) => {
+            onUpdateProposal(viewingProposal.id, updates);
+            setViewingProposal({ ...viewingProposal, ...updates });
+          } : undefined}
+        />
       )}
       {showImport && client && (
         <ImportProposalModal
