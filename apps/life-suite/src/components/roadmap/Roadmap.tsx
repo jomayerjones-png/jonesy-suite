@@ -71,7 +71,7 @@ function Editable({ value, onChange, className = '' }: { value: string; onChange
 // ── Main ─────────────────────────────────────────────────────────
 type RoadmapView = 'roadmap' | 'close';
 
-export default function Roadmap({ companyName }: { companyName: string }) {
+export default function Roadmap({ companyName: _companyName }: { companyName: string }) {
   const [weeks, setWeeks] = useState(WEEKS_INIT);
   const [closers, setClosers] = useState(CLOSERS_INIT);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
