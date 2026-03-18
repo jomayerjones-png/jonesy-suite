@@ -73,7 +73,7 @@ export interface Client {
   stageHistory: StageEvent[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap';
 
 export interface SavedProposal {
   id: string;

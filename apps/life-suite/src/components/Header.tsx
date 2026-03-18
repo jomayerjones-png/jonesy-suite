@@ -11,6 +11,7 @@ interface HeaderProps {
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'roadmap', label: 'Roadmap', icon: '◆', desc: 'Strategic roadmap' },
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
