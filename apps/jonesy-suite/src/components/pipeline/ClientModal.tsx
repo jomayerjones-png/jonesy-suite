@@ -82,39 +82,71 @@ function downloadProposalPdf(
   const html = renderMarkdown(proposal.content);
   const client = opts.clientName || proposal.briefing?.clientName || '';
   const company = opts.clientCompany || proposal.briefing?.company || '';
+  const clientInitial = (company || client || 'C').charAt(0).toUpperCase();
+  const suiteInitial = opts.suiteName.charAt(0).toUpperCase();
   const date = new Date(proposal.createdAt).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
   });
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   printWindow.document.write(`<!DOCTYPE html><html><head><title>${proposal.title}</title><style>
-    @page { margin: 0; size: A4; }
+    @page { margin: 1.5cm 2cm 2cm 2cm; size: A4; }
+    @page :first { margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.65; margin: 0; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.65; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
     /* ── Cover Page ── */
     .cover {
-      min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between;
-      padding: 3cm 2.5cm 2cm; page-break-after: always;
+      height: 100vh; display: flex; flex-direction: column; justify-content: space-between;
+      padding: 2.8cm 2.5cm 2cm; page-break-after: always;
     }
-    .cover-brand { font-size: 11pt; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #b8962e; }
-    .cover-rule { width: 60px; height: 2px; background: #d4af37; margin: 24pt 0; }
-    .cover-title { font-size: 28pt; font-weight: 300; color: #1a1a1a; line-height: 1.2; margin-bottom: 12pt; }
-    .cover-subtitle { font-size: 12pt; color: #666; font-weight: 400; }
+    .cover-top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48pt; }
+    .cover-logo { display: flex; align-items: center; gap: 10pt; }
+    .cover-logo-mark {
+      width: 36pt; height: 36pt; background: #1a1a1a; border-radius: 4pt;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16pt; font-weight: 700; color: #d4af37; letter-spacing: 0;
+    }
+    .cover-logo-text { font-size: 13pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #1a1a1a; }
+    .cover-client-logo { display: flex; align-items: center; gap: 8pt; }
+    .cover-client-mark {
+      width: 36pt; height: 36pt; background: #f5f5f0; border: 1.5pt solid #e0e0d8; border-radius: 4pt;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16pt; font-weight: 600; color: #888;
+    }
+    .cover-client-text { font-size: 10pt; color: #999; font-weight: 500; }
+    .cover-rule { width: 60px; height: 2.5px; background: #d4af37; margin: 0 0 28pt; }
+    .cover-title { font-size: 30pt; font-weight: 300; color: #1a1a1a; line-height: 1.2; margin-bottom: 14pt; }
+    .cover-subtitle { font-size: 13pt; color: #666; font-weight: 400; }
     .cover-meta { border-top: 1px solid #e0e0e0; padding-top: 20pt; }
     .cover-meta-row { display: flex; gap: 48pt; margin-bottom: 8pt; }
     .cover-meta-label { font-size: 7.5pt; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #999; margin-bottom: 2pt; }
     .cover-meta-value { font-size: 10pt; color: #333; }
-    .cover-confidential { font-size: 7pt; color: #bbb; letter-spacing: 1px; text-transform: uppercase; margin-top: 32pt; }
+    .cover-confidential { font-size: 7pt; color: #bbb; letter-spacing: 1px; text-transform: uppercase; margin-top: 28pt; }
 
-    /* ── Content Pages ── */
-    .content { padding: 1.8cm 2.5cm 2.5cm; }
-    .content-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12pt; border-bottom: 1px solid #e8e8e8; margin-bottom: 28pt; }
+    /* ── Content Header (repeats visually at top of content) ── */
+    .content-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 10pt; border-bottom: 1px solid #e5e5e5; margin-bottom: 24pt;
+    }
+    .content-header-left { display: flex; align-items: center; gap: 8pt; }
+    .content-header-mark {
+      width: 22pt; height: 22pt; background: #1a1a1a; border-radius: 3pt;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10pt; font-weight: 700; color: #d4af37;
+    }
     .content-header-brand { font-size: 8pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #b8962e; }
-    .content-header-title { font-size: 8pt; color: #999; }
+    .content-header-right { display: flex; align-items: center; gap: 8pt; }
+    .content-header-client-mark {
+      width: 22pt; height: 22pt; background: #f5f5f0; border: 1pt solid #e0e0d8; border-radius: 3pt;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10pt; font-weight: 600; color: #999;
+    }
+    .content-header-title { font-size: 8pt; color: #999; max-width: 200pt; text-align: right; }
 
+    /* ── Prose ── */
     .prose h1 { font-size: 20pt; font-weight: 300; color: #1a1a1a; margin: 0 0 16pt; padding-bottom: 10pt; border-bottom: 2px solid #d4af37; }
-    .prose h2 { font-size: 13pt; font-weight: 600; color: #1a1a1a; margin: 28pt 0 10pt; padding-bottom: 6pt; border-bottom: 1px solid #eee; }
+    .prose h2 { font-size: 13pt; font-weight: 600; color: #1a1a1a; margin: 26pt 0 10pt; padding-bottom: 6pt; border-bottom: 1px solid #eee; }
     .prose h3 { font-size: 11pt; font-weight: 600; color: #333; margin: 18pt 0 6pt; }
     .prose p { margin: 6pt 0; color: #333; }
     .prose ul, .prose ol { padding-left: 1.4em; margin: 6pt 0; }
@@ -123,11 +155,20 @@ function downloadProposalPdf(
     .prose strong { font-weight: 600; color: #1a1a1a; }
 
     /* ── Footer ── */
-    .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 10pt 2.5cm; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 7pt; color: #bbb; }
+    .content-footer { margin-top: 36pt; padding-top: 10pt; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 7pt; color: #bbb; }
   </style></head><body>
     <div class="cover">
       <div>
-        <div class="cover-brand">${opts.suiteName}</div>
+        <div class="cover-top-bar">
+          <div class="cover-logo">
+            <div class="cover-logo-mark">${suiteInitial}</div>
+            <div class="cover-logo-text">${opts.suiteName}</div>
+          </div>
+          ${company ? `<div class="cover-client-logo">
+            <div class="cover-client-text">${company}</div>
+            <div class="cover-client-mark">${clientInitial}</div>
+          </div>` : ''}
+        </div>
         <div class="cover-rule"></div>
         <div class="cover-title">${proposal.title}</div>
         ${company ? `<div class="cover-subtitle">Prepared for ${company}</div>` : ''}
@@ -138,18 +179,22 @@ function downloadProposalPdf(
           <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-value">${opts.suiteName}</div></div>
           <div><div class="cover-meta-label">Date</div><div class="cover-meta-value">${date}</div></div>
         </div>
-        <div class="cover-confidential">Confidential — For intended recipient only</div>
+        <div class="cover-confidential">Confidential &mdash; For intended recipient only</div>
       </div>
     </div>
-    <div class="content">
-      <div class="content-header">
+    <div class="content-header">
+      <div class="content-header-left">
+        <div class="content-header-mark">${suiteInitial}</div>
         <div class="content-header-brand">${opts.suiteName}</div>
-        <div class="content-header-title">${proposal.title}</div>
       </div>
-      <div class="prose">${html}</div>
+      <div class="content-header-right">
+        <div class="content-header-title">${proposal.title}</div>
+        ${company ? `<div class="content-header-client-mark">${clientInitial}</div>` : ''}
+      </div>
     </div>
-    <div class="footer">
-      <span>${opts.suiteName} — Confidential</span>
+    <div class="prose">${html}</div>
+    <div class="content-footer">
+      <span>${opts.suiteName} &mdash; Confidential</span>
       <span>${date}</span>
     </div>
   </body></html>`);
