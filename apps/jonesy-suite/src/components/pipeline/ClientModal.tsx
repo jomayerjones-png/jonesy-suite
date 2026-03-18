@@ -75,18 +75,84 @@ function renderMarkdown(text: string): string {
     .trim();
 }
 
-function downloadProposalPdf(proposal: SavedProposal) {
+function downloadProposalPdf(
+  proposal: SavedProposal,
+  opts: { suiteName: string; clientName?: string; clientCompany?: string },
+) {
   const html = renderMarkdown(proposal.content);
+  const client = opts.clientName || proposal.briefing?.clientName || '';
+  const company = opts.clientCompany || proposal.briefing?.company || '';
+  const date = new Date(proposal.createdAt).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  });
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   printWindow.document.write(`<!DOCTYPE html><html><head><title>${proposal.title}</title><style>
-    @page { margin: 1cm; size: A4; }
-    body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.5; margin: 0; padding: 2cm; }
-    h1 { font-size: 18pt; margin: 0 0 8pt; } h2 { font-size: 13pt; margin: 16pt 0 6pt; } h3 { font-size: 11pt; margin: 12pt 0 4pt; }
-    ul, ol { padding-left: 1.2em; margin: 4pt 0; } li { margin: 2pt 0; }
-    blockquote { border-left: 3px solid #d4af37; padding-left: 12pt; margin: 8pt 0; color: #555; }
-    strong { font-weight: 600; } p { margin: 4pt 0; }
-  </style></head><body><div class="prose-proposal">${html}</div></body></html>`);
+    @page { margin: 0; size: A4; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.65; margin: 0; }
+
+    /* ── Cover Page ── */
+    .cover {
+      min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between;
+      padding: 3cm 2.5cm 2cm; page-break-after: always;
+    }
+    .cover-brand { font-size: 11pt; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #b8962e; }
+    .cover-rule { width: 60px; height: 2px; background: #d4af37; margin: 24pt 0; }
+    .cover-title { font-size: 28pt; font-weight: 300; color: #1a1a1a; line-height: 1.2; margin-bottom: 12pt; }
+    .cover-subtitle { font-size: 12pt; color: #666; font-weight: 400; }
+    .cover-meta { border-top: 1px solid #e0e0e0; padding-top: 20pt; }
+    .cover-meta-row { display: flex; gap: 48pt; margin-bottom: 8pt; }
+    .cover-meta-label { font-size: 7.5pt; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #999; margin-bottom: 2pt; }
+    .cover-meta-value { font-size: 10pt; color: #333; }
+    .cover-confidential { font-size: 7pt; color: #bbb; letter-spacing: 1px; text-transform: uppercase; margin-top: 32pt; }
+
+    /* ── Content Pages ── */
+    .content { padding: 1.8cm 2.5cm 2.5cm; }
+    .content-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12pt; border-bottom: 1px solid #e8e8e8; margin-bottom: 28pt; }
+    .content-header-brand { font-size: 8pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #b8962e; }
+    .content-header-title { font-size: 8pt; color: #999; }
+
+    .prose h1 { font-size: 20pt; font-weight: 300; color: #1a1a1a; margin: 0 0 16pt; padding-bottom: 10pt; border-bottom: 2px solid #d4af37; }
+    .prose h2 { font-size: 13pt; font-weight: 600; color: #1a1a1a; margin: 28pt 0 10pt; padding-bottom: 6pt; border-bottom: 1px solid #eee; }
+    .prose h3 { font-size: 11pt; font-weight: 600; color: #333; margin: 18pt 0 6pt; }
+    .prose p { margin: 6pt 0; color: #333; }
+    .prose ul, .prose ol { padding-left: 1.4em; margin: 6pt 0; }
+    .prose li { margin: 3pt 0; color: #333; }
+    .prose blockquote { border-left: 3px solid #d4af37; padding: 8pt 16pt; margin: 12pt 0; background: #fafaf5; color: #555; font-style: italic; }
+    .prose strong { font-weight: 600; color: #1a1a1a; }
+
+    /* ── Footer ── */
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 10pt 2.5cm; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 7pt; color: #bbb; }
+  </style></head><body>
+    <div class="cover">
+      <div>
+        <div class="cover-brand">${opts.suiteName}</div>
+        <div class="cover-rule"></div>
+        <div class="cover-title">${proposal.title}</div>
+        ${company ? `<div class="cover-subtitle">Prepared for ${company}</div>` : ''}
+      </div>
+      <div class="cover-meta">
+        <div class="cover-meta-row">
+          ${client ? `<div><div class="cover-meta-label">Prepared For</div><div class="cover-meta-value">${client}${company ? `, ${company}` : ''}</div></div>` : ''}
+          <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-value">${opts.suiteName}</div></div>
+          <div><div class="cover-meta-label">Date</div><div class="cover-meta-value">${date}</div></div>
+        </div>
+        <div class="cover-confidential">Confidential — For intended recipient only</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="content-header">
+        <div class="content-header-brand">${opts.suiteName}</div>
+        <div class="content-header-title">${proposal.title}</div>
+      </div>
+      <div class="prose">${html}</div>
+    </div>
+    <div class="footer">
+      <span>${opts.suiteName} — Confidential</span>
+      <span>${date}</span>
+    </div>
+  </body></html>`);
   printWindow.document.close();
   setTimeout(() => { printWindow.focus(); printWindow.print(); }, 250);
 }
@@ -349,7 +415,7 @@ function ProposalViewer({
               {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
             </button>
           )}
-          <button onClick={() => downloadProposalPdf(proposal)} className="btn-secondary text-xs py-1.5">
+          <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'Jonesy&Co', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
             ↓ Download PDF
           </button>
           <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
@@ -754,7 +820,7 @@ export default function ClientModal({
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => setViewingProposal(p)} className="btn-secondary py-1 px-2.5 text-xs">View</button>
-                        <button onClick={() => downloadProposalPdf(p)} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
+                        <button onClick={() => downloadProposalPdf(p, { suiteName: 'Jonesy&Co', clientName: form.name || p.briefing?.clientName, clientCompany: form.company || p.briefing?.company })} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
                         {confirmDeleteId === p.id ? (
                           <button
                             onClick={() => { onDeleteProposal?.(p.id); setConfirmDeleteId(null); }}
