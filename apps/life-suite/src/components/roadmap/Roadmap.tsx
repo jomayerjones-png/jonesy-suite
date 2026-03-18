@@ -2,34 +2,32 @@ import { useState } from 'react';
 
 // ── Data ─────────────────────────────────────────────────────────
 const WEEKS_INIT = [
-  { id: 1, label: 'W/C 17 Mar', theme: 'Foundations', phase: 'now' as const, milestones: ['Materials locked & ready', 'Positioning defined', 'Packaging built', 'Pipeline seeded'] },
-  { id: 2, label: 'W/C 24 Mar', theme: 'Market', phase: 'now' as const, milestones: ['Meetings underway', 'Feedback gathered', 'Pipeline developed further'] },
-  { id: 3, label: 'W/C 31 Mar', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals generated', 'Opportunities in active discussion'] },
-  { id: 4, label: 'W/C 7 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals refined & submitted', 'Follow-up conversations active'] },
-  { id: 5, label: 'W/C 14 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Pipeline pressure applied', 'Decisions being sought'] },
-  { id: 6, label: 'W/C 22 Apr', theme: 'The Dinner', phase: 'dinner' as const, milestones: ['The Dinner — 23rd April', 'Relationships deepened', 'Deals crystallising'] },
+  { id: 1, label: 'W/C 16 Mar', theme: 'Foundations', phase: 'now' as const, milestones: ['Materials locked and ready', 'Positioning defined', 'Packaging built', 'Pipeline seeded'] },
+  { id: 2, label: 'W/C 23 Mar', theme: 'Market', phase: 'now' as const, milestones: ['Meetings underway', 'Feedback gathered', 'Pipeline developed further'] },
+  { id: 3, label: 'W/C 30 Mar', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals generated', 'Opportunities in active discussion'] },
+  { id: 4, label: 'W/C 6 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals refined and submitted', 'Follow-up conversations active'] },
+  { id: 5, label: 'W/C 13 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Pipeline pressure applied', 'Decisions being sought'] },
+  { id: 6, label: 'W/C 20 Apr', theme: 'Deal Moment', phase: 'dinner' as const, milestones: ['Relationships deepened', 'Deals crystallising'] },
   { id: 7, label: 'W/C 28 Apr', theme: 'Close', phase: 'may' as const, milestones: ['Final negotiations', 'Agreements confirmed', 'Deals closed by 1 May'] },
-  { id: 8, label: 'W/C 5 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Production window opens — 6 weeks to 22 Jun', 'Large campaigns briefed & kicked off', 'Creative execution begins'] },
-  { id: 9, label: 'W/C 12 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Content & assets in progress', 'Client reviews scheduled', 'Campaign delivery tracked'] },
-  { id: 10, label: 'W/C 19 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Final approvals sought', 'Print-ready materials signed off', 'Campaigns can stretch into Issue 2 if needed'] },
-  { id: 11, label: 'W/C 26 May', theme: 'Launch Prep', phase: 'june' as const, milestones: ['Press & distribution prep', 'Launch comms ready', 'Issue 1 clients: first-issue placement confirmed'] },
+  { id: 8, label: 'W/C 4 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Production window opens — 6 weeks to 22 Jun', 'Large campaigns briefed and kicked off', 'Creative execution begins'] },
+  { id: 9, label: 'W/C 11 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Content and assets in progress', 'Client reviews scheduled', 'Campaign delivery tracked'] },
+  { id: 10, label: 'W/C 18 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Final approvals sought', 'Print-ready materials signed off', 'Campaigns can stretch into Issue 2 if needed'] },
+  { id: 11, label: 'W/C 25 May', theme: 'Launch Prep', phase: 'june' as const, milestones: ['Press and distribution prep', 'Launch comms ready', 'Issue 1 clients: first-issue placement confirmed'] },
 ];
 
 const GROUPS: Record<number, { label: string }> = {
-  1: { label: 'This Week' },
-  2: { label: 'Next Week' },
+  1: { label: 'March — Foundations' },
   3: { label: 'April — Proposals & Pipeline' },
-  6: { label: 'The Dinner' },
-  7: { label: 'May — Deals Close · Production Sprint' },
+  6: { label: 'Dinner, 23 April' },
+  7: { label: 'May — Deals Close · Production Sprint Begins' },
   11: { label: 'June — Launch Prep' },
 };
 
 const CLOSERS_INIT = [
   { id: 1, category: 'PR & Marketing', items: ['PR and marketing plans confirmed for Issue 1', 'Partner visibility commitments defined', 'Editorial calendar shared with key partners'] },
-  { id: 2, category: 'Partner Opportunities', items: ['Opportunities mapped per partner tier', 'Custom programme options presented', 'Exclusivity windows agreed where relevant'] },
-  { id: 3, category: 'Launch Event & Q4 Activations', items: ['Launch event format confirmed', 'Q4 activation options presented to partners', 'Partner presence at launch event defined'] },
-  { id: 4, category: 'Decision on Next Issues', items: ['Decision on next 2–3 issue themes', 'Forward-planning commitments offered to partners', 'Multi-issue packages available for discussion'] },
-  { id: 5, category: 'Partner Activation Framework', items: ['Post-sale activation process agreed', 'Delivery ownership and contacts confirmed', 'Reporting and measurement approach aligned'] },
+  { id: 2, category: 'Launch Event & Q4 Activations', items: ['Launch event format confirmed', 'Q4 activation options presented to partners', 'Partner presence at launch event defined'] },
+  { id: 3, category: 'Decision on Next Issues', items: ['Decision on next 2–3 issue themes', 'Forward-planning commitments offered to partners', 'Multi-issue packages available for discussion'] },
+  { id: 4, category: 'Partner Activation Framework', items: ['Post-sale activation process agreed', 'Delivery ownership and contacts confirmed', 'Reporting and measurement approach aligned'] },
 ];
 
 type Phase = 'now' | 'april' | 'dinner' | 'may' | 'june';
@@ -121,9 +119,14 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
         <h1 className="text-2xl font-bold tracking-tight text-brand-dark">
           {subView === 'roadmap' ? 'The Road to Launch' : 'What We Must Finalise to Close Deals'}
         </h1>
+        {subView === 'roadmap' && (
+          <p className="mt-1.5 text-sm text-gray-500">
+            Deals closed by 1 May · Magazine launch 22 June
+          </p>
+        )}
         {subView === 'close' && (
           <p className="mt-1.5 text-sm text-gray-500">
-            Gate: <strong className="text-brand-gold">1 May 2026</strong> — all of the below must be resolved before contracts are signed.
+            Gate: <strong className="text-brand-gold">1 May 2026</strong> · All of the below must be resolved before contracts are signed.
           </p>
         )}
       </div>
@@ -183,13 +186,13 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
           <div className="mt-7 bg-brand-gold rounded-lg px-6 py-5 flex items-center justify-between">
             <div>
               <div className="text-[10px] text-white/60 tracking-widest uppercase mb-1">North Star</div>
-              <div className="text-xl font-bold text-white tracking-tight">22 June 2026 — Magazine Launch, Issue 1</div>
+              <div className="text-xl font-bold text-white tracking-tight">22 June 2026 — Magazine goes to print, Issue 1</div>
             </div>
             <span className="text-2xl text-white/30">✦</span>
           </div>
 
           <div className="mt-2.5 px-3.5 py-2.5 bg-white border border-gray-200 rounded-md text-xs text-gray-400">
-            Custom programmes require 6 weeks production. Deals closed by 1 May enables delivery for Issue 1. Larger campaigns can stretch across Issues 1 &amp; 2.
+            Custom programmes require 6 weeks production. Deals closed by 1 May enables delivery for Issue 1. Larger campaigns can stretch across Issues 1 & 2.
           </div>
         </>
       )}
