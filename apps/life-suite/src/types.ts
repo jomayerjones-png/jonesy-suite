@@ -73,13 +73,15 @@ export interface Client {
   stageHistory: StageEvent[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap';
 
 export interface SavedProposal {
   id: string;
   title: string;    // extracted from first H1 heading
   content: string;  // full markdown
   createdAt: string; // ISO datetime
+  briefing?: ProposalFormData;  // the form inputs used to generate
+  clientNotes?: string;         // pipeline notes at time of generation
 }
 
 export interface ProposalFormData {

@@ -71,15 +71,27 @@ export interface Client {
   outcome: 'active' | 'won' | 'lost';
   lostReason: string;
   stageHistory: StageEvent[];
+  documents: ProjectDocument[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects';
+
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  size: number;       // bytes
+  type: string;       // MIME type
+  dataUrl: string;    // base64 data URL for local storage
+  uploadedAt: string; // ISO datetime
+}
 
 export interface SavedProposal {
   id: string;
   title: string;    // extracted from first H1 heading
   content: string;  // full markdown
   createdAt: string; // ISO datetime
+  briefing?: ProposalFormData;  // the form inputs used to generate
+  clientNotes?: string;         // pipeline notes at time of generation
 }
 
 export interface ProposalFormData {
@@ -147,6 +159,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
   {
     id: generateId(),
@@ -165,6 +178,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
   {
     id: generateId(),
@@ -183,6 +197,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
 
   // --- Tier 02: Storytelling & Editorial Franchise Partners ---
@@ -203,6 +218,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
   {
     id: generateId(),
@@ -221,6 +237,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
   {
     id: generateId(),
@@ -239,6 +256,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
   {
     id: generateId(),
@@ -257,6 +275,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
 
   // --- Tier 03: Brand Access & Cultural Sponsorship ---
@@ -277,5 +296,6 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
+    documents: [],
   },
 ];

@@ -1,5 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { Client, SavedProposal, PIPELINE_STAGES, generateId } from '../../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
+
+async function readPdfAsText(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(text);
+  }
+  return pages.join('\n\n');
+}
 
 type ClientFormData = Omit<Client, 'id' | 'createdAt'>;
 
@@ -45,6 +66,22 @@ function renderMarkdown(text: string): string {
     .trim();
 }
 
+function downloadProposalPdf(proposal: SavedProposal) {
+  const html = renderMarkdown(proposal.content);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  printWindow.document.write(`<!DOCTYPE html><html><head><title>${proposal.title}</title><style>
+    @page { margin: 1cm; size: A4; }
+    body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.5; margin: 0; padding: 2cm; }
+    h1 { font-size: 18pt; margin: 0 0 8pt; } h2 { font-size: 13pt; margin: 16pt 0 6pt; } h3 { font-size: 11pt; margin: 12pt 0 4pt; }
+    ul, ol { padding-left: 1.2em; margin: 4pt 0; } li { margin: 2pt 0; }
+    blockquote { border-left: 3px solid #d4af37; padding-left: 12pt; margin: 8pt 0; color: #555; }
+    strong { font-weight: 600; } p { margin: 4pt 0; }
+  </style></head><body><div class="prose-proposal">${html}</div></body></html>`);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.focus(); printWindow.print(); }, 250);
+}
+
 function extractFirstLine(text: string): string {
   return (
     text
@@ -81,9 +118,18 @@ function ImportProposalModal({
     setError('');
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const text = await readPdfAsText(file);
+        loadText(text, file.name);
+      } catch {
+        setError('Failed to read PDF. The file may be corrupted or password-protected.');
+      }
+      return;
+    }
     if (!file.name.match(/\.(txt|md|markdown)$/i)) {
-      setError('Please upload a .txt or .md file. Export your Google Doc via File → Download → Plain Text.');
+      setError('Please upload a .pdf, .txt, or .md file.');
       return;
     }
     const reader = new FileReader();
@@ -188,7 +234,7 @@ function ImportProposalModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.markdown"
+                accept=".txt,.md,.markdown,.pdf"
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
               />
@@ -202,7 +248,7 @@ function ImportProposalModal({
                 <>
                   <span className="text-3xl text-brand-dark/20">⬆</span>
                   <p className="text-sm font-semibold text-brand-dark/60">Drop file here or click to browse</p>
-                  <p className="text-xs text-brand-dark/40">Accepts .txt and .md files</p>
+                  <p className="text-xs text-brand-dark/40">Accepts .pdf, .txt, and .md files</p>
                 </>
               )}
             </div>
@@ -245,6 +291,17 @@ function ImportProposalModal({
   );
 }
 
+// ── Briefing Detail Row ──────────────────────────────────────────────────────
+function BriefingRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-sm text-brand-dark/80 leading-relaxed whitespace-pre-line">{value}</p>
+    </div>
+  );
+}
+
 // ── Proposal Viewer ───────────────────────────────────────────────────────────
 function ProposalViewer({
   proposal,
@@ -253,12 +310,17 @@ function ProposalViewer({
   proposal: SavedProposal;
   onClose: () => void;
 }) {
+  const [showBriefing, setShowBriefing] = useState(false);
+  const b = proposal.briefing;
+  const hasBriefing = b && (b.clientName || b.company || b.challenge || b.desiredOutcome);
+  const hasNotes = !!proposal.clientNotes;
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-brand-light">
       <div className="bg-brand-dark px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-xs">J</span>
+            <span className="font-display text-white font-bold text-xs">L</span>
           </div>
           <div>
             <p className="font-display text-sm font-semibold text-white">{proposal.title}</p>
@@ -270,6 +332,17 @@ function ProposalViewer({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(hasBriefing || hasNotes) && (
+            <button
+              onClick={() => setShowBriefing(v => !v)}
+              className={`btn-secondary text-xs py-1.5 flex items-center gap-1.5 ${showBriefing ? 'bg-brand-gold/10 border-brand-gold/30' : ''}`}
+            >
+              {showBriefing ? '◉ Hide Brief' : '◎ Briefing & Notes'}
+            </button>
+          )}
+          <button onClick={() => downloadProposalPdf(proposal)} className="btn-secondary text-xs py-1.5">
+            ↓ Download PDF
+          </button>
           <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
             ⎘ Copy
           </button>
@@ -279,6 +352,51 @@ function ProposalViewer({
       <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark flex-shrink-0" />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto p-8">
+          {/* Briefing & Notes panel */}
+          {showBriefing && (hasBriefing || hasNotes) && (
+            <div className="mb-8 card p-6 space-y-5 border-brand-gold/20 bg-brand-gold/5">
+              <div className="flex items-center gap-2 pb-3 border-b border-brand-gold/20">
+                <span className="text-brand-gold text-sm">◎</span>
+                <h3 className="font-display text-base font-semibold text-brand-dark">Briefing Document & Notes</h3>
+              </div>
+
+              {b && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <BriefingRow label="Partner Contact" value={b.clientName} />
+                  <BriefingRow label="Brand / Company" value={b.company} />
+                  {b.industry && <BriefingRow label="Industry / Category" value={b.industry} />}
+                  {b.budget && <BriefingRow label="Investment Level" value={b.budget} />}
+                  {b.timeline && <BriefingRow label="Launch / Timeline" value={b.timeline} />}
+                </div>
+              )}
+
+              {b?.challenge && (
+                <BriefingRow label="Partnership Opportunity / Angle" value={b.challenge} />
+              )}
+              {b?.currentState && (
+                <BriefingRow label="Brand's Current Context" value={b.currentState} />
+              )}
+              {b?.desiredOutcome && (
+                <BriefingRow label="What Success Looks Like" value={b.desiredOutcome} />
+              )}
+              {b?.successMetrics && (
+                <BriefingRow label="Key Deliverables / Inclusions" value={b.successMetrics} />
+              )}
+              {b?.additionalContext && (
+                <BriefingRow label="Additional Context" value={b.additionalContext} />
+              )}
+
+              {hasNotes && (
+                <div className="pt-4 border-t border-brand-gold/20">
+                  <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-1">Pipeline Notes</p>
+                  <p className="text-sm text-brand-dark/70 leading-relaxed whitespace-pre-line bg-white rounded-lg p-3 border border-brand-cream">
+                    {proposal.clientNotes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div
             className="prose-proposal"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}
@@ -626,6 +744,7 @@ export default function ClientModal({
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => setViewingProposal(p)} className="btn-secondary py-1 px-2.5 text-xs">View</button>
+                        <button onClick={() => downloadProposalPdf(p)} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
                         {confirmDeleteId === p.id ? (
                           <button
                             onClick={() => { onDeleteProposal?.(p.id); setConfirmDeleteId(null); }}

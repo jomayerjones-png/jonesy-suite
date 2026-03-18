@@ -11,6 +11,7 @@ interface HeaderProps {
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'roadmap', label: 'Roadmap', icon: '◆', desc: 'Strategic roadmap' },
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
@@ -45,7 +46,7 @@ export default function Header({
         <div className="flex items-center gap-3">
           {/* Logo mark */}
           <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">L</span>
+            <span className="font-display text-white font-bold text-sm">L</span>
           </div>
           {/* Editable company name */}
           {editing ? (
@@ -82,6 +83,9 @@ export default function Header({
           </div>
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 border-l border-white/10 pl-4">
+            <span className="text-white/50 text-xs font-medium tracking-wide">Jonesy&Co</span>
           </div>
         </div>
       </div>

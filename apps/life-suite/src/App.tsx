@@ -5,6 +5,7 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
+import Roadmap from './components/roadmap/Roadmap';
 
 const STORAGE_KEY_CLIENTS = 'life_suite_clients';
 const STORAGE_KEY_COMPANY = 'life_suite_company';
@@ -138,6 +139,9 @@ function App() {
             clients={clients}
             onSaveToClient={saveProposalToClient}
           />
+        )}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
