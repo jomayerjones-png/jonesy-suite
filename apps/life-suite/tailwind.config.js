@@ -13,6 +13,7 @@ export default {
           light: '#F5F0E8',
           cream: '#EDE8DC',
           'cream-dark': '#E0D9CE',
+          'life-red': '#E8002D',
         },
       },
       fontFamily: {

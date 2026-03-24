@@ -82,8 +82,67 @@ export default function PipelineTracker({
 
   return (
     <div className="flex flex-col h-full">
+      <style>{`
+        @media print {
+          @page { margin: 1.5cm; size: A4; }
+          body { background: white !important; font-size: 10pt; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+          h1, h2 { page-break-after: avoid; }
+          print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
+      `}</style>
+
+      {/* Print-only pipeline snapshot */}
+      <div className="print-only hidden">
+        <div style={{ padding: '0 0 20px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ backgroundColor: '#E8002D', padding: '6px 14px' }}>
+            <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '28px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>Partner Pipeline Snapshot</p>
+            <p style={{ margin: 0 }}>{activeClients.length} active · {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {[
+            { label: 'Active Pipeline', value: formatCurrency(totalValue) },
+            { label: 'Won', value: formatCurrency(wonValue) },
+            { label: 'Active Clients', value: String(activeClients.length) },
+            ...(staleCount > 0 ? [{ label: 'Stale (7d+)', value: String(staleCount) }] : []),
+          ].map(s => (
+            <div key={s.label} style={{ flex: '1', minWidth: '80px' }}>
+              <p style={{ fontSize: '7pt', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px' }}>{s.label}</p>
+              <p style={{ fontSize: '16pt', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #1A1A1A' }}>
+              {['Partner', 'Company', 'Stage', 'Value', 'Last Contact', 'Tags'].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '4px 8px 6px', fontSize: '7pt', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {activeClients.map((c, i) => (
+              <tr key={c.id} style={{ borderBottom: '1px solid #eee', backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
+                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A' }}>{c.name}</td>
+                <td style={{ padding: '5px 8px', color: '#555' }}>{c.company}</td>
+                <td style={{ padding: '5px 8px', color: '#555' }}>{c.stage}</td>
+                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#C9A84C' }}>{formatCurrency(c.value)}</td>
+                <td style={{ padding: '5px 8px', color: '#888' }}>{c.lastContact}</td>
+                <td style={{ padding: '5px 8px', color: '#888', fontSize: '8pt' }}>{c.tags.join(', ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {/* Stats bar */}
-      <div className="bg-white border-b border-brand-cream px-6 py-4">
+      <div className="bg-white border-b border-brand-cream px-6 py-4 no-print">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6 flex-wrap">
             <div>
@@ -136,7 +195,7 @@ export default function PipelineTracker({
       </div>
 
       {/* Toolbar */}
-      <div className="bg-brand-light border-b border-brand-cream px-6 py-3 flex items-center gap-3 flex-wrap">
+      <div className="no-print bg-brand-light border-b border-brand-cream px-6 py-3 flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/30 text-sm">⌕</span>
           <input
@@ -200,13 +259,16 @@ export default function PipelineTracker({
           </button>
         </div>
 
+        <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
+          <span>⎙</span> Download PDF
+        </button>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2">
           <span>+</span> Add Client
         </button>
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="no-print flex-1 overflow-auto p-6">
         {showLost ? (
           <div className="max-w-3xl mx-auto space-y-2">
             {filteredClients.length === 0 ? (

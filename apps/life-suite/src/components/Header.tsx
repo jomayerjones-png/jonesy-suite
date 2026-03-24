@@ -43,9 +43,9 @@ export default function Header({
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {/* Logo mark */}
-          <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">L</span>
+          {/* LIFE logo mark */}
+          <div className="bg-brand-life-red px-2.5 py-1 flex-shrink-0">
+            <span className="font-display font-bold text-white text-base tracking-tighter leading-none select-none">LIFE</span>
           </div>
           {/* Editable company name */}
           {editing ? (
@@ -103,7 +103,7 @@ export default function Header({
             </span>
             <span className="tracking-wide">{item.label}</span>
             {activeView === item.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-gold rounded-t-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-life-red rounded-t-full" />
             )}
           </button>
         ))}

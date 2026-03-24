@@ -186,18 +186,22 @@ function ArchivedReportView({
             <div className="bg-brand-dark px-8 py-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Weekly Business Report — Archived</p>
-                  <h1 className="font-display text-3xl font-bold text-white">{archive.companyName}</h1>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-[#E8002D] px-2.5 py-0.5">
+                      <span className="font-display font-bold text-white text-lg tracking-tighter leading-none">LIFE</span>
+                    </div>
+                    <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Weekly Report — Archived</p>
+                  </div>
                   <p className="text-white/50 text-sm mt-1">Saved {savedDate}</p>
                 </div>
                 <div className="text-right hidden sm:block">
-                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
+                  <p className="text-white/40 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
                   <p className="text-white font-medium">{archive.weekLabel}</p>
                   <p className="text-white/50 text-xs mt-1">{archive.stats.clientCount} clients</p>
                 </div>
               </div>
             </div>
-            <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+            <div className="h-1 bg-[#E8002D]" />
           </div>
 
           {/* Pipeline Metrics */}
@@ -562,18 +566,22 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 <div className="bg-brand-dark px-8 py-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Weekly Business Report</p>
-                      <h1 className="font-display text-3xl font-bold text-white">{companyName}</h1>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-[#E8002D] px-2.5 py-0.5">
+                          <span className="font-display font-bold text-white text-lg tracking-tighter leading-none">LIFE</span>
+                        </div>
+                        <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Weekly Business Report</p>
+                      </div>
                       <p className="text-white/50 text-sm mt-1">{reportDate}</p>
                     </div>
                     <div className="text-right hidden sm:block">
-                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
+                      <p className="text-white/40 text-xs font-medium uppercase tracking-widest mb-1">Week of</p>
                       <p className="text-white font-medium">{weekLabel}</p>
                       <p className="text-white/50 text-xs mt-1">{clients.length} active clients</p>
                     </div>
                   </div>
                 </div>
-                <div className="h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark" />
+                <div className="h-1 bg-[#E8002D]" />
               </div>
 
               {/* Pipeline Metrics */}
