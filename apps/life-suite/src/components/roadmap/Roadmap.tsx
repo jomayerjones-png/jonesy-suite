@@ -94,21 +94,50 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
+      <style>{`
+        @media print {
+          @page { margin: 1.5cm; size: A4; }
+          body { background: white !important; font-size: 10pt; }
+          .no-print { display: none !important; }
+          .print-only { display: flex !important; }
+          print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
+      `}</style>
+
+      {/* Print-only LIFE header */}
+      <div className="print-only hidden items-center justify-between mb-6 pb-4 border-b-2 border-gray-200">
+        <div style={{ backgroundColor: '#E8002D', padding: '5px 12px', display: 'inline-block' }}>
+          <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '22px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
+        </div>
+        <div style={{ textAlign: 'right', fontSize: '9pt', color: '#888' }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>Strategic Roadmap · March – June 2026</p>
+          <p style={{ margin: 0 }}>{subView === 'roadmap' ? 'Week by Week' : 'Close by 1 May'}</p>
+        </div>
+      </div>
+
       {/* Sub-navigation tabs */}
-      <div className="flex gap-0 border-b border-gray-200 mb-8">
-        {([['roadmap', 'Week by Week'], ['close', 'Close by 1 May']] as [RoadmapView, string][]).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setSubView(id)}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${
-              subView === id
-                ? 'border-brand-gold text-brand-dark'
-                : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="no-print flex items-center justify-between border-b border-gray-200 mb-8">
+        <div className="flex gap-0">
+          {([['roadmap', 'Week by Week'], ['close', 'Close by 1 May']] as [RoadmapView, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setSubView(id)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${
+                subView === id
+                  ? 'border-[#E8002D] text-brand-dark'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="btn-primary flex items-center gap-2 text-sm mb-0.5"
+        >
+          <span>⎙</span> Download PDF
+        </button>
       </div>
 
       {/* Page title */}
@@ -163,7 +192,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
                           <Editable value={m} onChange={v => setWMs(week.id, mi, v)} className="text-sm text-brand-dark" />
                           <span
                             onClick={() => delWM(week.id, mi)}
-                            className="text-gray-200 hover:text-brand-gold cursor-pointer text-[10px] select-none transition-colors"
+                            className="no-print text-gray-200 hover:text-brand-gold cursor-pointer text-[10px] select-none transition-colors"
                           >
                             ✕
                           </span>
@@ -171,7 +200,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
                       ))}
                       <span
                         onClick={() => addWM(week.id)}
-                        className="text-[11px] text-gray-300 hover:text-brand-gold cursor-pointer select-none transition-colors"
+                        className="no-print text-[11px] text-gray-300 hover:text-brand-gold cursor-pointer select-none transition-colors"
                       >
                         + add
                       </span>
@@ -251,7 +280,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
                           />
                           <span
                             onClick={() => delCI(c.id, ii)}
-                            className="text-gray-200 hover:text-brand-gold cursor-pointer text-[10px] select-none flex-shrink-0 transition-colors"
+                            className="no-print text-gray-200 hover:text-brand-gold cursor-pointer text-[10px] select-none flex-shrink-0 transition-colors"
                           >
                             ✕
                           </span>
@@ -260,7 +289,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
                     })}
                     <span
                       onClick={() => addCI(c.id)}
-                      className="text-[11px] text-gray-300 hover:text-brand-gold cursor-pointer select-none transition-colors"
+                      className="no-print text-[11px] text-gray-300 hover:text-brand-gold cursor-pointer select-none transition-colors"
                     >
                       + add
                     </span>
