@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
 import { View } from '../types';
 
 interface HeaderProps {
@@ -18,26 +17,12 @@ const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
 ];
 
 export default function Header({
-  companyName,
-  onCompanyNameChange,
+  companyName: _companyName,
+  onCompanyNameChange: _onCompanyNameChange,
   activeView,
   onViewChange,
   clientCount,
 }: HeaderProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(companyName);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) inputRef.current?.select();
-  }, [editing]);
-
-  const commitEdit = () => {
-    const trimmed = draft.trim();
-    if (trimmed) onCompanyNameChange(trimmed);
-    else setDraft(companyName);
-    setEditing(false);
-  };
 
   return (
     <header className="bg-brand-dark border-b border-brand-dark/20 sticky top-0 z-50">
@@ -48,31 +33,6 @@ export default function Header({
           <div className="bg-[#E8002D] px-2.5 py-1 flex-shrink-0">
             <span className="font-display font-bold text-white text-base tracking-tighter leading-none select-none">LIFE</span>
           </div>
-          {/* Editable company name */}
-          {editing ? (
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') { setDraft(companyName); setEditing(false); }
-              }}
-              className="font-display text-lg font-semibold text-white bg-transparent border-b-2 border-brand-gold outline-none w-48"
-            />
-          ) : (
-            <button
-              onClick={() => { setDraft(companyName); setEditing(true); }}
-              className="font-display text-lg font-semibold text-white hover:text-brand-gold transition-colors group flex items-center gap-1.5"
-              title="Click to edit company name"
-            >
-              {companyName}
-              <span className="opacity-0 group-hover:opacity-60 text-brand-gold text-xs transition-opacity">
-                ✏
-              </span>
-            </button>
-          )}
           <span className="text-white/30 text-sm font-light hidden sm:block">Partner Suite</span>
         </div>
 
