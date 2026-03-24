@@ -5,6 +5,7 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
+import LiveProjects from './components/projects/LiveProjects';
 
 const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
 const STORAGE_KEY_COMPANY = 'jonesy_suite_company';
@@ -44,6 +45,7 @@ function App() {
       outcome: clientData.outcome || 'active',
       lostReason: clientData.lostReason || '',
       stageHistory: clientData.stageHistory?.length ? clientData.stageHistory : initHistory,
+      documents: clientData.documents ?? [],
     };
     setClients(prev => [newClient, ...prev]);
   };
@@ -106,6 +108,16 @@ function App() {
     );
   };
 
+  const updateProposalForClient = (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => {
+    setClients(prev =>
+      prev.map(c =>
+        c.id === clientId
+          ? { ...c, proposals: (c.proposals ?? []).map(p => p.id === proposalId ? { ...p, ...updates } : p) }
+          : c
+      )
+    );
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -114,6 +126,7 @@ function App() {
         activeView={view}
         onViewChange={setView}
         clientCount={clients.length}
+        wonRevenue={clients.filter(c => c.outcome === 'won' || c.stage === 'Close').reduce((sum, c) => sum + c.value, 0)}
       />
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
@@ -127,6 +140,7 @@ function App() {
             onReactivate={reactivateClient}
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
+            onUpdateProposal={updateProposalForClient}
           />
         )}
         {view === 'report' && (
@@ -141,6 +155,9 @@ function App() {
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
+        )}
+        {view === 'projects' && (
+          <LiveProjects clients={clients} onUpdateClient={updateClient} />
         )}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">

@@ -11,6 +11,7 @@ interface HeaderProps {
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'roadmap', label: 'Roadmap', icon: '◆', desc: 'Strategic roadmap' },
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
@@ -44,7 +45,7 @@ export default function Header({
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
           {/* LIFE logo mark */}
-          <div className="bg-brand-life-red px-2.5 py-1 flex-shrink-0">
+          <div className="bg-[#E8002D] px-2.5 py-1 flex-shrink-0">
             <span className="font-display font-bold text-white text-base tracking-tighter leading-none select-none">LIFE</span>
           </div>
           {/* Editable company name */}
@@ -83,6 +84,9 @@ export default function Header({
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </div>
+          <div className="hidden sm:flex items-center gap-1.5 border-l border-white/10 pl-4">
+            <span className="text-white/50 text-xs font-medium tracking-wide">lifemagazine.com</span>
+          </div>
         </div>
       </div>
 
@@ -103,7 +107,7 @@ export default function Header({
             </span>
             <span className="tracking-wide">{item.label}</span>
             {activeView === item.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-life-red rounded-t-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-gold rounded-t-full" />
             )}
           </button>
         ))}

@@ -16,6 +16,7 @@ interface PipelineTrackerProps {
   onReactivate: (id: string) => void;
   onDeleteProposal: (clientId: string, proposalId: string) => void;
   onAddProposal: (clientId: string, proposal: SavedProposal) => void;
+  onUpdateProposal: (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => void;
 }
 
 export default function PipelineTracker({
@@ -28,6 +29,7 @@ export default function PipelineTracker({
   onReactivate,
   onDeleteProposal,
   onAddProposal,
+  onUpdateProposal,
 }: PipelineTrackerProps) {
   const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [modalOpen, setModalOpen] = useState(false);
@@ -43,8 +45,8 @@ export default function PipelineTracker({
   const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact)).length, [activeClients]);
   const totalValue = useMemo(() => activeClients.reduce((s, c) => s + c.value, 0), [activeClients]);
   const wonValue = useMemo(
-    () => activeClients.filter(c => c.outcome === 'won').reduce((s, c) => s + c.value, 0),
-    [activeClients]
+    () => clients.filter(c => c.outcome === 'won' || c.stage === 'Close').reduce((s, c) => s + c.value, 0),
+    [clients]
   );
 
   const displayClients = showLost ? lostClients : activeClients;
@@ -263,6 +265,7 @@ export default function PipelineTracker({
           onReactivate={editingClient ? () => { onReactivate(editingClient.id); setModalOpen(false); setEditingClient(null); } : undefined}
           onDeleteProposal={editingClient ? (proposalId) => onDeleteProposal(editingClient.id, proposalId) : undefined}
           onAddProposal={editingClient ? (proposal) => onAddProposal(editingClient.id, proposal) : undefined}
+          onUpdateProposal={editingClient ? (proposalId, updates) => onUpdateProposal(editingClient.id, proposalId, updates) : undefined}
         />
       )}
     </div>

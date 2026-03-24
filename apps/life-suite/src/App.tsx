@@ -5,6 +5,7 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
+import Roadmap from './components/roadmap/Roadmap';
 
 const STORAGE_KEY_CLIENTS = 'life_suite_clients';
 const STORAGE_KEY_COMPANY = 'life_suite_company';
@@ -106,6 +107,16 @@ function App() {
     );
   };
 
+  const updateProposalForClient = (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => {
+    setClients(prev =>
+      prev.map(c =>
+        c.id === clientId
+          ? { ...c, proposals: (c.proposals ?? []).map(p => p.id === proposalId ? { ...p, ...updates } : p) }
+          : c
+      )
+    );
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -127,6 +138,7 @@ function App() {
             onReactivate={reactivateClient}
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
+            onUpdateProposal={updateProposalForClient}
           />
         )}
         {view === 'report' && (
@@ -138,6 +150,9 @@ function App() {
             clients={clients}
             onSaveToClient={saveProposalToClient}
           />
+        )}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
