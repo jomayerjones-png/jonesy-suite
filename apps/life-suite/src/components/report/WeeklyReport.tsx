@@ -318,7 +318,7 @@ function ArchivedReportView({
 
           {archive.notes.meetings && <NotesReadOnly title="Meetings Attended" value={archive.notes.meetings} />}
           {archive.notes.actions && <NotesReadOnly title="Actions Taken & Completed" value={archive.notes.actions} />}
-          {archive.notes.nextFocus && <NotesReadOnly title="Next Week's Focus" value={archive.notes.nextFocus} />}
+          {archive.notes.nextFocus && <NotesReadOnly title="This Week's Focus" value={archive.notes.nextFocus} />}
 
           {/* Footer */}
           <div className="text-center py-2 border-t border-brand-cream">
@@ -739,9 +739,9 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               />
               </SectionWrapper>
 
-              <SectionWrapper title="Next Week's Focus" hidden={!!hiddenSections.nextFocus} onToggle={() => toggleSection('nextFocus')}>
+              <SectionWrapper title="This Week's Focus" hidden={!!hiddenSections.nextFocus} onToggle={() => toggleSection('nextFocus')}>
               <EditableSection
-                title="Next Week's Focus"
+                title="This Week's Focus"
                 placeholder={`e.g.\nClose Samsung partnership — final sign-off\nSecond meeting with United Airlines — destination storytelling examples\nInitiate LVMH event co-branding conversation`}
                 value={notes.nextFocus}
                 onChange={setNote('nextFocus')}
