@@ -6,6 +6,7 @@ import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import LiveProjects from './components/projects/LiveProjects';
+import StatusDashboard from './components/status/StatusDashboard';
 
 const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
 const STORAGE_KEY_COMPANY = 'jonesy_suite_company';
@@ -158,6 +159,9 @@ function App() {
         )}
         {view === 'projects' && (
           <LiveProjects clients={clients} onUpdateClient={updateClient} />
+        )}
+        {view === 'status' && (
+          <StatusDashboard clients={clients} />
         )}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
