@@ -5,6 +5,7 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
+import BDTracker from './components/bd/BDTracker';
 
 const STORAGE_KEY_CLIENTS = 'prof_g_suite_clients';
 const STORAGE_KEY_COMPANY = 'prof_g_suite_company';
@@ -153,6 +154,7 @@ function App() {
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
         )}
+        {view === 'bd' && <BDTracker storageKey="prof_g_suite_bd" suiteName="Prof G" />}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
         <p className="text-xs text-brand-dark/35 font-medium">

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, formatCurrency } from '../types';
+import { View } from '../types';
 
 interface HeaderProps {
   companyName: string;
@@ -7,16 +7,16 @@ interface HeaderProps {
   activeView: View;
   onViewChange: (view: View) => void;
   clientCount: number;
-  wonRevenue: number;
+  commissionEarned: number;
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'engagement', label: 'Engagement', icon: '◆', desc: 'Contract & deliverables' },
+  { id: 'bd', label: 'BD', icon: '◈', desc: 'Business development' },
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
-  { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
-  { id: 'projects', label: 'Live Projects', icon: '◆', desc: 'Sold project folders' },
-  { id: 'bd', label: 'BD', icon: '◇', desc: 'Business development' },
+  { id: 'proposal', label: 'Proposal AI', icon: '◇', desc: 'Generate proposals' },
+  { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Revenue & commission' },
 ];
 
 export default function Header({
@@ -25,7 +25,7 @@ export default function Header({
   activeView,
   onViewChange,
   clientCount,
-  wonRevenue,
+  commissionEarned,
 }: HeaderProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(companyName);
@@ -49,9 +49,8 @@ export default function Header({
         <div className="flex items-center gap-3">
           {/* Logo mark */}
           <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">J</span>
+            <span className="font-display text-white font-bold text-sm">S</span>
           </div>
-          {/* Editable company name */}
           {editing ? (
             <input
               ref={inputRef}
@@ -76,7 +75,7 @@ export default function Header({
               </span>
             </button>
           )}
-          <span className="text-white/30 text-sm font-light hidden sm:block">Business Suite</span>
+          <span className="text-white/30 text-sm font-light hidden sm:block">Partner Suite</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -84,25 +83,31 @@ export default function Header({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
           </div>
-          {wonRevenue > 0 && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/15 rounded-full px-3 py-1">
-              <span className="text-emerald-400 text-xs font-semibold">{formatCurrency(wonRevenue)}</span>
-              <span className="text-emerald-400/60 text-xs">won</span>
+          {commissionEarned > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-brand-gold/20 rounded-full px-3 py-1">
+              <span className="text-brand-gold-muted text-xs font-medium">
+                Commission: ${commissionEarned.toLocaleString()}
+              </span>
             </div>
           )}
-          <div className="text-white/40 text-xs hidden md:block">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {/* Contract terms badge */}
+          <div className="hidden md:flex items-center gap-2 bg-white/5 rounded-full px-3 py-1 text-white/40 text-xs">
+            <span>Apr 6 – Jul 3</span>
+            <span className="text-white/20">|</span>
+            <span>$10K/mo</span>
+            <span className="text-white/20">|</span>
+            <span className="text-brand-gold-muted">7.5% commission</span>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <div className="flex items-end px-6">
+      <div className="flex items-end px-6 overflow-x-auto">
         {NAV_ITEMS.map(item => (
           <button
             key={item.id}
             onClick={() => onViewChange(item.id)}
-            className={`group flex items-center gap-2 px-5 py-3.5 text-sm font-medium relative transition-all duration-150 ${
+            className={`group flex items-center gap-2 px-5 py-3.5 text-sm font-medium relative transition-all duration-150 whitespace-nowrap ${
               activeView === item.id
                 ? 'text-brand-gold'
                 : 'text-white/50 hover:text-white/80'

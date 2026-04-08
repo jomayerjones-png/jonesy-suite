@@ -51,7 +51,7 @@ export const STAGE_CONFIG: Record<
 
 export interface StageEvent {
   stage: PipelineStage;
-  date: string; // YYYY-MM-DD
+  date: string;
 }
 
 export interface Client {
@@ -63,8 +63,8 @@ export interface Client {
   value: number;
   stage: PipelineStage;
   notes: string;
-  lastContact: string; // ISO date string (YYYY-MM-DD)
-  createdAt: string;   // ISO date string
+  lastContact: string;
+  createdAt: string;
   tags: string[];
   proposals: SavedProposal[];
   industry: string;
@@ -73,15 +73,15 @@ export interface Client {
   stageHistory: StageEvent[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'bd';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'engagement' | 'bd';
 
 export interface SavedProposal {
   id: string;
-  title: string;    // extracted from first H1 heading
-  content: string;  // full markdown
-  createdAt: string; // ISO datetime
-  briefing?: ProposalFormData;  // the form inputs used to generate
-  clientNotes?: string;         // pipeline notes at time of generation
+  title: string;
+  content: string;
+  createdAt: string;
+  briefing?: ProposalFormData;
+  clientNotes?: string;
 }
 
 export interface ProposalFormData {
@@ -97,7 +97,6 @@ export interface ProposalFormData {
   additionalContext: string;
 }
 
-// Helpers
 export const isStale = (lastContact: string, days = 7): boolean => {
   const last = new Date(lastContact).getTime();
   const now = Date.now();
@@ -122,7 +121,6 @@ export const daysSince = (dateStr: string): number => {
 export const generateId = (): string =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-// Prof G pipeline data
 const today = new Date();
 const daysAgo = (n: number) => {
   const d = new Date(today);
@@ -133,52 +131,34 @@ const daysAgo = (n: number) => {
 export const SAMPLE_CLIENTS: Client[] = [
   {
     id: generateId(),
-    name: 'Sarah Chen',
-    company: 'Spotify',
+    name: 'Maggie Schmerin',
+    company: 'United Airlines',
     email: '',
     phone: '',
-    value: 500000,
-    stage: 'Meeting Set',
-    notes: 'Podcast distribution partnership. Prof G pod ad-supported tier integration. Meeting with their partnerships VP next week.',
-    lastContact: daysAgo(2),
+    value: 200000,
+    stage: 'Engaged',
+    notes: 'Travel partnership — destination storytelling. Waiting for response.',
+    lastContact: daysAgo(3),
     createdAt: daysAgo(14),
-    tags: ['media', 'podcast', 'distribution'],
+    tags: ['travel', 'storytelling'],
     proposals: [],
-    industry: 'Media',
+    industry: 'Travel',
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
   },
   {
     id: generateId(),
-    name: 'Mark Thompson',
-    company: 'CNN',
-    email: '',
-    phone: '',
-    value: 750000,
-    stage: 'Proposal Sent',
-    notes: 'Weekly segment deal — Prof G analysis on markets and tech. Awaiting feedback from programming team.',
-    lastContact: daysAgo(4),
-    createdAt: daysAgo(28),
-    tags: ['media', 'broadcast', 'recurring'],
-    proposals: [],
-    industry: 'Media',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Julia Hartz',
-    company: 'Eventbrite',
+    name: 'Alison Stransky',
+    company: 'Samsung',
     email: '',
     phone: '',
     value: 300000,
-    stage: 'Engaged',
-    notes: 'Sprint education series — live events platform for Prof G masterclasses. Initial conversation warm.',
-    lastContact: daysAgo(5),
+    stage: 'Meeting Set',
+    notes: 'Call set for April 21st. Shoot on phone concept.',
+    lastContact: daysAgo(2),
     createdAt: daysAgo(10),
-    tags: ['edtech', 'events', 'education'],
+    tags: ['tech', 'creative'],
     proposals: [],
     industry: 'Technology',
     outcome: 'active',
@@ -187,34 +167,52 @@ export const SAMPLE_CLIENTS: Client[] = [
   },
   {
     id: generateId(),
-    name: 'Ryan Clark',
-    company: 'HubSpot',
+    name: 'Alex Schultz',
+    company: 'Meta',
     email: '',
     phone: '',
-    value: 400000,
-    stage: 'Feedback',
-    notes: 'Content partnership for SMB audience. Prof G brand strategy course co-marketed through HubSpot Academy. Reviewing terms.',
-    lastContact: daysAgo(3),
-    createdAt: daysAgo(35),
-    tags: ['saas', 'education', 'content'],
-    proposals: [],
-    industry: 'Technology',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Dara Treseder',
-    company: 'Autodesk',
-    email: '',
-    phone: '',
-    value: 600000,
+    value: 500000,
     stage: 'Proposal Sent',
-    notes: 'Speaking engagement series — future of work and AI in creative industries. Proposal sent to CMO office.',
+    notes: 'Custom proposal sent. Meeting May 1st — still developing proposal.',
+    lastContact: daysAgo(4),
+    createdAt: daysAgo(21),
+    tags: ['tech', 'social'],
+    proposals: [],
+    industry: 'Technology',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
+  },
+  {
+    id: generateId(),
+    name: 'Franz Paasche',
+    company: 'Verizon',
+    email: '',
+    phone: '',
+    value: 250000,
+    stage: 'Meeting Set',
+    notes: 'Call set for Wed 25th. Follow up next week — mention live streaming.',
+    lastContact: daysAgo(5),
+    createdAt: daysAgo(12),
+    tags: ['tech', 'telecom'],
+    proposals: [],
+    industry: 'Technology',
+    outcome: 'active',
+    lostReason: '',
+    stageHistory: [],
+  },
+  {
+    id: generateId(),
+    name: 'Kaila Roi',
+    company: 'AT&T',
+    email: '',
+    phone: '',
+    value: 350000,
+    stage: 'Engaged',
+    notes: 'Want storytelling, not brand reach. Live video sponsored by ATT wifi concept.',
     lastContact: daysAgo(6),
-    createdAt: daysAgo(20),
-    tags: ['speaking', 'technology', 'ai'],
+    createdAt: daysAgo(18),
+    tags: ['tech', 'telecom', 'video'],
     proposals: [],
     industry: 'Technology',
     outcome: 'active',

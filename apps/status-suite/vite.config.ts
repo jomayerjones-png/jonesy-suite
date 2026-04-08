@@ -1,0 +1,8 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/jonesy-suite/status-suite/',
+  server: { host: true },
+});

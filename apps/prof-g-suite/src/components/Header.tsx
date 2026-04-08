@@ -14,6 +14,7 @@ const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
+  { id: 'bd', label: 'BD', icon: '◇', desc: 'Business development' },
 ];
 
 export default function Header({

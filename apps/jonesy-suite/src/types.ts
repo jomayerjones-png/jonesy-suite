@@ -74,7 +74,7 @@ export interface Client {
   documents: ProjectDocument[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects' | 'bd';
 
 export interface ProjectDocument {
   id: string;

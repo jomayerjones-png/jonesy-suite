@@ -1,20 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Client, SavedProposal, StageEvent, View, SAMPLE_CLIENTS, generateId } from './types';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
-import Roadmap from './components/roadmap/Roadmap';
+import EngagementTracker from './components/engagement/EngagementTracker';
 import BDTracker from './components/bd/BDTracker';
 
-const STORAGE_KEY_CLIENTS = 'life_suite_clients';
-const STORAGE_KEY_COMPANY = 'life_suite_company';
+const STORAGE_KEY_CLIENTS = 'status_suite_clients';
+const STORAGE_KEY_COMPANY = 'status_suite_company';
+const COMMISSION_RATE = 0.075;
 
 function App() {
   const [view, setView] = useState<View>('pipeline');
   const [companyName, setCompanyName] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'LIFE';
+    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'Status';
   });
   const [clients, setClients] = useState<Client[]>(() => {
     try {
@@ -33,6 +34,13 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_COMPANY, companyName);
   }, [companyName]);
+
+  const commissionEarned = useMemo(() => {
+    const wonRevenue = clients
+      .filter(c => c.outcome === 'won')
+      .reduce((s, c) => s + c.value, 0);
+    return Math.round(wonRevenue * COMMISSION_RATE);
+  }, [clients]);
 
   const today = () => new Date().toISOString().split('T')[0];
 
@@ -126,6 +134,7 @@ function App() {
         activeView={view}
         onViewChange={setView}
         clientCount={clients.length}
+        commissionEarned={commissionEarned}
       />
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
@@ -142,6 +151,8 @@ function App() {
             onUpdateProposal={updateProposalForClient}
           />
         )}
+        {view === 'engagement' && <EngagementTracker />}
+        {view === 'bd' && <BDTracker storageKey="status_suite_bd" suiteName="Status" />}
         {view === 'report' && (
           <WeeklyReport clients={clients} companyName={companyName} />
         )}
@@ -152,19 +163,15 @@ function App() {
             onSaveToClient={saveProposalToClient}
           />
         )}
-        {view === 'roadmap' && (
-          <Roadmap companyName={companyName} />
-        )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
         )}
-        {view === 'bd' && <BDTracker storageKey="life_suite_bd" suiteName="LIFE" />}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
         <p className="text-xs text-brand-dark/35 font-medium">
-          CONFIDENTIAL — Property of LIFE. This tool and all information contained within is strictly private and confidential. Unauthorised access, use, or distribution is prohibited.
+          CONFIDENTIAL — Property of Jonesy&Co. This tool and all information contained within is strictly private and confidential. Unauthorised access, use, or distribution is prohibited.
         </p>
-        <p className="text-xs text-brand-dark/25 flex-shrink-0 ml-6">© {new Date().getFullYear()} LIFE</p>
+        <p className="text-xs text-brand-dark/25 flex-shrink-0 ml-6">© {new Date().getFullYear()} Jonesy&Co</p>
       </footer>
     </div>
   );
