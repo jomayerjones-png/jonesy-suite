@@ -81,7 +81,7 @@ export interface Client {
   thread?: ThreadMessage[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap';
+export type View = 'pipeline' | 'bd' | 'report' | 'proposal' | 'analytics' | 'roadmap';
 
 export interface SavedProposal {
   id: string;
@@ -131,7 +131,7 @@ export const generateId = (): string =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 // LIFE BD pipeline data — April 2026
-export const DATA_VERSION = '2026-04-bd-v1';
+export const DATA_VERSION = '2026-04-bd-v2';
 
 const _today = new Date();
 const daysAgo = (n: number) => {
@@ -466,7 +466,8 @@ export const SAMPLE_CLIENTS: Client[] = [
     'Lead: GBV. CBO — sits across house of brands, set up individual brands after first pitch.', 8, 8),
 
   // ── CULTURE ──────────────────────────────────────────────────────────────────
-  mk('TBD', 'Art Museums', 'Engaged', 500000,
+  mk('TBD', 'Art Museums', 'Engaged', 0,
     ['culture', 'arts'], 'Culture',
     'Cultural partnership network.', 14, 14),
-];
+
+].map(c => ({ ...c, value: 0 }));

@@ -26,6 +26,7 @@ type ClientFormData = Omit<Client, 'id' | 'createdAt'>;
 
 interface ClientModalProps {
   client?: Client | null;
+  defaultStage?: Client['stage'];
   onSave: (data: ClientFormData) => void;
   onClose: () => void;
   onMarkLost?: (reason: string) => void;
@@ -584,6 +585,7 @@ const INTEL_API_KEY = 'life_suite_intel_api_key';
 
 export default function ClientModal({
   client,
+  defaultStage = 'Engaged',
   onSave,
   onClose,
   onMarkLost,
@@ -625,7 +627,7 @@ export default function ClientModal({
           lostReason: client.lostReason ?? '',
           stageHistory: client.stageHistory ?? [],
         }
-      : DEFAULT_FORM
+      : { ...DEFAULT_FORM, stage: defaultStage }
   );
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof ClientFormData, string>>>({});

@@ -8,6 +8,8 @@ type BoardView = 'kanban' | 'list';
 
 interface PipelineTrackerProps {
   clients: Client[];
+  allClients?: Client[];
+  defaultNewStage?: Client['stage'];
   onAdd: (data: Omit<Client, 'id' | 'createdAt'>) => void;
   onUpdate: (id: string, updates: Partial<Client>) => void;
   onDelete: (id: string) => void;
@@ -22,6 +24,7 @@ interface PipelineTrackerProps {
 
 export default function PipelineTracker({
   clients,
+  defaultNewStage = 'Engaged',
   onAdd,
   onUpdate,
   onDelete,
@@ -323,6 +326,7 @@ export default function PipelineTracker({
       {modalOpen && (
         <ClientModal
           client={editingClient}
+          defaultStage={defaultNewStage}
           onSave={handleSave}
           onClose={() => { setModalOpen(false); setEditingClient(null); }}
           onMarkLost={editingClient ? (reason) => { onMarkLost(editingClient.id, reason); setModalOpen(false); setEditingClient(null); } : undefined}
