@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, SavedProposal, StageEvent, View, SAMPLE_CLIENTS, generateId } from './types';
+import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, generateId } from './types';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
@@ -117,6 +117,10 @@ function App() {
     );
   };
 
+  const updateClientThread = (clientId: string, thread: ThreadMessage[]) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, thread } : c));
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -139,6 +143,7 @@ function App() {
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
             onUpdateProposal={updateProposalForClient}
+            onUpdateThread={updateClientThread}
           />
         )}
         {view === 'report' && (

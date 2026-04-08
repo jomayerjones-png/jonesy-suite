@@ -54,6 +54,13 @@ export interface StageEvent {
   date: string; // YYYY-MM-DD
 }
 
+export interface ThreadMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string; // ISO datetime
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -71,6 +78,7 @@ export interface Client {
   outcome: 'active' | 'won' | 'lost';
   lostReason: string;
   stageHistory: StageEvent[];
+  thread?: ThreadMessage[];
 }
 
 export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap';
