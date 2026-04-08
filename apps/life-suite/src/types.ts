@@ -70,8 +70,9 @@ export interface Client {
   value: number;
   stage: PipelineStage;
   notes: string;
-  lastContact: string; // ISO date string (YYYY-MM-DD)
-  createdAt: string;   // ISO date string
+  nextStep?: string;
+  lastContact: string;
+  createdAt: string;
   tags: string[];
   proposals: SavedProposal[];
   industry: string;

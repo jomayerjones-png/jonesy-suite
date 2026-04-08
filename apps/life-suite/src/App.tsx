@@ -3,6 +3,7 @@ import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS,
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
+import BDSpreadsheet from './components/pipeline/BDSpreadsheet';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import Roadmap from './components/roadmap/Roadmap';
@@ -160,19 +161,15 @@ function App() {
           />
         )}
         {view === 'bd' && (
-          <PipelineTracker
+          <BDSpreadsheet
             clients={clients}
-            allClients={clients}
-            defaultNewStage="Engaged"
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}
             onMove={moveClient}
             onMarkLost={markClientLost}
             onReactivate={reactivateClient}
-            onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
-            onUpdateProposal={updateProposalForClient}
             onUpdateThread={updateClientThread}
           />
         )}
