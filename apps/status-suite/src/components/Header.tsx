@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { View, formatCurrency } from '../types';
+import { View } from '../types';
 
 interface HeaderProps {
   companyName: string;
@@ -7,74 +6,34 @@ interface HeaderProps {
   activeView: View;
   onViewChange: (view: View) => void;
   clientCount: number;
-  wonRevenue: number;
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
-  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Active deals' },
+  { id: 'bd', label: 'BD', icon: '◌', desc: 'Business development' },
+  { id: 'roadmap', label: 'Roadmap', icon: '◆', desc: 'Strategic roadmap' },
   { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
   { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
-  { id: 'projects', label: 'Live Projects', icon: '◆', desc: 'Sold project folders' },
 ];
 
 export default function Header({
-  companyName,
-  onCompanyNameChange,
+  companyName: _companyName,
+  onCompanyNameChange: _onCompanyNameChange,
   activeView,
   onViewChange,
   clientCount,
-  wonRevenue,
 }: HeaderProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(companyName);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) inputRef.current?.select();
-  }, [editing]);
-
-  const commitEdit = () => {
-    const trimmed = draft.trim();
-    if (trimmed) onCompanyNameChange(trimmed);
-    else setDraft(companyName);
-    setEditing(false);
-  };
 
   return (
     <header className="bg-brand-dark border-b border-brand-dark/20 sticky top-0 z-50">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {/* Logo mark */}
-          <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">J</span>
+          {/* STATUS logo mark */}
+          <div className="bg-[#FFE500] px-2.5 py-1 flex-shrink-0">
+            <span className="font-display font-bold text-[#0A0A0A] text-base tracking-tighter leading-none select-none">STATUS</span>
           </div>
-          {/* Editable company name */}
-          {editing ? (
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') { setDraft(companyName); setEditing(false); }
-              }}
-              className="font-display text-lg font-semibold text-white bg-transparent border-b-2 border-brand-gold outline-none w-48"
-            />
-          ) : (
-            <button
-              onClick={() => { setDraft(companyName); setEditing(true); }}
-              className="font-display text-lg font-semibold text-white hover:text-brand-gold transition-colors group flex items-center gap-1.5"
-              title="Click to edit company name"
-            >
-              {companyName}
-              <span className="opacity-0 group-hover:opacity-60 text-brand-gold text-xs transition-opacity">
-                ✏
-              </span>
-            </button>
-          )}
           <span className="text-white/30 text-sm font-light hidden sm:block">Business Suite</span>
         </div>
 
@@ -83,14 +42,11 @@ export default function Header({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
           </div>
-          {wonRevenue > 0 && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/15 rounded-full px-3 py-1">
-              <span className="text-emerald-400 text-xs font-semibold">{formatCurrency(wonRevenue)}</span>
-              <span className="text-emerald-400/60 text-xs">won</span>
-            </div>
-          )}
           <div className="text-white/40 text-xs hidden md:block">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 border-l border-white/10 pl-4">
+            <span className="text-white/50 text-xs font-medium tracking-wide">statusworld.com</span>
           </div>
         </div>
       </div>

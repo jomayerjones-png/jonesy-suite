@@ -74,7 +74,7 @@ export interface Client {
   documents: ProjectDocument[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects' | 'status';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects';
 
 export interface ProjectDocument {
   id: string;
@@ -275,27 +275,6 @@ export const SAMPLE_CLIENTS: Client[] = [
     outcome: 'active',
     lostReason: '',
     stageHistory: [],
-    documents: [],
-  },
-
-  // --- Active Client ---
-  {
-    id: generateId(),
-    name: 'STATUS Team',
-    company: 'STATUS',
-    email: '',
-    phone: '',
-    value: 0,
-    stage: 'Close',
-    notes: 'Active Jonesy client. See STATUS dashboard for full details.',
-    lastContact: daysAgo(1),
-    createdAt: daysAgo(30),
-    tags: ['active-client', 'music', 'entertainment'],
-    proposals: [],
-    industry: 'Music / Entertainment',
-    outcome: 'won',
-    lostReason: '',
-    stageHistory: [{ stage: 'Close', date: daysAgo(30) }],
     documents: [],
   },
 

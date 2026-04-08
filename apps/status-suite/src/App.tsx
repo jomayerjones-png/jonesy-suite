@@ -1,22 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Client, SavedProposal, StageEvent, View, SAMPLE_CLIENTS, generateId } from './types';
+import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, DATA_VERSION, generateId } from './types';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
-import LiveProjects from './components/projects/LiveProjects';
+import Roadmap from './components/roadmap/Roadmap';
 
-const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
-const STORAGE_KEY_COMPANY = 'jonesy_suite_company';
+const STORAGE_KEY_CLIENTS = 'status_suite_clients';
+const STORAGE_KEY_COMPANY = 'status_suite_company';
+const STORAGE_KEY_VERSION = 'status_suite_data_version';
 
 function App() {
   const [view, setView] = useState<View>('pipeline');
   const [companyName, setCompanyName] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'Jonesy&Co';
+    return localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'STATUS';
   });
   const [clients, setClients] = useState<Client[]>(() => {
     try {
+      const storedVersion = localStorage.getItem(STORAGE_KEY_VERSION);
+      if (storedVersion !== DATA_VERSION) {
+        // New BD data available — reset to fresh pipeline
+        localStorage.removeItem(STORAGE_KEY_CLIENTS);
+        return SAMPLE_CLIENTS;
+      }
       const stored = localStorage.getItem(STORAGE_KEY_CLIENTS);
       if (stored) return JSON.parse(stored) as Client[];
     } catch {
@@ -33,6 +40,10 @@ function App() {
     localStorage.setItem(STORAGE_KEY_COMPANY, companyName);
   }, [companyName]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_VERSION, DATA_VERSION);
+  }, []);
+
   const today = () => new Date().toISOString().split('T')[0];
 
   const addClient = (clientData: Omit<Client, 'id' | 'createdAt'>) => {
@@ -45,7 +56,6 @@ function App() {
       outcome: clientData.outcome || 'active',
       lostReason: clientData.lostReason || '',
       stageHistory: clientData.stageHistory?.length ? clientData.stageHistory : initHistory,
-      documents: clientData.documents ?? [],
     };
     setClients(prev => [newClient, ...prev]);
   };
@@ -118,6 +128,10 @@ function App() {
     );
   };
 
+  const updateClientThread = (clientId: string, thread: ThreadMessage[]) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, thread } : c));
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -126,12 +140,13 @@ function App() {
         activeView={view}
         onViewChange={setView}
         clientCount={clients.length}
-        wonRevenue={clients.filter(c => c.outcome === 'won' || c.stage === 'Close').reduce((sum, c) => sum + c.value, 0)}
       />
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
           <PipelineTracker
-            clients={clients}
+            clients={clients.filter(c => c.stage !== 'Engaged')}
+            allClients={clients}
+            defaultNewStage="Meeting Set"
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}
@@ -141,6 +156,24 @@ function App() {
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
             onUpdateProposal={updateProposalForClient}
+            onUpdateThread={updateClientThread}
+          />
+        )}
+        {view === 'bd' && (
+          <PipelineTracker
+            clients={clients}
+            allClients={clients}
+            defaultNewStage="Engaged"
+            onAdd={addClient}
+            onUpdate={updateClient}
+            onDelete={deleteClient}
+            onMove={moveClient}
+            onMarkLost={markClientLost}
+            onReactivate={reactivateClient}
+            onDeleteProposal={deleteProposalFromClient}
+            onAddProposal={saveProposalToClient}
+            onUpdateProposal={updateProposalForClient}
+            onUpdateThread={updateClientThread}
           />
         )}
         {view === 'report' && (
@@ -153,18 +186,18 @@ function App() {
             onSaveToClient={saveProposalToClient}
           />
         )}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
+        )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
-        )}
-        {view === 'projects' && (
-          <LiveProjects clients={clients} onUpdateClient={updateClient} />
         )}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
         <p className="text-xs text-brand-dark/35 font-medium">
-          CONFIDENTIAL — Property of Jonesy&amp;Co. This tool and all information contained within is strictly private and confidential. Unauthorised access, use, or distribution is prohibited.
+          CONFIDENTIAL — Property of STATUS. This tool and all information contained within is strictly private and confidential. Unauthorised access, use, or distribution is prohibited.
         </p>
-        <p className="text-xs text-brand-dark/25 flex-shrink-0 ml-6">© {new Date().getFullYear()} Jonesy&amp;Co</p>
+        <p className="text-xs text-brand-dark/25 flex-shrink-0 ml-6">© {new Date().getFullYear()} STATUS</p>
       </footer>
     </div>
   );
