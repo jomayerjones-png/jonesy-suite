@@ -145,7 +145,7 @@ function App() {
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
           <PipelineTracker
-            clients={clients.filter(c => c.stage !== 'Engaged')}
+            clients={clients.filter(c => !c.tags.includes('prospect'))}
             allClients={clients}
             defaultNewStage="Meeting Set"
             onAdd={addClient}
@@ -162,7 +162,7 @@ function App() {
         )}
         {view === 'bd' && (
           <BDSpreadsheet
-            clients={clients}
+            clients={clients.filter(c => c.tags.includes('prospect'))}
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}
