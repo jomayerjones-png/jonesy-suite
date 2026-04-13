@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, DATA_VERSION, generateId } from './types';
+import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, generateId } from './types';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
-import BDSpreadsheet from './components/pipeline/BDSpreadsheet';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import Roadmap from './components/roadmap/Roadmap';
 
 const STORAGE_KEY_CLIENTS = 'life_suite_clients';
 const STORAGE_KEY_COMPANY = 'life_suite_company';
-const STORAGE_KEY_VERSION = 'life_suite_data_version';
 
 function App() {
   const [view, setView] = useState<View>('pipeline');
@@ -19,12 +17,6 @@ function App() {
   });
   const [clients, setClients] = useState<Client[]>(() => {
     try {
-      const storedVersion = localStorage.getItem(STORAGE_KEY_VERSION);
-      if (storedVersion !== DATA_VERSION) {
-        // New BD data available — reset to fresh pipeline
-        localStorage.removeItem(STORAGE_KEY_CLIENTS);
-        return SAMPLE_CLIENTS;
-      }
       const stored = localStorage.getItem(STORAGE_KEY_CLIENTS);
       if (stored) return JSON.parse(stored) as Client[];
     } catch {
@@ -40,10 +32,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_COMPANY, companyName);
   }, [companyName]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_VERSION, DATA_VERSION);
-  }, []);
 
   const today = () => new Date().toISOString().split('T')[0];
 
@@ -145,9 +133,7 @@ function App() {
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
           <PipelineTracker
-            clients={clients.filter(c => !c.tags.includes('prospect'))}
-            allClients={clients}
-            defaultNewStage="Meeting Set"
+            clients={clients}
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}
@@ -157,19 +143,6 @@ function App() {
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
             onUpdateProposal={updateProposalForClient}
-            onUpdateThread={updateClientThread}
-          />
-        )}
-        {view === 'bd' && (
-          <BDSpreadsheet
-            clients={clients.filter(c => c.tags.includes('prospect'))}
-            onAdd={addClient}
-            onUpdate={updateClient}
-            onDelete={deleteClient}
-            onMove={moveClient}
-            onMarkLost={markClientLost}
-            onReactivate={reactivateClient}
-            onAddProposal={saveProposalToClient}
             onUpdateThread={updateClientThread}
           />
         )}
