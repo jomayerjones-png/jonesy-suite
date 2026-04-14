@@ -20,7 +20,7 @@ export default function ClientCard({
 }: ClientCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const stale = isStale(client.lastContact);
+  const stale = isStale(client.lastContact, client.stage);
   const stageCfg = STAGE_CONFIG[client.stage];
   const days = daysSince(client.lastContact);
 

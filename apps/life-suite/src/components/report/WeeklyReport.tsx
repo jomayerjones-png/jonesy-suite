@@ -375,7 +375,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const stats = useMemo(() => {
     const now = Date.now();
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const staleClients = clients.filter(c => isStale(c.lastContact));
+    const staleClients = clients.filter(c => isStale(c.lastContact, c.stage));
     const newThisWeek = clients.filter(c => new Date(c.createdAt).getTime() >= oneWeekAgo);
     const contactedThisWeek = clients.filter(c => new Date(c.lastContact).getTime() >= oneWeekAgo);
     const byStage: Record<PipelineStage, Client[]> = {
@@ -432,7 +432,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
         byStage: byStageSnapshot,
         topClients: stats.topClients.map(c => ({
           name: c.name, company: c.company, stage: c.stage, value: c.value,
-          stale: isStale(c.lastContact),
+          stale: isStale(c.lastContact, c.stage),
         })),
         staleClients: stats.staleClients.map(c => ({
           name: c.name, company: c.company, stage: c.stage, value: c.value,
@@ -675,7 +675,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                   <div className="space-y-1.5">
                     {stats.topClients.map((client, i) => {
                       const cfg = STAGE_CONFIG[client.stage];
-                      const stale = isStale(client.lastContact);
+                      const stale = isStale(client.lastContact, client.stage);
                       return (
                         <div key={client.id} className={`flex items-center gap-3 p-2 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
                           <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>

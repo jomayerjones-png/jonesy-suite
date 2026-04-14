@@ -68,7 +68,7 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
           <tbody>
             {sorted.map((client, i) => {
               const cfg = STAGE_CONFIG[client.stage];
-              const stale = isStale(client.lastContact);
+              const stale = isStale(client.lastContact, client.stage);
               const days = daysSince(client.lastContact);
               const isExpanded = expandedId === client.id;
 

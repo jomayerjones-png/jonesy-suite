@@ -21,7 +21,7 @@ export default function KanbanColumn({
 }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const cfg = STAGE_CONFIG[stage];
-  const staleCount = clients.filter(c => isStale(c.lastContact)).length;
+  const staleCount = clients.filter(c => isStale(c.lastContact, c.stage)).length;
   const totalValue = clients.reduce((sum, c) => sum + c.value, 0);
 
   const handleDragOver = (e: React.DragEvent) => {

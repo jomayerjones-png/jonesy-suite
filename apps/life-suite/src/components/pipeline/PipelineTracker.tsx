@@ -47,7 +47,7 @@ export default function PipelineTracker({
   const activeClients = useMemo(() => clients.filter(c => c.outcome !== 'lost'), [clients]);
   const lostClients = useMemo(() => clients.filter(c => c.outcome === 'lost'), [clients]);
 
-  const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact)).length, [activeClients]);
+  const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact, c.stage)).length, [activeClients]);
   const totalValue = useMemo(() => activeClients.reduce((s, c) => s + c.value, 0), [activeClients]);
   const wonValue = useMemo(
     () => activeClients.filter(c => c.outcome === 'won').reduce((s, c) => s + c.value, 0),
@@ -60,7 +60,7 @@ export default function PipelineTracker({
     let list = displayClients;
     if (!showLost) {
       if (stageFilter !== 'All') list = list.filter(c => c.stage === stageFilter);
-      if (showStaleOnly) list = list.filter(c => isStale(c.lastContact));
+      if (showStaleOnly) list = list.filter(c => isStale(c.lastContact, c.stage));
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
