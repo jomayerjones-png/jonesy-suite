@@ -5,14 +5,14 @@ export default {
     extend: {
       colors: {
         brand: {
-          dark: '#1A1A1A',
-          gold: '#C9A84C',
-          'gold-light': '#D4B76A',
-          'gold-dark': '#A8872E',
-          'gold-muted': '#EDD99A',
-          light: '#F5F0E8',
-          cream: '#EDE8DC',
-          'cream-dark': '#E0D9CE',
+          dark: '#111111',
+          gold: '#FFFFFF',         // accent → white
+          'gold-light': '#E5E5E5',
+          'gold-dark': '#CCCCCC',
+          'gold-muted': '#888888',
+          light: '#F7F7F7',
+          cream: '#EEEEEE',
+          'cream-dark': '#E0E0E0',
         },
       },
       fontFamily: {
