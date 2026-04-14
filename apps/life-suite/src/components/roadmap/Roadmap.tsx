@@ -150,7 +150,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
         </h1>
         {subView === 'roadmap' && (
           <p className="mt-1.5 text-sm text-gray-500">
-            Deals closed by 1 May · Magazine launch 22 June
+            Deals closed by 1 May · Magazine launch June 2026
           </p>
         )}
         {subView === 'close' && (
@@ -215,7 +215,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
           <div className="mt-7 bg-brand-gold rounded-lg px-6 py-5 flex items-center justify-between">
             <div>
               <div className="text-[10px] text-white/60 tracking-widest uppercase mb-1">North Star</div>
-              <div className="text-xl font-bold text-white tracking-tight">22 June 2026 — Magazine goes to print, Issue 1</div>
+              <div className="text-xl font-bold text-white tracking-tight">June 2026 — Magazine goes to print, Issue 1</div>
             </div>
             <span className="text-2xl text-white/30">✦</span>
           </div>
