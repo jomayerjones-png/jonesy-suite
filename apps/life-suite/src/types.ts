@@ -231,27 +231,27 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-0', 'tech', 'jmj'], 'Tech',
     'Lead: JMJ. Waiting for response.', 6, 12),
 
-  mk('TBD', 'Vanta', 'Engaged', 750000,
+  mk('TBD', 'Vanta', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Public', 'Engaged', 750000,
+  mk('TBD', 'Public', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'BetterHelp', 'Engaged', 1500000,
+  mk('TBD', 'BetterHelp', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Plaid', 'Engaged', 1500000,
+  mk('TBD', 'Plaid', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'WorkOS', 'Engaged', 750000,
+  mk('TBD', 'WorkOS', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Sentry', 'Engaged', 750000,
+  mk('TBD', 'Sentry', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
@@ -259,60 +259,60 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-0', 'tech', 'kk'], 'Tech',
     'Lead: KK.', 7, 7),
 
-  mk('TBD', 'HubSpot', 'Engaged', 750000,
+  mk('TBD', 'HubSpot', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Figma', 'Engaged', 1500000,
+  mk('TBD', 'Figma', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Slack', 'Engaged', 1500000,
+  mk('TBD', 'Slack', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Uber', 'Engaged', 1500000,
+  mk('TBD', 'Uber', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Robinhood', 'Engaged', 750000,
+  mk('TBD', 'Robinhood', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'AppLovin', 'Engaged', 750000,
+  mk('TBD', 'AppLovin', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Crowdstrike', 'Engaged', 750000,
+  mk('TBD', 'Crowdstrike', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Gusto', 'Engaged', 750000,
+  mk('TBD', 'Gusto', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Okta', 'Engaged', 750000,
+  mk('TBD', 'Okta', 'Prospect', 750000,
     ['tier-2', 'tech'], 'Tech',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Amazon', 'Engaged', 1500000,
+  mk('TBD', 'Amazon', 'Prospect', 1500000,
     ['tier-1', 'tech'], 'Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Nothing Tech', 'Engaged', 1500000,
+  mk('TBD', 'Nothing Tech', 'Prospect', 1500000,
     ['tier-1', 'consumer-tech'], 'Consumer Tech',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Whoop', 'Engaged', 750000,
+  mk('TBD', 'Whoop', 'Prospect', 750000,
     ['tier-2', 'consumer-tech', 'mimi'], 'Consumer Tech',
     'Lead: Mimi Sheng.', 7, 7),
 
-  mk('TBD', 'Retro', 'Engaged', 750000,
+  mk('TBD', 'Retro', 'Prospect', 750000,
     ['tier-2', 'consumer-tech', 'mimi'], 'Consumer Tech',
     'Lead: Mimi Sheng.', 7, 7),
 
   // ── RETAIL ───────────────────────────────────────────────────────────────────
-  mk('TBD', 'Patagonia', 'Engaged', 750000,
+  mk('TBD', 'Patagonia', 'Prospect', 750000,
     ['retail'], 'Retail',
     'No contact identified yet.', 14, 14),
 
@@ -320,7 +320,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-3', 'retail', 'jmj'], 'Retail',
     'Lead: JMJ. Waiting for response.', 8, 13),
 
-  mk('TBD', 'Leica', 'Engaged', 750000,
+  mk('TBD', 'Leica', 'Prospect', 750000,
     ['tier-2', 'retail', 'jmj', 'rs'], 'Retail',
     'Lead: JMJ / RS. Need contact.', 14, 14),
 
@@ -362,16 +362,16 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-1', 'luxury'], 'Luxury',
     'Engaged. Need to send proposal.', 4, 45),
 
-  mk('TBD', 'Tiffany', 'Engaged', 1500000,
+  mk('TBD', 'Tiffany', 'Prospect', 1500000,
     ['tier-1', 'luxury'], 'Luxury',
     'Tier 1. No contact identified yet.', 14, 14),
 
   // ── HEALTHCARE ───────────────────────────────────────────────────────────────
-  mk('TBD', 'Pfizer', 'Engaged', 750000,
+  mk('TBD', 'Pfizer', 'Prospect', 750000,
     ['tier-2', 'healthcare'], 'Healthcare',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Lilly', 'Engaged', 750000,
+  mk('TBD', 'Lilly', 'Prospect', 750000,
     ['tier-2', 'healthcare'], 'Healthcare',
     'Tier 2. No contact identified yet.', 14, 14),
 
@@ -412,11 +412,11 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-1', 'financial', 'gbv'], 'Financial Services',
     'Lead: GBV. Secondary: Kim Kadlec (NA + EMEA CMO).', 9, 13),
 
-  mk('TBD', 'Capital One', 'Engaged', 1500000,
+  mk('TBD', 'Capital One', 'Prospect', 1500000,
     ['tier-1', 'financial', 'gbv'], 'Financial Services',
     'Lead: GBV. Comms Lead Cait is consulting for their CMO — can ask for intro.', 10, 10),
 
-  mk('TBD', 'Ramp', 'Engaged', 2500000,
+  mk('TBD', 'Ramp', 'Prospect', 2500000,
     ['tier-0', 'financial', 'mimi'], 'Financial Services',
     'Lead: Mimi Sheng. Riley or JK can make intro.', 7, 7),
 
@@ -424,7 +424,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-2', 'financial', 'jmj'], 'Financial Services',
     'Lead: JMJ. Call on Thursday.', 1, 9),
 
-  mk('TBD', 'Plaid', 'Engaged', 1500000,
+  mk('TBD', 'Plaid', 'Prospect', 1500000,
     ['tier-1', 'financial'], 'Financial Services',
     'Tier 1. No contact identified yet.', 14, 14),
 
@@ -433,23 +433,23 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['tier-1', 'automotive', 'jmj'], 'Automotive',
     'Lead: JMJ. Waiting for response.', 5, 15),
 
-  mk('TBD', 'BMW', 'Engaged', 1500000,
+  mk('TBD', 'BMW', 'Prospect', 1500000,
     ['tier-1', 'automotive'], 'Automotive',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Volkswagen', 'Engaged', 1500000,
+  mk('TBD', 'Volkswagen', 'Prospect', 1500000,
     ['tier-1', 'automotive'], 'Automotive',
     'Tier 1. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Jaguar Land Rover', 'Engaged', 2500000,
+  mk('TBD', 'Jaguar Land Rover', 'Prospect', 2500000,
     ['tier-0', 'automotive'], 'Automotive',
     'Tier 0. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Rivian', 'Engaged', 750000,
+  mk('TBD', 'Rivian', 'Prospect', 750000,
     ['tier-2', 'automotive'], 'Automotive',
     'Tier 2. No contact identified yet.', 14, 14),
 
-  mk('TBD', 'Waymo', 'Engaged', 1500000,
+  mk('TBD', 'Waymo', 'Prospect', 1500000,
     ['tier-1', 'automotive'], 'Automotive',
     'Tier 1. No contact identified yet.', 14, 14),
 
@@ -476,8 +476,8 @@ export const SAMPLE_CLIENTS: Client[] = [
     'Lead: GBV. CBO — sits across house of brands, set up individual brands after first pitch.', 8, 8),
 
   // ── CULTURE ──────────────────────────────────────────────────────────────────
-  mk('TBD', 'Art Museums', 'Engaged', 0,
+  mk('TBD', 'Art Museums', 'Prospect', 0,
     ['culture', 'arts'], 'Culture',
     'Cultural partnership network.', 14, 14),
 
-];
+].map(c => ({ ...c, value: 0 }));
