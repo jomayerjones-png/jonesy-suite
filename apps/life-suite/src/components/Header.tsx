@@ -30,8 +30,11 @@ export default function Header({
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
           {/* LIFE logo mark */}
-          <div className="bg-[#E8002D] px-2.5 py-1 flex-shrink-0">
-            <span className="font-display font-bold text-white text-base tracking-tighter leading-none select-none">LIFE</span>
+          <div
+            className="flex-shrink-0 select-none flex items-center justify-center px-3 pt-1.5 pb-1"
+            style={{ background: '#E8002D', fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif" }}
+          >
+            <span className="text-white leading-none" style={{ fontSize: '1.6rem', letterSpacing: '0.06em' }}>LIFE</span>
           </div>
           <span className="text-white/30 text-sm font-light hidden sm:block">Partner Suite</span>
         </div>
