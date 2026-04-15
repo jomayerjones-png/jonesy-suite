@@ -33,7 +33,7 @@ jobs:
             apps/prof-g-suite/package-lock.json
             apps/status-suite/package-lock.json
 
-       - name: Build jonesy-suite
+      - name: Build jonesy-suite
         working-directory: apps/jonesy-suite
         env:
           VITE_SUPABASE_URL: ${{ secrets.JONESY_SUPABASE_URL }}
