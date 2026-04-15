@@ -1,105 +1,78 @@
 /**
  * daily-prospects.mjs
- *
- * Runs every weekday morning via GitHub Actions (8am EST / 13:00 UTC).
- * Uses Claude (claude-opus-4-6 + web_search) to identify 3 real senior contacts,
- * draft personalised LIFE pitch emails, and insert them into the Supabase
- * daily_prospects table so the life-suite Roadmap tab can display them.
- *
- * Required env vars:
- *   ANTHROPIC_API_KEY         — from console.anthropic.com
- *   LIFE_SUPABASE_SERVICE_KEY — from Supabase → Settings → API → service_role key
+ * Runs every weekday at 8am EST via GitHub Actions.
+ * Identifies 3 senior prospects, drafts LIFE pitch emails, inserts into Supabase.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
-// ── Config ────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.LIFE_SUPABASE_SERVICE_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-const SUPABASE_URL  = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
-const SUPABASE_KEY  = process.env.LIFE_SUPABASE_SERVICE_KEY;
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL         = 'claude-opus-4-6';
-
-if (!SUPABASE_KEY) { console.error('Missing LIFE_SUPABASE_SERVICE_KEY'); process.exit(1); }
-if (!ANTHROPIC_KEY) { console.error('Missing ANTHROPIC_API_KEY'); process.exit(1); }
-
-const supabase  = createClient(SUPABASE_URL, SUPABASE_KEY);
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
-
-const today = () => new Date().toISOString().split('T')[0];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+if (!SUPABASE_SERVICE_KEY) {
+  console.error('Missing LIFE_SUPABASE_SERVICE_KEY');
+  process.exit(1);
+}
+if (!ANTHROPIC_API_KEY) {
+  console.error('Missing ANTHROPIC_API_KEY');
+  process.exit(1);
 }
 
-async function fetchExclusionList() {
-  // Companies already in the pipeline
-  const { data: clientRows } = await supabase.from('clients').select('data');
-  const pipelineCompanies = (clientRows ?? [])
-    .map(r => r.data?.company)
-    .filter(Boolean)
-    .map(c => c.toLowerCase().trim());
+// Service role client bypasses RLS — safe for server-side only
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  auth: { persistSession: false },
+});
+const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-  // Companies already prospected in the last 14 days
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 14);
-  const { data: prospectRows } = await supabase
-    .from('daily_prospects')
-    .select('company')
-    .gte('date', cutoff.toISOString().split('T')[0]);
-  const recentProspects = (prospectRows ?? []).map(r => r.company?.toLowerCase().trim()).filter(Boolean);
+async function getExclusionList() {
+  const today = new Date().toISOString().split('T')[0];
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  return [...new Set([...pipelineCompanies, ...recentProspects])];
+  const [clientsRes, prospectsRes] = await Promise.all([
+    supabase.from('clients').select('data'),
+    supabase.from('daily_prospects').select('company').gte('date', cutoff),
+  ]);
+
+  const pipelineCompanies = (clientsRes.data ?? [])
+    .map((r) => r.data?.company)
+    .filter(Boolean);
+
+  const recentProspects = (prospectsRes.data ?? [])
+    .map((r) => r.company)
+    .filter(Boolean);
+
+  const all = [...new Set([...pipelineCompanies, ...recentProspects])];
+  console.log(`Exclusion list: ${all.length} companies`);
+  return all;
 }
 
-// ── Prompt ────────────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are a senior business development researcher working for Jo Mayer Jones at Jonesy & Co.
+You are helping build the advertising partner pipeline for LIFE magazine — the iconic American brand being relaunched
+as a quarterly large-format magazine and cultural platform. Publishers: Karlie Kloss and Josh Kushner. Launch: September 2026.
+First issue: "Where Are We Now?" — a portrait of America under construction, told through engineers, scientists, policymakers, and artists.
 
-function buildPrompt(exclusionList) {
-  const excluded = exclusionList.slice(0, 60).join(', ');
+Your job: identify 3 real, senior decision-makers at well-funded companies who would be a natural founding advertising partner for LIFE.
+Use web search to verify: the person exists, their title is current, and there is a specific, researched reason WHY their brand fits LIFE right now.
 
-  return `You are a business development researcher for LIFE magazine. Your job is to find 3 real, senior brand/marketing decision-makers at major companies who would be compelling founding advertising partners for LIFE's relaunch.
+TARGET PROFILE:
+- Title: CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, VP Brand, Global Marketing Director (C-suite or VP level minimum)
+- Company: well-funded brand in luxury, automotive, finance, fashion, tech, aviation, consumer goods, or a fast-growing challenger brand
+- The company must have genuine cultural ambition — not just a transactional advertiser
+- Prioritise brands that have recently made bold brand moves, launched campaigns about American identity/progress/optimism, or are entering a new cultural moment
 
-ABOUT LIFE:
-- LIFE is one of America's most iconic media brands, undergoing a ground-up rebuild
-- Relaunching as a quarterly large-format magazine and cultural platform, September 2026
-- Publishers: Karlie Kloss and Josh Kushner
-- First issue: "Where Are We Now?" — a portrait of America under construction
-- Editorial approach: depth over volume, optimism over outrage, perspective over reaction
-- Partnership model: small cohort of founding partners, creative collaboration not media buy
-
-TARGET PROSPECT PROFILE:
-- Senior decision-maker: CMO, VP Marketing, Chief Brand Officer, SVP Brand, SVP Partnerships, SVP Marketing
-- At well-known, well-funded companies with a brand story that aligns with LIFE's values
-- Industries to draw from: luxury goods, financial services, automotive, consumer technology, fashion/apparel, hospitality, aviation, healthcare/wellness, media, beauty, food & beverage, retail
-- Also consider: fast-growing challenger brands punching above their weight culturally
-- NOT startups with no marketing budget — real companies that could commit $750K–$2.5M
-- Companies that value depth, culture, storytelling, American heritage, or optimism
-
-DO NOT include companies from this exclusion list (already in pipeline or recently prospected):
-${excluded}
-
-YOUR TASK:
-Use web search to find 3 real prospects. For each one:
-1. Search for the company + "CMO" or "Chief Marketing Officer" or "VP Marketing" to find the real person's name and title
-2. Confirm the contact is currently in the role (check LinkedIn data, company press releases, recent news)
-3. Identify a SPECIFIC, RESEARCHED reason WHY this company is a natural fit for LIFE right now — a recent campaign, a brand repositioning, a cultural moment they've leaned into, a values alignment that is not generic
-4. Construct the most likely professional email address (firstname.lastname@company.com or similar)
-5. Draft a personalised email using the template below
-
-EMAIL TEMPLATE (use this structure exactly, fill in [BRACKETS]):
----
+EMAIL TEMPLATE TO USE (Option 1 style — adapt the WHY paragraph per company):
 Subject: LIFE — [Company Name]
 
 Hi [First Name]
 
 LIFE, one of America's most iconic media brands, is undergoing a ground-up rebuild — reimagined as a quarterly large-format magazine and cultural platform launching this September with Karlie Kloss and Josh Kushner as Publishers.
 
-The first issue is "Where Are We Now?" — a portrait of an America under construction. We'll sit with the engineers, scientists, policymakers, and artists at the frontier to understand how far their work has moved from concept to condition. It is, at its core, a story of American progress, told through the eyes of the people living it.
+The first issue is "Where Are We Now?" — a portrait of an America under construction. Across sectors, breakthroughs are no longer theoretical; they are deployed, funded, and scaled. We'll sit with the engineers, scientists, policymakers, and artists at the frontier. It is, at its core, a story of American progress, told through the people living it.
 
-[COMPANY] has been on our list from the start. [PERSONALIZED WHY — one or two specific, researched sentences about why this company is a natural fit: reference a real recent campaign, brand commitment, cultural move, or values alignment. Be specific and concrete, not generic.]
+[COMPANY] has been on our list from the start. [PERSONALIZED WHY — one specific, researched sentence referencing a real recent campaign, brand positioning move, cultural commitment, or market moment that makes this company a natural LIFE founding partner. Be concrete and specific, not generic.]
 
 We're in conversation with a very small number of founding partners. The model prioritises depth over reach and is designed for creative collaboration rather than a media buy.
 
@@ -107,156 +80,111 @@ Can we jump on a call over the next couple of weeks to discuss?
 
 Warm regards,
 Jo
----
 
-OUTPUT FORMAT:
-Return ONLY a valid JSON array with exactly 3 objects. No explanation, no markdown fences, just raw JSON:
+OUTPUT FORMAT — respond with a JSON array only, no prose, no markdown fences:
 [
   {
     "name": "First Last",
     "title": "CMO",
     "company": "Company Name",
-    "email": "first.last@company.com",
+    "email": "firstname.lastname@company.com",
     "email_confidence": "estimated",
-    "why": "One specific sentence explaining why this company is a natural LIFE founding partner.",
+    "why": "One specific sentence explaining why this company is a natural LIFE founding partner right now.",
     "draft_subject": "LIFE — Company Name",
-    "draft_body": "Hi First\\n\\nLIFE, one of America's most iconic..."
+    "draft_body": "Full email body text (no subject line, just the body starting with Hi [Name])"
   }
 ]
 
-email_confidence should be "verified" if you found it explicitly stated, or "estimated" if constructed from pattern.`;
-}
+Rules:
+- email_confidence: use "verified" if you found the email confirmed in a public source, otherwise "estimated"
+- draft_body: use the exact template above, substituting the real name and personalized WHY paragraph
+- The WHY sentence must be concrete and researched — reference something real and specific
+- Do not include companies from the exclusion list
+- Return exactly 3 prospects`;
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+async function generateProspects(exclusionList) {
+  const exclusionNote = exclusionList.length > 0
+    ? `\n\nDO NOT suggest any of these companies (already in pipeline or recently contacted):\n${exclusionList.join(', ')}`
+    : '';
 
-async function main() {
-  console.log(`[daily-prospects] Starting for ${today()}`);
+  const userMessage = `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
 
-  // 1. Check if we've already run today
-  const { data: existing } = await supabase
-    .from('daily_prospects')
-    .select('id')
-    .eq('date', today());
-  if (existing && existing.length >= 3) {
-    console.log(`[daily-prospects] Already have ${existing.length} prospects for today. Skipping.`);
-    process.exit(0);
-  }
+Find 3 real senior contacts for LIFE magazine's advertising partner pipeline.
+Use web search to verify each contact and build a specific, researched WHY for each.${exclusionNote}
 
-  // 2. Build exclusion list
-  console.log('[daily-prospects] Fetching exclusion list…');
-  const exclusionList = await fetchExclusionList();
-  console.log(`[daily-prospects] Excluding ${exclusionList.length} companies`);
+Return the JSON array only.`;
 
-  // 3. Call Claude with web_search
-  console.log('[daily-prospects] Calling Claude API…');
-  const prompt = buildPrompt(exclusionList);
-
-  let rawResponse = '';
-  let inputTokens = 0;
-  let outputTokens = 0;
+  console.log('Calling Claude API with web_search...');
 
   const response = await anthropic.messages.create({
-    model: MODEL,
+    model: 'claude-opus-4-6',
     max_tokens: 4096,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-    messages: [{ role: 'user', content: prompt }],
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userMessage }],
   });
 
-  // Extract text from the final response (may follow tool use blocks)
-  for (const block of response.content) {
-    if (block.type === 'text') {
-      rawResponse += block.text;
-    }
-  }
-  inputTokens  = response.usage?.input_tokens  ?? 0;
-  outputTokens = response.usage?.output_tokens ?? 0;
-
-  // Handle multi-turn tool use: Claude may need to respond to search results
-  // The SDK handles the agentic loop — if stop_reason is tool_use, continue
-  let currentResponse = response;
-  const messages = [{ role: 'user', content: prompt }];
-
-  while (currentResponse.stop_reason === 'tool_use') {
-    // Collect tool results
-    const toolResults = [];
-    for (const block of currentResponse.content) {
-      if (block.type === 'tool_use') {
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: '{}', // web_search handles its own results internally
-        });
-      }
-    }
-
-    messages.push({ role: 'assistant', content: currentResponse.content });
-    messages.push({ role: 'user', content: toolResults });
-
-    currentResponse = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages,
-    });
-
-    rawResponse = '';
-    for (const block of currentResponse.content) {
-      if (block.type === 'text') rawResponse += block.text;
-    }
-    inputTokens  += currentResponse.usage?.input_tokens  ?? 0;
-    outputTokens += currentResponse.usage?.output_tokens ?? 0;
+  // Extract the final text block (after tool use rounds)
+  const textBlocks = response.content.filter((b) => b.type === 'text');
+  if (textBlocks.length === 0) {
+    throw new Error('No text response from Claude');
   }
 
-  console.log(`[daily-prospects] Claude responded (${inputTokens} in / ${outputTokens} out tokens)`);
-  console.log('[daily-prospects] Raw response:\n', rawResponse.slice(0, 500));
+  const raw = textBlocks[textBlocks.length - 1].text.trim();
+  console.log('Raw response:', raw.slice(0, 200), '...');
 
-  // 4. Parse JSON
+  // Strip any accidental markdown fences
+  const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+
   let prospects;
   try {
-    // Strip any accidental markdown fences
-    const cleaned = rawResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     prospects = JSON.parse(cleaned);
-    if (!Array.isArray(prospects) || prospects.length < 1) throw new Error('Expected array');
-  } catch (err) {
-    console.error('[daily-prospects] Failed to parse JSON:', err.message);
-    console.error('[daily-prospects] Raw was:', rawResponse);
-    process.exit(1);
+  } catch (e) {
+    throw new Error(`Failed to parse JSON: ${e.message}\nRaw: ${raw}`);
   }
 
-  // 5. Validate and insert
-  const rows = prospects.slice(0, 3).map(p => ({
-    id:               generateId(),
-    date:             today(),
-    name:             String(p.name   || '').trim(),
-    title:            String(p.title  || '').trim(),
-    company:          String(p.company || '').trim(),
-    email:            String(p.email  || '').trim(),
-    email_confidence: String(p.email_confidence || 'estimated'),
-    why:              String(p.why    || '').trim(),
-    draft_subject:    String(p.draft_subject || '').trim(),
-    draft_body:       String(p.draft_body    || '').trim(),
-    status:           'pending',
-  }));
-
-  for (const row of rows) {
-    if (!row.name || !row.company || !row.why || !row.draft_body) {
-      console.error('[daily-prospects] Incomplete row:', row);
-      process.exit(1);
-    }
+  if (!Array.isArray(prospects) || prospects.length !== 3) {
+    throw new Error(`Expected 3 prospects, got ${Array.isArray(prospects) ? prospects.length : 'non-array'}`);
   }
 
-  const { error } = await supabase.from('daily_prospects').insert(rows);
-  if (error) {
-    console.error('[daily-prospects] Supabase insert error:', error);
-    process.exit(1);
-  }
-
-  console.log(`[daily-prospects] Inserted ${rows.length} prospects:`);
-  rows.forEach(r => console.log(`  • ${r.name} (${r.title}) @ ${r.company} — ${r.email}`));
-  console.log('[daily-prospects] Done.');
+  return prospects;
 }
 
-main().catch(err => {
-  console.error('[daily-prospects] Fatal error:', err);
-  process.exit(1);
-});
+async function insertProspects(prospects) {
+  const today = new Date().toISOString().split('T')[0];
+
+  const rows = prospects.map((p) => ({
+    id: randomUUID(),
+    date: today,
+    name: p.name,
+    title: p.title ?? '',
+    company: p.company,
+    email: p.email ?? '',
+    email_confidence: p.email_confidence ?? 'estimated',
+    why: p.why,
+    draft_subject: p.draft_subject,
+    draft_body: p.draft_body,
+    status: 'pending',
+  }));
+
+  const { error } = await supabase.from('daily_prospects').insert(rows);
+  if (error) throw new Error(`Supabase insert failed: ${error.message}`);
+
+  console.log(`Inserted ${rows.length} prospects for ${today}:`);
+  rows.forEach((r) => console.log(`  • ${r.name} (${r.title}) @ ${r.company}`));
+}
+
+async function main() {
+  try {
+    const exclusionList = await getExclusionList();
+    const prospects = await generateProspects(exclusionList);
+    await insertProspects(prospects);
+    console.log('Done.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error:', err.message);
+    process.exit(1);
+  }
+}
+
+main();
