@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { signIn } from '../lib/supabase';
 
-export default function Auth() {
+export default function Auth({ onSkip }: { onSkip: () => void }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
@@ -51,7 +51,7 @@ export default function Auth() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
+                className="w-full bg-white border border-white/12 text-gray-900
                            px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
               />
             </div>
@@ -65,7 +65,7 @@ export default function Auth() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
+                className="w-full bg-white border border-white/12 text-gray-900
                            px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
               />
             </div>
@@ -84,6 +84,15 @@ export default function Auth() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+
+        <div className="text-center">
+          <button
+            onClick={onSkip}
+            className="text-white/30 text-xs hover:text-white/60 transition-colors underline underline-offset-2"
+          >
+            Continue without signing in
+          </button>
+        </div>
 
         <p className="text-white/20 text-xs text-center">
           CONFIDENTIAL — Authorised access only

@@ -43,6 +43,7 @@ const today = () => new Date().toISOString().split('T')[0];
 function App() {
   // undefined = not yet checked; null = no session; Session = logged in
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [guestMode, setGuestMode] = useState(() => localStorage.getItem('life_guest') === 'true');
 
   // ── Auth session check ────────────────────────────────────
   useEffect(() => {
@@ -85,6 +86,7 @@ function App() {
 
   // ── Initial load (only when authenticated) ───────────────
   useEffect(() => {
+    if (guestMode) { setLoading(false); return; } // guest: use local data only
     if (!session) return; // wait for auth
     let cancelled = false;
     async function bootstrap() {
@@ -298,8 +300,10 @@ function App() {
   }, [addClient]);
 
   // ── Auth guards ───────────────────────────────────────────
-  if (session === undefined) return null; // checking session — blank flash
-  if (session === null) return <Auth />;  // not logged in
+  if (!guestMode && session === undefined) return null; // checking session — blank flash
+  if (!guestMode && session === null) return (
+    <Auth onSkip={() => { localStorage.setItem('life_guest', 'true'); setGuestMode(true); }} />
+  );
 
   // ── Loading screen ────────────────────────────────────────
   if (loading) {
