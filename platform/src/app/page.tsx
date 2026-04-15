@@ -1,72 +1,28 @@
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { Client, RETAINER_STATUS_CONFIG, formatCurrency } from '@/lib/types';
+import { RETAINER_STATUS_CONFIG, formatCurrency } from '@/lib/types';
+import { getClients, getPipelineProspects, isSupabaseConfigured } from '@/lib/data';
 
-// Mock data — Connect to Supabase to load real data
-const MOCK_CLIENTS: Client[] = [
-  {
-    id: 'client-life',
-    org_id: 'org-1',
-    name: 'LIFE',
-    company: 'LIFE Media Group',
-    industry: 'Media & Entertainment',
-    key_contact: 'Sarah Chen',
-    contact_email: 'sarah@lifemedia.com',
-    retainer_status: 'active',
-    contract_start: '2025-09-01',
-    contract_end: '2026-08-31',
-    monthly_retainer: 15000,
-    commission_rate: 0.1,
-    brand_color: '#E63946',
-    logo_initial: 'L',
-    notes: null,
-    created_at: '2025-09-01T00:00:00Z',
-    updated_at: '2026-04-01T00:00:00Z',
-  },
-  {
-    id: 'client-status',
-    org_id: 'org-1',
-    name: 'Status',
-    company: 'Status Ventures',
-    industry: 'FinTech',
-    key_contact: 'Marcus Reid',
-    contact_email: 'marcus@statusventures.com',
-    retainer_status: 'at_risk',
-    contract_start: '2025-06-01',
-    contract_end: '2026-05-31',
-    monthly_retainer: 12000,
-    commission_rate: 0.08,
-    brand_color: '#457B9D',
-    logo_initial: 'S',
-    notes: null,
-    created_at: '2025-06-01T00:00:00Z',
-    updated_at: '2026-03-28T00:00:00Z',
-  },
-  {
-    id: 'client-profg',
-    org_id: 'org-1',
-    name: 'Prof G',
-    company: 'Prof G Media',
-    industry: 'Education & Media',
-    key_contact: 'Scott Galloway',
-    contact_email: 'team@profgmedia.com',
-    retainer_status: 'renewal_due',
-    contract_start: '2025-04-01',
-    contract_end: '2026-03-31',
-    monthly_retainer: 20000,
-    commission_rate: 0.12,
-    brand_color: '#2D3436',
-    logo_initial: 'PG',
-    notes: null,
-    created_at: '2025-04-01T00:00:00Z',
-    updated_at: '2026-04-05T00:00:00Z',
-  },
-];
+export default async function Home() {
+  const clients = await getClients();
 
-export default function Home() {
+  // Pipeline value per client (parallel fetch)
+  const pipelineValues = await Promise.all(
+    clients.map(async (c) => {
+      const prospects = await getPipelineProspects(c.id);
+      const total = prospects
+        .filter((p) => p.stage !== 'closed_lost' && p.stage !== 'closed_won')
+        .reduce((sum, p) => sum + (p.value ?? 0), 0);
+      return [c.id, total] as const;
+    })
+  );
+  const pipelineByClient = new Map(pipelineValues);
+
+  const connected = isSupabaseConfigured();
+
   return (
     <div className="flex min-h-screen">
-      <Sidebar clients={MOCK_CLIENTS} />
+      <Sidebar clients={clients} />
 
       {/* Main content area — offset by sidebar width */}
       <main className="ml-64 flex-1 px-8 py-8">
@@ -80,16 +36,34 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Info banner */}
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span className="font-medium">Note:</span> Connect to Supabase to load real data.
-          Currently displaying mock client data.
-        </div>
+        {/* Info banner — only shown in demo mode */}
+        {!connected && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span className="font-medium">Demo mode:</span> Supabase isn&apos;t
+            configured. Add <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_URL</code>{' '}
+            and <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in
+            Vercel to load real data.
+          </div>
+        )}
+
+        {/* Empty state */}
+        {clients.length === 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center">
+            <p className="text-gray-500">
+              No clients yet. Run the migration in{' '}
+              <code className="font-mono text-xs">
+                platform/supabase/migrations/001_initial_schema.sql
+              </code>{' '}
+              to seed your organization and clients.
+            </p>
+          </div>
+        )}
 
         {/* Client cards grid */}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {MOCK_CLIENTS.map((client) => {
+          {clients.map((client) => {
             const statusConfig = RETAINER_STATUS_CONFIG[client.retainer_status];
+            const pipelineValue = pipelineByClient.get(client.id) ?? 0;
 
             return (
               <div
@@ -134,7 +108,7 @@ export default function Home() {
                       Pipeline Value
                     </p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-brand-gold">
-                      {formatCurrency(0)}
+                      {formatCurrency(pipelineValue)}
                     </p>
                   </div>
 
