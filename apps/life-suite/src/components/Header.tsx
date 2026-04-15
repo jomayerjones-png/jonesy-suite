@@ -6,6 +6,7 @@ interface HeaderProps {
   activeView: View;
   onViewChange: (view: View) => void;
   clientCount: number;
+  onSignOut: () => void;
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
@@ -22,6 +23,7 @@ export default function Header({
   activeView,
   onViewChange,
   clientCount,
+  onSignOut,
 }: HeaderProps) {
 
   return (
@@ -50,6 +52,15 @@ export default function Header({
           <div className="hidden sm:flex items-center gap-1.5 border-l border-white/10 pl-4">
             <span className="text-white/50 text-xs font-medium tracking-wide">lifemagazine.com</span>
           </div>
+          <button
+            onClick={onSignOut}
+            title="Sign out"
+            className="text-white/30 hover:text-white/70 transition-colors ml-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
 

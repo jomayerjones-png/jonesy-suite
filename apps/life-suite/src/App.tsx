@@ -7,8 +7,10 @@ import {
   supabase,
   fetchAllClients, upsertClient, removeClient,
   fetchCompanyName, saveCompanyName,
+  signOut,
 } from './lib/supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, Session } from '@supabase/supabase-js';
+import Auth             from './components/Auth';
 import AnalyticsView    from './components/analytics/AnalyticsView';
 import Header           from './components/Header';
 import PipelineTracker  from './components/pipeline/PipelineTracker';
@@ -38,6 +40,18 @@ function writeLocalCompany(name: string) {
 const today = () => new Date().toISOString().split('T')[0];
 
 function App() {
+  // undefined = not yet checked; null = no session; Session = logged in
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
+  // ── Auth session check ────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   const [view, setView]               = useState<View>('pipeline');
   const [loading, setLoading]         = useState(true);
   const [supabaseError, setSupabaseError] = useState(false);
@@ -68,8 +82,9 @@ function App() {
     );
   }, []);
 
-  // ── Initial load ─────────────────────────────────────────
+  // ── Initial load (only when authenticated) ───────────────
   useEffect(() => {
+    if (!session) return; // wait for auth
     let cancelled = false;
     async function bootstrap() {
       try {
@@ -106,7 +121,7 @@ function App() {
     bootstrap();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [session]);
 
   // ── Realtime subscription ─────────────────────────────────
   useEffect(() => {
@@ -262,6 +277,10 @@ function App() {
     });
   }, [setClients]);
 
+  // ── Auth guards ───────────────────────────────────────────
+  if (session === undefined) return null; // checking session — blank flash
+  if (session === null) return <Auth />;  // not logged in
+
   // ── Loading screen ────────────────────────────────────────
   if (loading) {
     return (
@@ -300,6 +319,7 @@ function App() {
         activeView={view}
         onViewChange={setView}
         clientCount={clients.length}
+        onSignOut={signOut}
       />
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (

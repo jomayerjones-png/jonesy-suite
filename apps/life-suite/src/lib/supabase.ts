@@ -8,6 +8,17 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   realtime: { params: { eventsPerSecond: 10 } },
 });
 
+// ── Auth ──────────────────────────────────────────────────
+export async function signIn(email: string, password: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+// ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
