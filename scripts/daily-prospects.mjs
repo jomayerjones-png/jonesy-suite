@@ -133,17 +133,26 @@ Return the JSON array only.`;
   const raw = textBlocks[textBlocks.length - 1].text.trim();
   console.log('Raw response:', raw.slice(0, 200), '...');
 
-  // Extract the JSON array from anywhere in the response (Claude may add prose before/after)
-  const jsonMatch = raw.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    throw new Error(`No JSON array found in response.\nRaw: ${raw}`);
+  // Strategy 1: extract from inside a ```json ... ``` code fence
+  let jsonStr = null;
+  const fenceMatch = raw.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+  if (fenceMatch) {
+    jsonStr = fenceMatch[1];
+  } else {
+    // Strategy 2: find a JSON array of objects specifically (avoids matching prose like [Note: ...])
+    const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (arrayMatch) jsonStr = arrayMatch[0];
+  }
+
+  if (!jsonStr) {
+    throw new Error(`No JSON array found in response.\nRaw: ${raw.slice(0, 500)}`);
   }
 
   let prospects;
   try {
-    prospects = JSON.parse(jsonMatch[0]);
+    prospects = JSON.parse(jsonStr);
   } catch (e) {
-    throw new Error(`Failed to parse JSON: ${e.message}\nRaw: ${raw}`);
+    throw new Error(`Failed to parse JSON: ${e.message}\nExtracted: ${jsonStr.slice(0, 200)}`);
   }
 
   if (!Array.isArray(prospects) || prospects.length !== 3) {
