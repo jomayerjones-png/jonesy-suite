@@ -33,13 +33,14 @@ jobs:
             apps/prof-g-suite/package-lock.json
             apps/status-suite/package-lock.json
 
-      - name: Build jonesy-suite
+       - name: Build jonesy-suite
         working-directory: apps/jonesy-suite
         env:
           VITE_SUPABASE_URL: ${{ secrets.JONESY_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.JONESY_SUPABASE_ANON_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.JONESY_GOOGLE_CLIENT_ID }}
         run: npm ci && npm run build
+
 
       - name: Build life-suite
         working-directory: apps/life-suite
