@@ -49,58 +49,23 @@ async function getExclusionList() {
   return all;
 }
 
-const SYSTEM_PROMPT = `You are a senior business development researcher working for Jo Mayer Jones at Jonesy & Co.
-You are helping build the advertising partner pipeline for LIFE magazine — the iconic American brand being relaunched
-as a quarterly large-format magazine and cultural platform. Publishers: Karlie Kloss and Josh Kushner. Launch: September 2026.
-First issue: "Where Are We Now?" — a portrait of America under construction, told through engineers, scientists, policymakers, and artists.
+const SYSTEM_PROMPT = `You are a BD researcher for Jo Mayer Jones at Jonesy & Co, building the founding partner pipeline for LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
 
-Your job: identify 3 real, senior decision-makers at well-funded companies who would be a natural founding advertising partner for LIFE.
-Use web search to verify: the person exists, their title is current, and there is a specific, researched reason WHY their brand fits LIFE right now.
+Find 3 real senior contacts (CMO, Chief Brand Officer, VP Marketing or equivalent) at culturally ambitious brands in luxury, auto, finance, fashion, tech, aviation, or consumer goods. Use web search to verify each contact is current and find a specific WHY.
 
-TARGET PROFILE:
-- Title: CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, VP Brand, Global Marketing Director (C-suite or VP level minimum)
-- Company: well-funded brand in luxury, automotive, finance, fashion, tech, aviation, consumer goods, or a fast-growing challenger brand
-- The company must have genuine cultural ambition — not just a transactional advertiser
-- Prioritise brands that have recently made bold brand moves, launched campaigns about American identity/progress/optimism, or are entering a new cultural moment
-
-EMAIL TEMPLATE TO USE (Option 1 style — adapt the WHY paragraph per company):
-Subject: LIFE — [Company Name]
-
+Draft each email using this template:
+Subject: LIFE — [Company]
 Hi [First Name]
-
 LIFE, one of America's most iconic media brands, is undergoing a ground-up rebuild — reimagined as a quarterly large-format magazine and cultural platform launching this September with Karlie Kloss and Josh Kushner as Publishers.
+The first issue is "Where Are We Now?" — a portrait of an America under construction, told through the engineers, scientists, policymakers, and artists at the frontier.
+[Company] has been on our list from the start. [ONE specific researched sentence: a real recent campaign, brand move, or cultural moment that makes them a natural LIFE founding partner.]
+We're speaking with a small number of founding partners — creative collaboration, not a media buy.
+Can we jump on a call over the next couple of weeks?
+Warm regards, Jo
 
-The first issue is "Where Are We Now?" — a portrait of an America under construction. Across sectors, breakthroughs are no longer theoretical; they are deployed, funded, and scaled. We'll sit with the engineers, scientists, policymakers, and artists at the frontier. It is, at its core, a story of American progress, told through the people living it.
-
-[COMPANY] has been on our list from the start. [PERSONALIZED WHY — one specific, researched sentence referencing a real recent campaign, brand positioning move, cultural commitment, or market moment that makes this company a natural LIFE founding partner. Be concrete and specific, not generic.]
-
-We're in conversation with a very small number of founding partners. The model prioritises depth over reach and is designed for creative collaboration rather than a media buy.
-
-Can we jump on a call over the next couple of weeks to discuss?
-
-Warm regards,
-Jo
-
-OUTPUT FORMAT — respond with a JSON array only, no prose, no markdown fences:
-[
-  {
-    "name": "First Last",
-    "title": "CMO",
-    "company": "Company Name",
-    "email": "firstname.lastname@company.com",
-    "email_confidence": "estimated",
-    "why": "One specific sentence explaining why this company is a natural LIFE founding partner right now.",
-    "draft_subject": "LIFE — Company Name",
-    "draft_body": "Full email body text (no subject line, just the body starting with Hi [Name])"
-  }
-]
-
-Rules:
-- email_confidence: use "verified" if you found the email confirmed in a public source, otherwise "estimated"
-- draft_body: use the exact template above, substituting the real name and personalized WHY paragraph
-- The WHY sentence must be concrete and researched — reference something real and specific
-- Do not include companies from the exclusion list
-- Return exactly 3 prospects`;
+Return ONLY a JSON array, no prose:
+[{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}]
+Rules: email_confidence="verified" only if confirmed in a public source. Return exactly 3 objects.`;
 
 async function generateProspects(exclusionList) {
   const exclusionNote = exclusionList.length > 0
@@ -117,7 +82,7 @@ Return the JSON array only.`;
   console.log('Calling Claude API with web_search...');
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
     system: SYSTEM_PROMPT,
