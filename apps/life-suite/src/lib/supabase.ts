@@ -55,3 +55,37 @@ export async function saveCompanyName(name: string): Promise<void> {
     .upsert({ key: 'companyName', value: name }, { onConflict: 'key' });
   if (error) throw error;
 }
+
+// ── Daily Prospects ───────────────────────────────────────────────
+export interface DailyProspect {
+  id: string;
+  date: string;              // 'YYYY-MM-DD'
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+  email_confidence: string;  // 'verified' | 'estimated'
+  why: string;
+  draft_subject: string;
+  draft_body: string;
+  status: string;            // 'pending' | 'added' | 'skipped'
+}
+
+export async function fetchTodayProspects(): Promise<DailyProspect[]> {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('daily_prospects')
+    .select('*')
+    .eq('date', today)
+    .order('created_at');
+  if (error) throw error;
+  return (data ?? []) as DailyProspect[];
+}
+
+export async function updateProspectStatus(id: string, status: string): Promise<void> {
+  const { error } = await supabase
+    .from('daily_prospects')
+    .update({ status })
+    .eq('id', id);
+  if (error) throw error;
+}

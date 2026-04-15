@@ -9,6 +9,7 @@ import {
   fetchCompanyName, saveCompanyName,
   signOut,
 } from './lib/supabase';
+import type { DailyProspect } from './lib/supabase';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import Auth             from './components/Auth';
 import AnalyticsView    from './components/analytics/AnalyticsView';
@@ -277,6 +278,25 @@ function App() {
     });
   }, [setClients]);
 
+  const addProspectToEngaged = useCallback((p: DailyProspect) => {
+    addClient({
+      name: p.name,
+      company: p.company,
+      email: p.email,
+      phone: '',
+      value: 0,
+      stage: 'Engaged',
+      notes: `Prospected via daily agent.\n\nWHY: ${p.why}\n\nDraft email subject: ${p.draft_subject}`,
+      lastContact: today(),
+      tags: ['prospected'],
+      proposals: [],
+      industry: '',
+      outcome: 'active',
+      lostReason: '',
+      stageHistory: [],
+    });
+  }, [addClient]);
+
   // ── Auth guards ───────────────────────────────────────────
   if (session === undefined) return null; // checking session — blank flash
   if (session === null) return <Auth />;  // not logged in
@@ -348,7 +368,7 @@ function App() {
           />
         )}
         {view === 'roadmap' && (
-          <Roadmap companyName={companyName} />
+          <Roadmap companyName={companyName} onAddToEngaged={addProspectToEngaged} />
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />

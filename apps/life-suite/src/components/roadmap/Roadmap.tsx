@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchTodayProspects, updateProspectStatus } from '../../lib/supabase';
+import type { DailyProspect } from '../../lib/supabase';
 
 // ── Data ─────────────────────────────────────────────────────────
 const WEEKS_INIT = [
@@ -66,14 +68,144 @@ function Editable({ value, onChange, className = '' }: { value: string; onChange
   );
 }
 
+// ── Prospect card ────────────────────────────────────────────────
+function ProspectCard({
+  prospect,
+  onAdd,
+}: {
+  prospect: DailyProspect;
+  onAdd: (p: DailyProspect) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const isDone = prospect.status === 'added';
+
+  const copyEmail = () => {
+    const text = `Subject: ${prospect.draft_subject}\n\n${prospect.draft_body}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (isDone) {
+    return (
+      <div className="bg-white border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+          <span className="text-emerald-600 text-sm">✓</span>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-brand-dark">{prospect.name}</p>
+          <p className="text-xs text-gray-400">{prospect.company} · Added to Pipeline</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <p className="text-sm font-bold text-brand-dark leading-tight">{prospect.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{prospect.title} · {prospect.company}</p>
+          </div>
+          {prospect.email_confidence === 'verified' ? (
+            <span className="flex-shrink-0 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+              verified
+            </span>
+          ) : (
+            <span className="flex-shrink-0 text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+              estimated
+            </span>
+          )}
+        </div>
+        {/* WHY */}
+        <p className="text-xs text-[#E8002D] leading-relaxed italic">{prospect.why}</p>
+        {/* Email address */}
+        <p className="text-[11px] text-gray-400 mt-1.5">{prospect.email}</p>
+      </div>
+
+      {/* Email preview toggle */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full px-4 py-2 text-left text-[11px] font-medium text-gray-400 hover:text-gray-600 border-t border-gray-100 flex items-center justify-between transition-colors"
+      >
+        <span>Draft email</span>
+        <span className="text-[10px]">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 border-t border-gray-100 bg-gray-50">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-3 mb-1">
+            Subject
+          </p>
+          <p className="text-xs text-brand-dark mb-2">{prospect.draft_subject}</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+            Body
+          </p>
+          <pre className="text-xs text-brand-dark whitespace-pre-wrap leading-relaxed font-sans">
+            {prospect.draft_body}
+          </pre>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="px-4 pb-4 pt-3 flex gap-2 border-t border-gray-100">
+        <button
+          onClick={copyEmail}
+          className="flex-1 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all"
+        >
+          {copied ? 'Copied ✓' : 'Copy Email'}
+        </button>
+        <button
+          onClick={() => onAdd(prospect)}
+          className="flex-1 py-1.5 text-xs font-semibold rounded-lg text-white transition-all"
+          style={{ backgroundColor: '#E8002D' }}
+        >
+          Add to Pipeline
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────
 type RoadmapView = 'roadmap' | 'close';
 
-export default function Roadmap({ companyName: _companyName }: { companyName: string }) {
+export default function Roadmap({
+  companyName: _companyName,
+  onAddToEngaged,
+}: {
+  companyName: string;
+  onAddToEngaged: (prospect: DailyProspect) => void;
+}) {
   const [weeks, setWeeks] = useState(WEEKS_INIT);
   const [closers, setClosers] = useState(CLOSERS_INIT);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [subView, setSubView] = useState<RoadmapView>('roadmap');
+
+  // ── Daily prospects ───────────────────────────────────────────
+  const [prospects, setProspects] = useState<DailyProspect[]>([]);
+  const [prospectsLoading, setProspectsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTodayProspects()
+      .then(data => setProspects(data))
+      .catch(err => console.warn('[Roadmap] Failed to load prospects:', err))
+      .finally(() => setProspectsLoading(false));
+  }, []);
+
+  const handleAddToEngaged = (prospect: DailyProspect) => {
+    onAddToEngaged(prospect);
+    updateProspectStatus(prospect.id, 'added').catch(err =>
+      console.warn('[Roadmap] Failed to update prospect status:', err)
+    );
+    setProspects(prev =>
+      prev.map(p => p.id === prospect.id ? { ...p, status: 'added' } : p)
+    );
+  };
 
   // week mutations
   const setWLabel = (id: number, v: string) => setWeeks(ws => ws.map(w => w.id === id ? { ...w, label: v } : w));
@@ -113,6 +245,41 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
           <p style={{ margin: 0, fontWeight: 600 }}>Strategic Roadmap · March – June 2026</p>
           <p style={{ margin: 0 }}>{subView === 'roadmap' ? 'Week by Week' : 'Close by 1 May'}</p>
         </div>
+      </div>
+
+      {/* ══ TO DO TODAY ══ */}
+      <div className="no-print mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase text-white" style={{ backgroundColor: '#E8002D' }}>
+              To Do Today
+            </div>
+            <p className="text-xs text-gray-400">Reach out to 3 new prospects · move them to Engaged</p>
+          </div>
+        </div>
+
+        {prospectsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-2/3 mb-2" />
+                <div className="h-2.5 bg-gray-100 rounded w-1/2 mb-3" />
+                <div className="h-2.5 bg-gray-100 rounded w-full mb-1.5" />
+                <div className="h-2.5 bg-gray-100 rounded w-4/5" />
+              </div>
+            ))}
+          </div>
+        ) : prospects.length === 0 ? (
+          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-400 text-center">
+            Today's prospects are loading — check back shortly after 8am EST, or trigger the workflow manually in GitHub Actions.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {prospects.map(p => (
+              <ProspectCard key={p.id} prospect={p} onAdd={handleAddToEngaged} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Sub-navigation tabs */}
