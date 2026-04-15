@@ -133,12 +133,15 @@ Return the JSON array only.`;
   const raw = textBlocks[textBlocks.length - 1].text.trim();
   console.log('Raw response:', raw.slice(0, 200), '...');
 
-  // Strip any accidental markdown fences
-  const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+  // Extract the JSON array from anywhere in the response (Claude may add prose before/after)
+  const jsonMatch = raw.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    throw new Error(`No JSON array found in response.\nRaw: ${raw}`);
+  }
 
   let prospects;
   try {
-    prospects = JSON.parse(cleaned);
+    prospects = JSON.parse(jsonMatch[0]);
   } catch (e) {
     throw new Error(`Failed to parse JSON: ${e.message}\nRaw: ${raw}`);
   }
