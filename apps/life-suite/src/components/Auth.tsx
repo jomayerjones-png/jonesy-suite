@@ -41,26 +41,34 @@ export default function Auth() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-              autoComplete="email"
-              className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
-                         px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              autoComplete="current-password"
-              className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
-                         px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
-            />
+            <div className="space-y-1">
+              <label className="text-white/50 text-xs uppercase tracking-widest font-medium">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
+                           px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-white/50 text-xs uppercase tracking-widest font-medium">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full bg-white/8 border border-white/12 text-white placeholder-white/30
+                           px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
+              />
+            </div>
           </div>
 
           {error && (
