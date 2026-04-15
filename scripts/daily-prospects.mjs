@@ -89,28 +89,31 @@ Return the JSON array only.`;
     messages: [{ role: 'user', content: userMessage }],
   });
 
-  // Extract the final text block (after tool use rounds)
-  const textBlocks = response.content.filter((b) => b.type === 'text');
-  if (textBlocks.length === 0) {
+  // Concatenate all text blocks — Claude sometimes emits JSON in an earlier block
+  const allText = response.content
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+
+  if (!allText.trim()) {
     throw new Error('No text response from Claude');
   }
 
-  const raw = textBlocks[textBlocks.length - 1].text.trim();
-  console.log('Raw response:', raw.slice(0, 200), '...');
+  console.log('Raw response:', allText.slice(0, 200), '...');
 
   // Strategy 1: extract from inside a ```json ... ``` code fence
   let jsonStr = null;
-  const fenceMatch = raw.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+  const fenceMatch = allText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
   if (fenceMatch) {
     jsonStr = fenceMatch[1];
   } else {
     // Strategy 2: find a JSON array of objects specifically (avoids matching prose like [Note: ...])
-    const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    const arrayMatch = allText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (arrayMatch) jsonStr = arrayMatch[0];
   }
 
   if (!jsonStr) {
-    throw new Error(`No JSON array found in response.\nRaw: ${raw.slice(0, 500)}`);
+    throw new Error(`No JSON array found in response.\nRaw: ${allText.slice(0, 500)}`);
   }
 
   let prospects;
