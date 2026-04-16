@@ -7,6 +7,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import pg from 'pg';
+const { Client: PgClient } = pg;
 
 const SUPABASE_URL  = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
 // Same publishable key already used in the app — daily_prospects RLS allows anon inserts
@@ -158,8 +160,25 @@ async function insertProspects(prospects) {
     status: 'pending',
   }));
 
-  const { error } = await supabase.from('daily_prospects').insert(rows);
-  if (error) throw new Error(`Supabase insert failed: ${error.message}`);
+  // Use direct PostgreSQL connection to bypass PostgREST schema cache issues
+  const db = new PgClient({
+    connectionString: process.env.SUPABASE_DB_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+  await db.connect();
+  try {
+    for (const row of rows) {
+      await db.query(
+        `INSERT INTO daily_prospects
+           (id, date, name, title, company, email, email_confidence, why, draft_subject, draft_body, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [row.id, row.date, row.name, row.title, row.company, row.email,
+         row.email_confidence, row.why, row.draft_subject, row.draft_body, row.status]
+      );
+    }
+  } finally {
+    await db.end();
+  }
 
   console.log(`Inserted ${rows.length} prospects for ${today}:`);
   rows.forEach((r) => console.log(`  • ${r.name} (${r.title}) @ ${r.company}`));
