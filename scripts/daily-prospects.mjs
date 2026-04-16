@@ -14,9 +14,14 @@ const SUPABASE_URL  = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
 // Same publishable key already used in the app — daily_prospects RLS allows anon inserts
 const SUPABASE_KEY  = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const SUPABASE_DB_URL = process.env.SUPABASE_DB_URL;
 
 if (!ANTHROPIC_API_KEY) {
   console.error('Missing ANTHROPIC_API_KEY');
+  process.exit(1);
+}
+if (!SUPABASE_DB_URL) {
+  console.error('Missing SUPABASE_DB_URL — add it to GitHub secrets and the workflow env block');
   process.exit(1);
 }
 
@@ -162,7 +167,7 @@ async function insertProspects(prospects) {
 
   // Use direct PostgreSQL connection to bypass PostgREST schema cache issues
   const db = new PgClient({
-    connectionString: process.env.SUPABASE_DB_URL,
+    connectionString: SUPABASE_DB_URL,
     ssl: { rejectUnauthorized: false },
   });
   await db.connect();
@@ -192,7 +197,9 @@ async function main() {
     console.log('Done.');
     process.exit(0);
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Error:', err.message || err);
+    if (err.code) console.error('Error code:', err.code);
+    if (err.stack) console.error(err.stack);
     process.exit(1);
   }
 }
