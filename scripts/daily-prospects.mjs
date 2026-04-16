@@ -77,13 +77,26 @@ Return the JSON array only.`;
 
   console.log('Calling Claude API with web_search...');
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userMessage }],
-  });
+  let response;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userMessage }],
+      });
+      break;
+    } catch (err) {
+      if (err.status === 429 && attempt < 3) {
+        console.log(`Rate limited — waiting 70s before retry (attempt ${attempt}/3)...`);
+        await new Promise(r => setTimeout(r, 70_000));
+        continue;
+      }
+      throw err;
+    }
+  }
 
   // Concatenate all text blocks — Claude sometimes emits JSON in an earlier block
   const allText = response.content
