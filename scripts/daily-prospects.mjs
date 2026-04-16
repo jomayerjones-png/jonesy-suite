@@ -66,83 +66,86 @@ We're speaking with a small number of founding partners — creative collaborati
 Can we jump on a call over the next couple of weeks?
 Warm regards, Jo
 
-Return ONLY a JSON array, no prose:
-[{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}]
-Rules: email_confidence="verified" only if confirmed in a public source. Return exactly 3 objects.`;
+Return ONLY a JSON object (not an array), no prose:
+{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}
+Rules: email_confidence="verified" only if confirmed in a public source. Return exactly 1 object.`;
 
-async function generateProspects(exclusionList) {
-  const exclusionNote = exclusionList.length > 0
-    ? `\n\nDO NOT suggest any of these companies (already in pipeline or recently contacted):\n${exclusionList.join(', ')}`
-    : '';
-
-  const userMessage = `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-
-Find 3 real senior contacts for LIFE magazine's advertising partner pipeline.
-Use web search to verify each contact and build a specific, researched WHY for each.${exclusionNote}
-
-Return the JSON array only.`;
-
-  console.log('Calling Claude API with web_search...');
-
-  let response;
+async function callClaudeWithRetry(userMessage) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      response = await anthropic.messages.create({
+      const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
+        max_tokens: 2048,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
       });
-      break;
+      return response;
     } catch (err) {
       if (err.status === 429 && attempt < 3) {
-        console.log(`Rate limited — waiting 70s before retry (attempt ${attempt}/3)...`);
-        await new Promise(r => setTimeout(r, 70_000));
+        console.log(`Rate limited — waiting 65s before retry (attempt ${attempt}/3)...`);
+        await new Promise(r => setTimeout(r, 65_000));
         continue;
       }
       throw err;
     }
   }
+}
 
-  // Concatenate all text blocks — Claude sometimes emits JSON in an earlier block
+function extractProspect(response) {
   const allText = response.content
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
 
-  if (!allText.trim()) {
-    throw new Error('No text response from Claude');
-  }
+  if (!allText.trim()) throw new Error('No text response from Claude');
 
-  console.log('Raw response:', allText.slice(0, 200), '...');
-
-  // Strategy 1: extract from inside a ```json ... ``` code fence
+  // Try JSON object (not array) extraction
   let jsonStr = null;
-  const fenceMatch = allText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+  const fenceMatch = allText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (fenceMatch) {
     jsonStr = fenceMatch[1];
   } else {
-    // Strategy 2: find a JSON array of objects specifically (avoids matching prose like [Note: ...])
-    const arrayMatch = allText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (arrayMatch) jsonStr = arrayMatch[0];
+    const objMatch = allText.match(/\{[^{}]*"name"[\s\S]*?\}/);
+    if (objMatch) jsonStr = objMatch[0];
   }
 
-  if (!jsonStr) {
-    throw new Error(`No JSON array found in response.\nRaw: ${allText.slice(0, 500)}`);
-  }
+  if (!jsonStr) throw new Error(`No JSON object found.\nRaw: ${allText.slice(0, 300)}`);
 
-  let prospects;
-  try {
-    // Strip trailing commas before } or ] — Claude sometimes emits them
-    const sanitized = jsonStr.replace(/,\s*([}\]])/g, '$1');
-    prospects = JSON.parse(sanitized);
-  } catch (e) {
-    throw new Error(`Failed to parse JSON: ${e.message}\nExtracted: ${jsonStr.slice(0, 200)}`);
-  }
+  const sanitized = jsonStr.replace(/,\s*([}\]])/g, '$1');
+  return JSON.parse(sanitized);
+}
 
-  if (!Array.isArray(prospects) || prospects.length !== 3) {
-    throw new Error(`Expected 3 prospects, got ${Array.isArray(prospects) ? prospects.length : 'non-array'}`);
+async function generateProspects(exclusionList) {
+  const exclusionNote = exclusionList.length > 0
+    ? `\nDO NOT suggest any of these companies:\n${exclusionList.join(', ')}`
+    : '';
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const prospects = [];
+
+  for (let i = 1; i <= 3; i++) {
+    const alreadyFound = prospects.map(p => p.company).join(', ');
+    const skipNote = alreadyFound ? `\nAlso skip these already found today: ${alreadyFound}` : '';
+
+    const userMessage = `Today is ${today}. Find 1 real senior contact for LIFE magazine's advertising partner pipeline.
+Use web search to verify the contact and write a specific, researched WHY.${exclusionNote}${skipNote}
+
+Return the JSON object only.`;
+
+    console.log(`Calling Claude API for prospect ${i}/3...`);
+    const response = await callClaudeWithRetry(userMessage);
+    console.log('Raw response:', response.content.filter(b => b.type === 'text').map(b => b.text).join('').slice(0, 150), '...');
+
+    const prospect = extractProspect(response);
+    prospects.push(prospect);
+    console.log(`  ✓ ${prospect.name} @ ${prospect.company}`);
+
+    // Pause between calls to stay within 30k TPM
+    if (i < 3) {
+      console.log('Waiting 65s before next prospect...');
+      await new Promise(r => setTimeout(r, 65_000));
+    }
   }
 
   return prospects;
