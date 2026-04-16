@@ -187,7 +187,7 @@ function ArchivedReportView({
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-brand-light overflow-auto">
+    <div className="fixed inset-0 z-50 bg-brand-light overflow-auto print:relative print:inset-auto print:overflow-visible">
       <style>{PRINT_STYLE}</style>
 
       {/* Archive viewer toolbar */}
@@ -385,11 +385,12 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     const totalValue = clients.reduce((s, c) => s + c.value, 0);
     const closedValue = byStage.Close.reduce((s, c) => s + c.value, 0);
     const activeValue = clients.filter(c => c.stage !== 'Close').reduce((s, c) => s + c.value, 0);
-    const avgDeal = clients.length > 0 ? totalValue / clients.length : 0;
+    const dealsWithValue = clients.filter(c => c.value > 0);
+    const avgDeal = dealsWithValue.length > 0 ? totalValue / dealsWithValue.length : 0;
     const topClients = [...clients].sort((a, b) => b.value - a.value).slice(0, 5);
     return {
       staleClients, newThisWeek, contactedThisWeek, byStage,
-      totalValue, closedValue, activeValue, avgDeal, topClients,
+      totalValue, closedValue, activeValue, avgDeal, valuedDealsCount: dealsWithValue.length, topClients,
     };
   }, [clients]);
 
@@ -474,7 +475,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     <>
       <style>{PRINT_STYLE}</style>
 
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full print:block print:h-auto">
         {/* Toolbar */}
         <div className="bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between no-print">
           <div>
@@ -568,7 +569,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
           </div>
         ) : (
           /* Current report */
-          <div className="flex-1 overflow-auto p-5">
+          <div className="flex-1 overflow-auto p-5 print:overflow-visible print:h-auto">
             <div ref={reportRef} className="max-w-4xl mx-auto space-y-4 print-compact">
 
               {/* Report header */}
@@ -602,7 +603,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                     { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), sub: 'All active deals', color: 'text-brand-dark' },
                     { label: 'Active Value', value: formatCurrency(stats.activeValue), sub: 'Excl. closed', color: 'text-brand-gold' },
                     { label: 'Closed Value', value: formatCurrency(stats.closedValue), sub: `${stats.byStage.Close.length} closed`, color: 'text-emerald-600' },
-                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), sub: `${clients.length} clients`, color: 'text-brand-dark' },
+                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), sub: `${stats.valuedDealsCount} with value`, color: 'text-brand-dark' },
                   ].map(m => (
                     <div key={m.label} className="metric-card">
                       <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
