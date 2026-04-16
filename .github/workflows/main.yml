@@ -1,12 +1,11 @@
 name: Daily Prospect Briefing
 on:
   schedule:
-    - cron: '0 13 * * 1-5'   # 8am EST Mon–Fri
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,7 +13,7 @@ jobs:
           node-version: '20'
       - run: npm install
         working-directory: scripts
-           - run: node scripts/daily-prospects.mjs
+      - run: node scripts/daily-prospects.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
