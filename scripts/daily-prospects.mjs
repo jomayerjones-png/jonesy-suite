@@ -8,21 +8,17 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
-const SUPABASE_URL = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.LIFE_SUPABASE_SERVICE_KEY;
+const SUPABASE_URL  = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
+// Same publishable key already used in the app — daily_prospects RLS allows anon inserts
+const SUPABASE_KEY  = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-if (!SUPABASE_SERVICE_KEY) {
-  console.error('Missing LIFE_SUPABASE_SERVICE_KEY');
-  process.exit(1);
-}
 if (!ANTHROPIC_API_KEY) {
   console.error('Missing ANTHROPIC_API_KEY');
   process.exit(1);
 }
 
-// Service role client bypasses RLS — safe for server-side only
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
