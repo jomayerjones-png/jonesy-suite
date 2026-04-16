@@ -114,7 +114,9 @@ Return the JSON array only.`;
 
   let prospects;
   try {
-    prospects = JSON.parse(jsonStr);
+    // Strip trailing commas before } or ] — Claude sometimes emits them
+    const sanitized = jsonStr.replace(/,\s*([}\]])/g, '$1');
+    prospects = JSON.parse(sanitized);
   } catch (e) {
     throw new Error(`Failed to parse JSON: ${e.message}\nExtracted: ${jsonStr.slice(0, 200)}`);
   }
