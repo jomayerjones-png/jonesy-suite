@@ -9,6 +9,7 @@ import {
   isStale,
   generateId,
 } from '../../types';
+import { fetchReportArchives, saveReportArchive, deleteReportArchive } from '../../lib/supabase';
 
 interface WeeklyReportProps {
   clients: Client[];
@@ -354,6 +355,18 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     return [];
   });
 
+  useEffect(() => {
+    fetchReportArchives()
+      .then(data => {
+        const remote = data as ArchivedReport[];
+        if (remote.length > 0) {
+          setArchives(remote);
+          localStorage.setItem(STORAGE_KEY_ARCHIVES, JSON.stringify(remote));
+        }
+      })
+      .catch(() => { /* stay on localStorage */ });
+  }, []);
+
   const [showArchives, setShowArchives] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
@@ -445,12 +458,14 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
       },
     };
     setArchives(prev => [archive, ...prev]);
+    saveReportArchive(archive as unknown as Record<string, unknown>).catch(() => {});
     setSaveLabel('✓ Saved!');
     setTimeout(() => setSaveLabel('Save Report'), 2500);
   };
 
   const deleteArchive = (id: string) => {
     setArchives(prev => prev.filter(a => a.id !== id));
+    deleteReportArchive(id).catch(() => {});
   };
 
   const handleCopy = async () => {

@@ -89,3 +89,25 @@ export async function updateProspectStatus(id: string, status: string): Promise<
     .eq('id', id);
   if (error) throw error;
 }
+
+// ── Report Archives ───────────────────────────────────────────────
+export async function fetchReportArchives(): Promise<unknown[]> {
+  const { data, error } = await supabase
+    .from('report_archives')
+    .select('data')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: { data: unknown }) => row.data);
+}
+
+export async function saveReportArchive(archive: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase
+    .from('report_archives')
+    .upsert({ id: archive.id as string, data: archive }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+export async function deleteReportArchive(id: string): Promise<void> {
+  const { error } = await supabase.from('report_archives').delete().eq('id', id);
+  if (error) throw error;
+}
