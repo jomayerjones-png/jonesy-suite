@@ -106,7 +106,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
 
       {/* Print-only LIFE header */}
       <div className="print-only hidden items-center justify-between mb-6 pb-4 border-b-2 border-gray-200">
-        <div style={{ backgroundColor: '#FFE500', padding: '5px 12px', display: 'inline-block' }}>
+        <div style={{ backgroundColor: '#E8471C', padding: '5px 12px', display: 'inline-block' }}>
           <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: '#0A0A0A', fontSize: '22px', letterSpacing: '-1px', lineHeight: 1 }}>STATUS</span>
         </div>
         <div style={{ textAlign: 'right', fontSize: '9pt', color: '#888' }}>
@@ -124,7 +124,7 @@ export default function Roadmap({ companyName: _companyName }: { companyName: st
               onClick={() => setSubView(id)}
               className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${
                 subView === id
-                  ? 'border-[#FFE500] text-brand-dark'
+                  ? 'border-[#E8471C] text-brand-dark'
                   : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
             >

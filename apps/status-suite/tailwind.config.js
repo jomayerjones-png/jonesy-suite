@@ -6,14 +6,13 @@ export default {
       colors: {
         brand: {
           dark: '#0A0A0A',
-          gold: '#FFE500',
-          'gold-light': '#FFF176',
-          'gold-dark': '#F9C800',
-          'gold-muted': '#FFFDE7',
+          gold: '#E8471C',
+          'gold-light': '#F06030',
+          'gold-dark': '#C73A18',
+          'gold-muted': '#FEF0EB',
           light: '#FAFAFA',
           cream: '#F0F0F0',
           'cream-dark': '#E0E0E0',
-          'status-yellow': '#FFE500',
         },
       },
       fontFamily: {

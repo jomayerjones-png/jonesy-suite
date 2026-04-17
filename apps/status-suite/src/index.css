@@ -22,11 +22,11 @@
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #DC2626;
+    background: #E8471C;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #B91C1C;
+    background: #C73A18;
   }
 }
 

@@ -104,7 +104,7 @@ export default function PipelineTracker({
       {/* Print-only pipeline snapshot */}
       <div className="print-only hidden">
         <div style={{ padding: '0 0 20px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ backgroundColor: '#FFE500', padding: '6px 14px' }}>
+          <div style={{ backgroundColor: '#E8471C', padding: '6px 14px' }}>
             <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: '#0A0A0A', fontSize: '28px', letterSpacing: '-1px', lineHeight: 1 }}>STATUS</span>
           </div>
           <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>

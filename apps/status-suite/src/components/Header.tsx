@@ -31,8 +31,8 @@ export default function Header({
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
           {/* STATUS logo mark */}
-          <div className="bg-[#FFE500] px-2.5 py-1 flex-shrink-0">
-            <span className="font-display font-bold text-[#0A0A0A] text-base tracking-tighter leading-none select-none">STATUS</span>
+          <div className="bg-[#E8471C] px-3 py-1.5 flex-shrink-0">
+            <span className="font-mono font-bold text-white text-base tracking-tight leading-none select-none">status_</span>
           </div>
           <span className="text-white/30 text-sm font-light hidden sm:block">Business Suite</span>
         </div>

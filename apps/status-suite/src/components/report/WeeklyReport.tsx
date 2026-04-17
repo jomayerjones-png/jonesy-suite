@@ -217,7 +217,7 @@ function ArchivedReportView({
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="bg-[#FFE500] px-2 py-0.5"><span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span></div>
+                    <div className="bg-[#E8471C] px-2 py-0.5"><span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span></div>
                     <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Weekly Business Report</p>
                   </div>
                   <h1 className="font-display text-2xl font-bold text-white">{archive.companyName}</h1>
@@ -230,7 +230,7 @@ function ArchivedReportView({
                 </div>
               </div>
             </div>
-            <div className="h-0.5 bg-[#FFE500] print-accent" />
+            <div className="h-0.5 bg-[#E8471C] print-accent" />
           </div>
 
           {/* Pipeline Metrics */}
@@ -577,7 +577,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                    <div className="bg-[#FFE500] px-2 py-0.5"><span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span></div>
+                    <div className="bg-[#E8471C] px-2 py-0.5"><span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span></div>
                     <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Weekly Business Report</p>
                   </div>
                       <h1 className="font-display text-2xl font-bold text-white">{companyName}</h1>
@@ -590,7 +590,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                     </div>
                   </div>
                 </div>
-                <div className="h-0.5 bg-[#FFE500] print-accent" />
+                <div className="h-0.5 bg-[#E8471C] print-accent" />
               </div>
 
               {/* Pipeline Metrics */}

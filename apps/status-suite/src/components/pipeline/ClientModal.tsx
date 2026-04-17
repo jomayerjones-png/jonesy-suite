@@ -843,7 +843,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('details')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all ${
                   tab === 'details'
-                    ? 'text-[#FFE500] border-b-2 border-[#FFE500]'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
@@ -853,13 +853,13 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('proposals')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'proposals'
-                    ? 'text-[#FFE500] border-b-2 border-[#FFE500]'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
                 Proposals
                 {hasProposals && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#FFE500] text-white text-xs font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#E8471C] text-white text-xs font-bold">
                     {proposals.length}
                   </span>
                 )}
@@ -868,7 +868,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('intelligence')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'intelligence'
-                    ? 'text-[#FFE500] border-b-2 border-[#FFE500]'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
@@ -1108,7 +1108,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
               {/* API key bar */}
               <div className="px-4 pt-3 pb-2.5 border-b border-brand-cream bg-brand-light/50">
                 <div className="flex items-center gap-2">
-                  <div className="bg-[#FFE500] px-1.5 py-0.5 flex-shrink-0">
+                  <div className="bg-[#E8471C] px-1.5 py-0.5 flex-shrink-0">
                     <span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span>
                   </div>
                   <span className="text-xs text-brand-dark/50 flex-1">Partner Intelligence · Claude</span>
@@ -1148,7 +1148,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 {intelThread.map(msg => (
                   <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
-                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-[#FFE500] text-white'
+                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-[#E8471C] text-white'
                     }`}>
                       {msg.role === 'user' ? 'U' : 'L'}
                     </div>
