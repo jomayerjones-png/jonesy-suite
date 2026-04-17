@@ -7,31 +7,34 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import pg from 'pg';
-const { Client: PgClient } = pg;
 
-const SUPABASE_URL  = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
-// Same publishable key already used in the app — daily_prospects RLS allows anon inserts
-const SUPABASE_KEY  = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
+const SUPABASE_URL = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const SUPABASE_DB_URL = process.env.SUPABASE_DB_URL;
 
 if (!ANTHROPIC_API_KEY) {
   console.error('Missing ANTHROPIC_API_KEY');
   process.exit(1);
 }
-if (!SUPABASE_DB_URL) {
-  console.error('Missing SUPABASE_DB_URL — add it to GitHub secrets and the workflow env block');
+if (!SUPABASE_SERVICE_KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY — add it to GitHub secrets and the workflow env block');
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+// Anon client for reads (exclusion list)
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
 });
+
+// Service role client for inserts — bypasses RLS entirely
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  auth: { persistSession: false },
+});
+
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
 async function getExclusionList() {
-  const today = new Date().toISOString().split('T')[0];
   const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const [clientsRes, prospectsRes] = await Promise.all([
@@ -100,7 +103,6 @@ function extractProspect(response) {
 
   if (!allText.trim()) throw new Error('No text response from Claude');
 
-  // Try JSON object (not array) extraction
   let jsonStr = null;
   const fenceMatch = allText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (fenceMatch) {
@@ -141,7 +143,6 @@ Return the JSON object only.`;
     prospects.push(prospect);
     console.log(`  ✓ ${prospect.name} @ ${prospect.company}`);
 
-    // Pause between calls to stay within 30k TPM
     if (i < 3) {
       console.log('Waiting 65s before next prospect...');
       await new Promise(r => setTimeout(r, 65_000));
@@ -168,25 +169,8 @@ async function insertProspects(prospects) {
     status: 'pending',
   }));
 
-  // Use direct PostgreSQL connection to bypass PostgREST schema cache issues
-  const db = new PgClient({
-    connectionString: SUPABASE_DB_URL,
-    ssl: { rejectUnauthorized: false },
-  });
-  await db.connect();
-  try {
-    for (const row of rows) {
-      await db.query(
-        `INSERT INTO daily_prospects
-           (id, date, name, title, company, email, email_confidence, why, draft_subject, draft_body, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [row.id, row.date, row.name, row.title, row.company, row.email,
-         row.email_confidence, row.why, row.draft_subject, row.draft_body, row.status]
-      );
-    }
-  } finally {
-    await db.end();
-  }
+  const { error } = await supabaseAdmin.from('daily_prospects').insert(rows);
+  if (error) throw new Error(`Supabase insert failed: ${error.message}`);
 
   console.log(`Inserted ${rows.length} prospects for ${today}:`);
   rows.forEach((r) => console.log(`  • ${r.name} (${r.title}) @ ${r.company}`));
