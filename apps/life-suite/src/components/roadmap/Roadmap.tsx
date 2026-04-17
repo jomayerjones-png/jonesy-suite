@@ -17,13 +17,20 @@ const WEEKS_INIT = [
   { id: 11, label: 'W/C 25 May', theme: 'Launch Prep', phase: 'june' as const, milestones: ['Press and distribution prep', 'Launch comms ready', 'Issue 1 clients: first-issue placement confirmed'] },
 ];
 
-const GROUPS: Record<number, { label: string }> = {
-  1: { label: 'March — Foundations' },
-  3: { label: 'April — Proposals & Pipeline' },
-  6: { label: 'Dinner, 23 April' },
-  7: { label: 'May — Deals Close · Production Sprint Begins' },
-  11: { label: 'June — Launch Prep' },
+const PHASE_GROUPS: Partial<Record<Phase, string>> = {
+  now: 'March — Foundations',
+  april: 'April — Proposals & Pipeline',
+  dinner: 'Dinner, 23 April',
+  may: 'May — Deals Close · Production Sprint Begins',
+  june: 'June — Launch Prep',
 };
+
+function parseWeekLabel(label: string): Date | null {
+  const m = label.match(/W\/C\s+(\d+)\s+(\w+)/i);
+  if (!m) return null;
+  const d = new Date(`${m[2]} ${m[1]} 2026`);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 const CLOSERS_INIT = [
   { id: 1, category: 'PR & Marketing', items: ['PR and marketing plans confirmed for Issue 1', 'Partner visibility commitments defined', 'Editorial calendar shared with key partners'] },
@@ -331,15 +338,21 @@ export default function Roadmap({
       {subView === 'roadmap' && (
         <>
           <div className="flex flex-col gap-0.5">
-            {weeks.map((week, i) => {
-              const group = GROUPS[week.id];
+            {(() => {
+              const weekCutoff = new Date();
+              weekCutoff.setHours(0, 0, 0, 0);
+              const day = weekCutoff.getDay();
+              weekCutoff.setDate(weekCutoff.getDate() - (day === 0 ? 6 : day - 1));
+              return weeks.filter(w => { const d = parseWeekLabel(w.label); return !d || d >= weekCutoff; });
+            })().map((week, i, visible) => {
+              const prevPhase = i > 0 ? visible[i - 1].phase : null;
               const isDinner = week.phase === 'dinner';
               const dotClass = PHASE_DOT[week.phase];
               return (
                 <div key={week.id}>
-                  {group && (
+                  {week.phase !== prevPhase && PHASE_GROUPS[week.phase] && (
                     <div className={`text-[10px] font-bold tracking-[0.15em] uppercase ${isDinner ? 'text-brand-gold' : 'text-gray-400'} ${i === 0 ? '' : 'mt-6'} mb-2`}>
-                      {group.label}
+                      {PHASE_GROUPS[week.phase]}
                     </div>
                   )}
                   <div className="flex items-stretch bg-white border border-gray-200 rounded-lg overflow-hidden">
