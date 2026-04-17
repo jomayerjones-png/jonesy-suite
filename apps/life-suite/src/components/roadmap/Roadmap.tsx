@@ -199,7 +199,7 @@ export default function Roadmap({
 
   useEffect(() => {
     fetchTodayProspects()
-      .then(data => setProspects(data))
+      .then(data => setProspects(data.filter(p => p.status !== 'added')))
       .catch(err => console.warn('[Roadmap] Failed to load prospects:', err))
       .finally(() => setProspectsLoading(false));
   }, []);
