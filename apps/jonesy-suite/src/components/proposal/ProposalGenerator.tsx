@@ -794,7 +794,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
   // Proposal Library data
   const allProposals = clients.flatMap(c =>
-    c.proposals.map(p => ({ proposal: p, clientName: c.name, company: c.company }))
+    (c.proposals ?? []).map(p => ({ proposal: p, clientName: c.name, company: c.company }))
   ).sort((a, b) => new Date(b.proposal.createdAt).getTime() - new Date(a.proposal.createdAt).getTime());
 
   const finalProposals = allProposals.filter(p => p.proposal.title.toLowerCase().includes('final'));

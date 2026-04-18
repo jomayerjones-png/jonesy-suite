@@ -160,9 +160,9 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                             </div>
                           </div>
                         </div>
-                        {client.tags.length > 0 && (
+                        {(client.tags ?? []).length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {client.tags.map(tag => (
+                            {(client.tags ?? []).map(tag => (
                               <span key={tag} className="px-2 py-0.5 rounded-full bg-brand-cream text-brand-dark/50 text-xs border border-brand-cream-dark">
                                 #{tag}
                               </span>
