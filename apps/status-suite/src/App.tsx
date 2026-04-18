@@ -158,26 +158,9 @@ function App() {
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
           <PipelineTracker
-            clients={clients.filter(c => c.stage !== 'Engaged')}
-            allClients={clients}
-            defaultNewStage="Meeting Set"
-            onAdd={addClient}
-            onUpdate={updateClient}
-            onDelete={deleteClient}
-            onMove={moveClient}
-            onMarkLost={markClientLost}
-            onReactivate={reactivateClient}
-            onDeleteProposal={deleteProposalFromClient}
-            onAddProposal={saveProposalToClient}
-            onUpdateProposal={updateProposalForClient}
-            onUpdateThread={updateClientThread}
-          />
-        )}
-        {view === 'bd' && (
-          <PipelineTracker
             clients={clients}
             allClients={clients}
-            defaultNewStage="Engaged"
+            defaultNewStage="Prospect"
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}
