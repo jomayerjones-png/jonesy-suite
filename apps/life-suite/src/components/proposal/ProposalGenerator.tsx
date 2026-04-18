@@ -481,8 +481,11 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+const LIFE_API_KEY = 'life_suite_intel_api_key';
+
 export default function ProposalGenerator({ companyName, clients, onSaveToClient }: ProposalGeneratorProps) {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(LIFE_API_KEY) ?? '');
+  const saveApiKey = (key: string) => { setApiKey(key); localStorage.setItem(LIFE_API_KEY, key); };
   const [showKey, setShowKey] = useState(false);
   const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
   const [proposal, setProposal] = useState('');
@@ -832,7 +835,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 type={showKey ? 'text' : 'password'}
                 className="input-field pr-16 font-mono text-xs"
                 value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
+                onChange={e => saveApiKey(e.target.value)}
                 placeholder="sk-ant-api03-..."
               />
               <button
