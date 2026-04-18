@@ -713,7 +713,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-opus-4-6',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
           tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
           messages: [{
