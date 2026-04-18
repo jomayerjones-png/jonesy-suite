@@ -1,9 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import pg from 'pg';
+const { Client: PgClient } = pg;
 
-const supabase = createClient(
-  'https://jqlzpdeuqocgvrzxyptu.supabase.co',
-  process.env.LIFE_SUPABASE_SERVICE_KEY ?? 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4'
-);
+const db = new PgClient({ connectionString: process.env.SUPABASE_DB_URL });
+await db.connect();
 
 const D = '2026-04-18';
 const s = (id, name, company, email, value, industry, tranche, tier, temp, product, rationale, next) => ({
@@ -106,7 +105,12 @@ const clients = [
   s('STAT-080','TBD — Head of Corporate Partnerships','Condé Nast','',0,'Media','T2','B','Cold','Cross-promo','Vanity Fair is quoted in the Status deck — a warm surface in the Condé Nast building. GQ, Wired, New Yorker overlap with Status audience.','LinkedIn; reference VF coverage.'),
 ];
 
-const rows = clients.map(client => ({ id: client.id, data: client }));
-const { error } = await supabase.from('status_clients').upsert(rows, { onConflict: 'id' });
-if (error) { console.error('Seed failed:', error.message); process.exit(1); }
+for (const client of clients) {
+  await db.query(
+    `INSERT INTO status_clients (id, data) VALUES ($1, $2)
+     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data`,
+    [client.id, JSON.stringify(client)]
+  );
+}
+await db.end();
 console.log(`✓ Seeded ${clients.length} clients into status_clients.`);
