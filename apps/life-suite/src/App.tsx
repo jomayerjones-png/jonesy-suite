@@ -280,6 +280,24 @@ function App() {
     });
   }, [setClients]);
 
+  const updateClientMeetingNotes = useCallback((clientId: string, meetingNotes: import('./types').MeetingNote[]) => {
+    setClients(prev => {
+      const next = prev.map(c => c.id === clientId ? { ...c, meetingNotes } : c);
+      const updated = next.find(c => c.id === clientId);
+      if (updated) upsertClient(updated).catch(err => console.error('[life-suite] updateMeetingNotes:', err));
+      return next;
+    });
+  }, [setClients]);
+
+  const updateClientNewsCache = useCallback((clientId: string, newsCache: import('./types').Client['newsCache']) => {
+    setClients(prev => {
+      const next = prev.map(c => c.id === clientId ? { ...c, newsCache } : c);
+      const updated = next.find(c => c.id === clientId);
+      if (updated) upsertClient(updated).catch(err => console.error('[life-suite] updateNewsCache:', err));
+      return next;
+    });
+  }, [setClients]);
+
   const addProspectToEngaged = useCallback((p: DailyProspect) => {
     addClient({
       name: p.name,
@@ -359,6 +377,8 @@ function App() {
             onAddProposal={saveProposalToClient}
             onUpdateProposal={updateProposalForClient}
             onUpdateThread={updateClientThread}
+            onUpdateMeetingNotes={updateClientMeetingNotes}
+            onUpdateNewsCache={updateClientNewsCache}
           />
         )}
         {view === 'report' && (

@@ -69,6 +69,27 @@ export interface ThreadMessage {
   timestamp: string; // ISO datetime
 }
 
+export interface MeetingNote {
+  id: string;
+  date: string;        // YYYY-MM-DD
+  attendees: string;
+  notes: string;
+  takeaways: string;
+  createdAt: string;   // ISO datetime
+}
+
+export interface NewsArticle {
+  title: string;
+  source: string;
+  url?: string;
+}
+
+export interface NewsCache {
+  fetchedAt: string;   // ISO datetime
+  summary: string;
+  articles: NewsArticle[];
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -87,6 +108,8 @@ export interface Client {
   lostReason: string;
   stageHistory: StageEvent[];
   thread?: ThreadMessage[];
+  meetingNotes?: MeetingNote[];
+  newsCache?: NewsCache;
 }
 
 export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap';
