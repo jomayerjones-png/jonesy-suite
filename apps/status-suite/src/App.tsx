@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, DATA_VERSION, generateId } from './types';
+import { fetchAllClients, upsertClient, removeClient } from './lib/supabase';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
@@ -37,6 +38,12 @@ function App() {
   }, [clients]);
 
   useEffect(() => {
+    fetchAllClients()
+      .then(remote => { if (remote.length > 0) setClients(remote); })
+      .catch(() => { /* stay on localStorage */ });
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY_COMPANY, companyName);
   }, [companyName]);
 
@@ -58,14 +65,21 @@ function App() {
       stageHistory: clientData.stageHistory?.length ? clientData.stageHistory : initHistory,
     };
     setClients(prev => [newClient, ...prev]);
+    upsertClient(newClient).catch(() => {});
   };
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    setClients(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
+    setClients(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const updated = { ...c, ...updates };
+      upsertClient(updated).catch(() => {});
+      return updated;
+    }));
   };
 
   const deleteClient = (id: string) => {
     setClients(prev => prev.filter(c => c.id !== id));
+    removeClient(id).catch(() => {});
   };
 
   const moveClient = (id: string, newStage: Client['stage']) => {
