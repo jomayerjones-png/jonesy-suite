@@ -287,6 +287,7 @@ export default function Roadmap({
   const [prospects, setProspects] = useState<DailyProspect[]>([]);
   const [prospectsLoading, setProspectsLoading] = useState(true);
   const [prospectsError, setProspectsError] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(0); // 0 = idle, 1/2/3 = which prospect
 
   const loadProspects = () => {
@@ -314,10 +315,10 @@ export default function Roadmap({
   const handleGenerateNew = async () => {
     const apiKey = localStorage.getItem(LIFE_API_KEY);
     if (!apiKey) {
-      setProspectsError('Add your Anthropic API key in the Proposal Generator tab first.');
+      setGenerateError('No API key found — enter your Anthropic API key in the Proposal Generator tab first.');
       return;
     }
-    setProspectsError(null);
+    setGenerateError(null);
     const excluded = prospects.map(p => p.company);
     for (let i = 1; i <= 3; i++) {
       setGenerating(i);
@@ -326,7 +327,9 @@ export default function Roadmap({
         excluded.push(prospect.company);
         setProspects(prev => [...prev, prospect]);
       } catch (err) {
-        setProspectsError(err instanceof Error ? err.message : String(err));
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[Roadmap] Generate failed:', msg);
+        setGenerateError(msg);
         setGenerating(0);
         return;
       }
@@ -402,6 +405,13 @@ export default function Roadmap({
           </div>
         </div>
 
+        {generateError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 flex items-start justify-between gap-3">
+            <p className="text-xs text-red-700 font-mono leading-relaxed">{generateError}</p>
+            <button onClick={() => setGenerateError(null)} className="text-red-400 hover:text-red-600 flex-shrink-0 text-sm">✕</button>
+          </div>
+        )}
+
         {prospectsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[0, 1, 2].map(i => (
@@ -413,7 +423,7 @@ export default function Roadmap({
               </div>
             ))}
           </div>
-        ) : prospectsError ? (
+        ) : prospectsError && prospects.length === 0 ? (
           <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-red-700 mb-1">Failed to load prospects</p>
@@ -421,19 +431,24 @@ export default function Roadmap({
             </div>
             <button onClick={loadProspects} className="text-xs text-red-600 underline flex-shrink-0">Retry</button>
           </div>
-        ) : prospects.length === 0 ? (
+        ) : prospects.length === 0 && generating === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
             <p className="text-sm text-gray-400">
-              No prospects for today yet — trigger the <strong>Daily Prospect Briefing</strong> workflow in GitHub Actions, then refresh.
+              No prospects yet — click <strong>Get New</strong> to generate 3 now, or trigger the Daily Prospect Briefing workflow in GitHub Actions.
             </p>
-            <button onClick={loadProspects} className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 flex-shrink-0">
-              Refresh
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {prospects.map(p => (
               <ProspectCard key={p.id} prospect={p} onAdd={handleAddToEngaged} onSkip={handleSkip} />
+            ))}
+            {generating > 0 && Array.from({ length: 4 - generating }).map((_, i) => (
+              <div key={`gen-${i}`} className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-2/3 mb-2" />
+                <div className="h-2.5 bg-gray-100 rounded w-1/2 mb-3" />
+                <div className="h-2.5 bg-gray-100 rounded w-full mb-1.5" />
+                <div className="h-2.5 bg-gray-100 rounded w-4/5" />
+              </div>
             ))}
           </div>
         )}
