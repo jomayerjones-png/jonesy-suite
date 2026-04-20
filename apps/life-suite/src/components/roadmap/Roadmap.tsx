@@ -38,10 +38,9 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      max_tokens: 512,
       system: buildProspectSystemPrompt(category),
-      messages: [{ role: 'user', content: `Find 1 real senior contact at a ${category} brand for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
+      messages: [{ role: 'user', content: `Find 1 real senior contact at a well-known ${category} brand for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
     }),
   });
 
@@ -322,7 +321,7 @@ export default function Roadmap({
     setGenerateError(null);
     const excluded = prospects.map(p => p.company);
     for (let i = 1; i <= 3; i++) {
-      if (i > 1) await new Promise(r => setTimeout(r, 8000)); // spread calls to avoid TPM limits
+      if (i > 1) await new Promise(r => setTimeout(r, 1500));
       setGenerating(i);
       try {
         const category = PROSPECT_CATEGORIES[i - 1];
