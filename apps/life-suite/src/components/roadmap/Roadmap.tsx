@@ -4,18 +4,59 @@ import type { DailyProspect } from '../../lib/supabase';
 
 const LIFE_API_KEY = 'life_suite_intel_api_key';
 
-const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'automotive, finance, or consumer goods'];
+// Curated company pools — Time Top 100 AI, Fast Company Most Innovative, luxury/finance/auto lists
+const COMPANY_POOLS: Record<string, string[]> = {
+  'tech or AI': [
+    'Google', 'Microsoft', 'Meta', 'Nvidia', 'Apple', 'Adobe', 'Salesforce', 'IBM',
+    'Intel', 'AMD', 'Qualcomm', 'Anthropic', 'OpenAI', 'xAI', 'Perplexity AI',
+    'Scale AI', 'Runway', 'Cohere', 'Databricks', 'Palantir', 'Snowflake', 'Stripe',
+    'Coinbase', 'LinkedIn', 'Uber', 'Airbnb', 'Pinterest', 'Snap', 'Figma', 'Canva',
+    'Oracle', 'Cisco', 'Dell Technologies', 'Samsung Electronics',
+  ],
+  'luxury or fashion': [
+    'LVMH', 'Louis Vuitton', 'Christian Dior', 'Hermès', 'Chanel', 'Kering', 'Gucci',
+    'Saint Laurent', 'Bottega Veneta', 'Balenciaga', 'Richemont', 'Cartier',
+    'Van Cleef & Arpels', 'Rolex', 'Prada', 'Burberry', 'Ralph Lauren',
+    'Tapestry', 'Coach', 'Tiffany & Co.', 'Bulgari', 'Moncler',
+    'Brunello Cucinelli', 'Ermenegildo Zegna', 'Loewe', 'Celine', 'Valentino',
+    'Net-a-Porter', 'Saks Fifth Avenue', 'Neiman Marcus',
+    'lululemon', 'Alo Yoga', 'Patagonia', "Arc'teryx",
+  ],
+  'finance, automotive, or media': [
+    'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'American Express',
+    'Mastercard', 'Visa', 'BlackRock', 'Capital One', 'Fidelity Investments',
+    'UBS', 'Citi', 'Bank of America', 'Charles Schwab', 'Vanguard',
+    'Porsche', 'Ferrari', 'Bentley', 'Rolls-Royce', 'Aston Martin',
+    'BMW', 'Mercedes-Benz', 'Audi', 'Lamborghini', 'Tesla', 'Rivian', 'Cadillac',
+    'Condé Nast', 'Hearst', 'Bloomberg', 'The Atlantic', 'Vox Media',
+    'Disney', 'Warner Bros Discovery', 'Netflix', 'Spotify',
+  ],
+};
 
-function buildProspectSystemPrompt(category: string): string {
-  return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a premium quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers.
+const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'finance, automotive, or media'];
 
-Find 1 real senior contact (CMO, VP Marketing, Chief Brand Officer, or equivalent) at a well-known brand in the ${category} sector. Use web search to confirm the contact is current, then write a specific one-sentence WHY.
+function buildProspectSystemPrompt(category: string, companyPool: string[]): string {
+  return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
 
-Draft their email:
+Find 1 real senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a brand from this curated list:
+${companyPool.join(', ')}
+
+Pick the company you're most confident about — where you have accurate knowledge of the current marketing leadership from your training data (press releases, interviews, LinkedIn, news from 2023–2025).
+
+CONTACT QUALITY:
+- Use your knowledge of this brand's confirmed marketing leadership
+- Common corporate email formats: firstname.lastname@company.com · firstname@company.com · f.lastname@company.com
+- Set email_confidence "verified" only if you recall this email appearing in a press release, speaker bio, or news article
+- Set "estimated" if you're inferring the format
+- Provide the most senior person who would make a media partnership decision
+
+WHY: Write one specific sentence about a real recent campaign, sponsorship, cultural commitment, or brand positioning that makes this company a natural LIFE founding partner. Be specific — name the actual campaign or initiative.
+
+Draft the email:
 Subject: LIFE — [Company]
 Hi [First Name]
 LIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
-[Company] has been on our list from the start. [One specific researched reason this brand is a natural LIFE founding partner.]
+[Company] has been on our list from the start. [One specific, researched reason this brand is a natural LIFE founding partner.]
 We're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?
 Warm regards, Jo
 
@@ -24,8 +65,12 @@ Return ONLY this JSON (no other text):
 }
 
 async function fetchOneProspect(apiKey: string, excludeCompanies: string[], category: string): Promise<DailyProspect> {
+  const lowerExclusions = excludeCompanies.map(c => c.toLowerCase());
+  const pool = (COMPANY_POOLS[category] ?? []).filter(c => !lowerExclusions.includes(c.toLowerCase()));
+  const activePool = pool.length >= 5 ? pool : (COMPANY_POOLS[category] ?? []);
+
   const excludeNote = excludeCompanies.length > 0
-    ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
+    ? `\nDO NOT suggest any of these companies (already in pipeline or generated today): ${excludeCompanies.join(', ')}`
     : '';
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -38,9 +83,9 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
-      system: buildProspectSystemPrompt(category),
-      messages: [{ role: 'user', content: `Find 1 real senior contact at a well-known ${category} brand for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
+      max_tokens: 600,
+      system: buildProspectSystemPrompt(category, activePool),
+      messages: [{ role: 'user', content: `Find 1 real senior contact from the company pool for LIFE magazine's founding partner pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only.` }],
     }),
   });
 
