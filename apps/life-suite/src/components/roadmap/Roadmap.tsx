@@ -44,6 +44,11 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     }),
   });
 
+  if (response.status === 429) {
+    // Rate limited — wait 65s and retry once
+    await new Promise(r => setTimeout(r, 65_000));
+    return fetchOneProspect(apiKey, excludeCompanies, category);
+  }
   if (!response.ok) {
     const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
     throw new Error(err?.error?.message ?? `HTTP ${response.status}`);
@@ -390,7 +395,7 @@ export default function Roadmap({
           </div>
           <div className="flex items-center gap-2">
             {generating > 0 && (
-              <span className="text-xs text-gray-400 animate-pulse">Finding {generating}/3…</span>
+              <span className="text-xs text-gray-400 animate-pulse">Finding {generating}/3… (may take up to 90s)</span>
             )}
             <button
               onClick={handleGenerateNew}
