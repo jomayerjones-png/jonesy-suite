@@ -4,25 +4,26 @@ import type { DailyProspect } from '../../lib/supabase';
 
 const LIFE_API_KEY = 'life_suite_intel_api_key';
 
-const PROSPECT_SYSTEM_PROMPT = `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
+const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'automotive, finance, or consumer goods'];
 
-Find 1 real senior contact (CMO, Chief Brand Officer, VP Marketing or equivalent) at a culturally ambitious brand in luxury, auto, finance, fashion, tech, aviation, or consumer goods. Use web search to verify the contact is current and find a specific WHY.
+function buildProspectSystemPrompt(category: string): string {
+  return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a premium quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers.
 
-Draft an email using this template:
+Find 1 real senior contact (CMO, VP Marketing, Chief Brand Officer, or equivalent) at a well-known brand in the ${category} sector. Use web search to confirm the contact is current, then write a specific one-sentence WHY.
+
+Draft their email:
 Subject: LIFE — [Company]
 Hi [First Name]
-LIFE, one of America's most iconic media brands, is undergoing a ground-up rebuild — reimagined as a quarterly large-format magazine and cultural platform launching this September with Karlie Kloss and Josh Kushner as Publishers.
-The first issue is "Where Are We Now?" — a portrait of an America under construction, told through the engineers, scientists, policymakers, and artists at the frontier.
-[Company] has been on our list from the start. [ONE specific researched sentence: a real recent campaign, brand move, or cultural moment that makes them a natural LIFE founding partner.]
-We're speaking with a small number of founding partners — creative collaboration, not a media buy.
-Can we jump on a call over the next couple of weeks?
+LIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
+[Company] has been on our list from the start. [One specific researched reason this brand is a natural LIFE founding partner.]
+We're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?
 Warm regards, Jo
 
-Return ONLY a JSON object, no prose:
-{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}
-email_confidence="verified" only if confirmed in a public source.`;
+Return ONLY this JSON (no other text):
+{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}`;
+}
 
-async function fetchOneProspect(apiKey: string, excludeCompanies: string[]): Promise<DailyProspect> {
+async function fetchOneProspect(apiKey: string, excludeCompanies: string[], category: string): Promise<DailyProspect> {
   const excludeNote = excludeCompanies.length > 0
     ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
     : '';
@@ -39,8 +40,8 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[]): Pro
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: PROSPECT_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Find 1 real senior contact for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
+      system: buildProspectSystemPrompt(category),
+      messages: [{ role: 'user', content: `Find 1 real senior contact at a ${category} brand for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
     }),
   });
 
@@ -321,9 +322,11 @@ export default function Roadmap({
     setGenerateError(null);
     const excluded = prospects.map(p => p.company);
     for (let i = 1; i <= 3; i++) {
+      if (i > 1) await new Promise(r => setTimeout(r, 8000)); // spread calls to avoid TPM limits
       setGenerating(i);
       try {
-        const prospect = await fetchOneProspect(apiKey, excluded);
+        const category = PROSPECT_CATEGORIES[i - 1];
+        const prospect = await fetchOneProspect(apiKey, excluded, category);
         excluded.push(prospect.company);
         setProspects(prev => [...prev, prospect]);
       } catch (err) {
