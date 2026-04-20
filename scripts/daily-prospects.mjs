@@ -10,27 +10,18 @@ import { randomUUID } from 'crypto';
 
 const SUPABASE_URL = 'https://jqlzpdeuqocgvrzxyptu.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 if (!ANTHROPIC_API_KEY) {
   console.error('Missing ANTHROPIC_API_KEY');
   process.exit(1);
 }
-if (!SUPABASE_SERVICE_KEY) {
-  console.error('Missing SUPABASE_SERVICE_ROLE_KEY — add it to GitHub secrets and the workflow env block');
-  process.exit(1);
-}
 
-// Anon client for reads (exclusion list)
+// Single anon client — RLS INSERT policy allows anon writes to daily_prospects
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
 });
-
-// Service role client for inserts — bypasses RLS entirely
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { persistSession: false },
-});
+const supabaseAdmin = supabase; // alias so insert calls below are unchanged
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
