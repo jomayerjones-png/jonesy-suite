@@ -73,45 +73,61 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     ? `\nDO NOT suggest any of these companies (already in pipeline or generated today): ${excludeCompanies.join(', ')}`
     : '';
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
-      system: buildProspectSystemPrompt(category, activePool),
-      messages: [{ role: 'user', content: `Find 1 real senior contact from the company pool for LIFE magazine's founding partner pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only.` }],
-    }),
-  });
+  // 45s timeout — enough for Haiku, short enough to fail fast
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        system: buildProspectSystemPrompt(category, activePool),
+        messages: [{ role: 'user', content: `Find 1 real senior contact from the company pool for LIFE magazine's founding partner pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only — no other text.` }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if ((err as { name?: string })?.name === 'AbortError') throw new Error('Request timed out — try again.');
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (response.status === 429) {
-    // Rate limited — wait 65s and retry once
-    await new Promise(r => setTimeout(r, 65_000));
+    await new Promise(r => setTimeout(r, 30_000));
     return fetchOneProspect(apiKey, excludeCompanies, category);
   }
   if (!response.ok) {
     const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
-    throw new Error(err?.error?.message ?? `HTTP ${response.status}`);
+    throw new Error(err?.error?.message ?? `API error ${response.status}`);
   }
 
   const data = await response.json() as { content: { type: string; text?: string }[] };
-  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('');
-  if (!text.trim()) throw new Error('No text response from Claude');
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+  if (!text) throw new Error('Empty response from Claude — try again.');
 
   const fenceMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-  const objMatch = text.match(/\{[^{}]*"name"[\s\S]*?\}/);
+  const objMatch = text.match(/\{[\s\S]*?"name"[\s\S]*?\}/);
   const jsonStr = fenceMatch?.[1] ?? objMatch?.[0];
-  if (!jsonStr) throw new Error(`Could not parse response: ${text.slice(0, 200)}`);
+  if (!jsonStr) throw new Error(`Could not parse prospect data — model returned unexpected format.`);
 
-  const p = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as {
-    name: string; title: string; company: string; email: string;
-    email_confidence: string; why: string; draft_subject: string; draft_body: string;
-  };
+  let p: { name: string; title: string; company: string; email: string; email_confidence: string; why: string; draft_subject: string; draft_body: string };
+  try {
+    p = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1'));
+  } catch {
+    throw new Error('Invalid JSON from Claude — try again.');
+  }
+
+  if (!p.name || !p.company) throw new Error('Incomplete prospect data — try again.');
 
   const today = new Date().toISOString().split('T')[0];
   const row: DailyProspect = {
@@ -122,14 +138,14 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     company: p.company,
     email: p.email ?? '',
     email_confidence: p.email_confidence ?? 'estimated',
-    why: p.why,
-    draft_subject: p.draft_subject,
-    draft_body: p.draft_body,
+    why: p.why ?? '',
+    draft_subject: p.draft_subject ?? `LIFE — ${p.company}`,
+    draft_body: p.draft_body ?? '',
     status: 'pending',
   };
 
   const { error } = await supabase.from('daily_prospects').insert(row);
-  if (error) throw new Error(`Save failed: ${error.message}`);
+  if (error) console.warn('[Roadmap] Supabase save failed (showing anyway):', error.message);
   return row;
 }
 
@@ -370,23 +386,25 @@ export default function Roadmap({
     }
     setGenerateError(null);
     const excluded = prospects.map(p => p.company);
+    let anySucceeded = false;
     for (let i = 1; i <= 3; i++) {
-      if (i > 1) await new Promise(r => setTimeout(r, 1500));
+      if (i > 1) await new Promise(r => setTimeout(r, 2000));
       setGenerating(i);
       try {
         const category = PROSPECT_CATEGORIES[i - 1];
         const prospect = await fetchOneProspect(apiKey, excluded, category);
         excluded.push(prospect.company);
         setProspects(prev => [...prev, prospect]);
+        anySucceeded = true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[Roadmap] Generate failed:', msg);
-        setGenerateError(msg);
-        setGenerating(0);
-        return;
+        console.error('[Roadmap] Generate failed for slot', i, ':', msg);
+        // Show error but keep trying remaining slots
+        setGenerateError(`Slot ${i} failed: ${msg}${i < 3 ? ' — continuing…' : ''}`);
       }
     }
     setGenerating(0);
+    if (anySucceeded) setGenerateError(null);
   };
 
   // week mutations
