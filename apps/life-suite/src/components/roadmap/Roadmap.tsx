@@ -196,13 +196,18 @@ export default function Roadmap({
   // ── Daily prospects ───────────────────────────────────────────
   const [prospects, setProspects] = useState<DailyProspect[]>([]);
   const [prospectsLoading, setProspectsLoading] = useState(true);
+  const [prospectsError, setProspectsError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadProspects = () => {
+    setProspectsLoading(true);
+    setProspectsError(null);
     fetchTodayProspects()
       .then(data => setProspects(data.filter(p => p.status !== 'added')))
-      .catch(err => console.warn('[Roadmap] Failed to load prospects:', err))
+      .catch(err => setProspectsError(err instanceof Error ? err.message : String(err)))
       .finally(() => setProspectsLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadProspects(); }, []);
 
   const handleAddToEngaged = (prospect: DailyProspect) => {
     onAddToEngaged(prospect);
@@ -263,6 +268,11 @@ export default function Roadmap({
             </div>
             <p className="text-xs text-gray-400">Reach out to 3 new prospects · move them to Engaged</p>
           </div>
+          {!prospectsLoading && (
+            <button onClick={loadProspects} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              ↻ Refresh
+            </button>
+          )}
         </div>
 
         {prospectsLoading ? (
@@ -276,9 +286,22 @@ export default function Roadmap({
               </div>
             ))}
           </div>
+        ) : prospectsError ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-red-700 mb-1">Failed to load prospects</p>
+              <p className="text-xs text-red-500 font-mono">{prospectsError}</p>
+            </div>
+            <button onClick={loadProspects} className="text-xs text-red-600 underline flex-shrink-0">Retry</button>
+          </div>
         ) : prospects.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-400 text-center">
-            Today's prospects are loading — check back shortly after 8am EST, or trigger the workflow manually in GitHub Actions.
+          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-gray-400">
+              No prospects for today yet — trigger the <strong>Daily Prospect Briefing</strong> workflow in GitHub Actions, then refresh.
+            </p>
+            <button onClick={loadProspects} className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 flex-shrink-0">
+              Refresh
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
