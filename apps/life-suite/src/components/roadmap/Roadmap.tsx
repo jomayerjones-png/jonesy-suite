@@ -38,7 +38,7 @@ const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'finance, automo
 function buildProspectSystemPrompt(category: string, companyPool: string[]): string {
   return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
 
-Find 1 real senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a brand from this curated list:
+Find 1 real senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a ${category} brand from this curated list:
 ${companyPool.join(', ')}
 
 Pick the company you're most confident about — where you have accurate knowledge of the current marketing leadership from your training data (press releases, interviews, LinkedIn, news from 2023–2025).

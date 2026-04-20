@@ -376,7 +376,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     const newThisWeek = clients.filter(c => new Date(c.createdAt).getTime() >= oneWeekAgo);
     const contactedThisWeek = clients.filter(c => new Date(c.lastContact).getTime() >= oneWeekAgo);
     const byStage: Record<PipelineStage, Client[]> = {
-      Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
+      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
     };
     clients.forEach(c => byStage[c.stage].push(c));
     const totalValue = clients.reduce((s, c) => s + c.value, 0);
@@ -402,7 +402,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
   const saveToArchive = () => {
     const byStageSnapshot: Record<PipelineStage, { count: number; value: number }> = {
-      Engaged: { count: 0, value: 0 }, 'Meeting Set': { count: 0, value: 0 },
+      Prospect: { count: 0, value: 0 }, Engaged: { count: 0, value: 0 }, 'Meeting Set': { count: 0, value: 0 },
       'Proposal Sent': { count: 0, value: 0 }, Feedback: { count: 0, value: 0 }, Close: { count: 0, value: 0 },
     };
     PIPELINE_STAGES.forEach(s => {

@@ -304,7 +304,7 @@ function App() {
       company: p.company,
       email: p.email,
       phone: '',
-      value: 0,
+      value: 500_000,
       stage: 'Engaged',
       notes: `Prospected via daily agent.\n\nWHY: ${p.why}\n\nDraft email subject: ${p.draft_subject}`,
       lastContact: today(),

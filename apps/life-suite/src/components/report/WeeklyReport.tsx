@@ -370,6 +370,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const [showArchives, setShowArchives] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
+  const [digestLabel, setDigestLabel] = useState('Email Digest');
   const [saveLabel, setSaveLabel] = useState('Save Report');
   const [hiddenSections, setHiddenSections] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setHiddenSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -475,6 +476,39 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     setTimeout(() => setCopyLabel('Copy Text'), 2000);
   };
 
+  const handleEmailDigest = async () => {
+    const advancing = clients
+      .filter(c => ['Close', 'Feedback', 'Proposal Sent'].includes(c.stage) && c.outcome === 'active')
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4)
+      .map(c => `${c.name} @ ${c.company}${c.value > 0 ? ` (${formatCurrency(c.value)})` : ''}`)
+      .join(' · ');
+
+    const needsAction = stats.staleClients
+      .filter(c => c.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3)
+      .map(c => `${c.name} @ ${c.company} (${daysSince(c.lastContact)}d)`)
+      .join(' · ');
+
+    const focusLine = notes.nextFocus
+      ? notes.nextFocus.split('\n').filter(l => l.trim()).slice(0, 2).join(' / ')
+      : '';
+
+    const lines = [
+      `LIFE BD — Week of ${weekLabel}`,
+      '',
+      `Pipeline: ${formatCurrency(stats.totalValue)} total · ${formatCurrency(stats.activeValue)} active · ${clients.filter(c => c.outcome === 'active').length} deals`,
+      advancing ? `Advancing: ${advancing}` : 'Advancing: No deals in late stage yet',
+      needsAction ? `Follow up: ${needsAction}` : 'Follow-up: All contacts current',
+      focusLine ? `Focus: ${focusLine}` : '',
+    ].filter(l => l !== '').join('\n');
+
+    await navigator.clipboard.writeText(lines);
+    setDigestLabel('Copied!');
+    setTimeout(() => setDigestLabel('Email Digest'), 2500);
+  };
+
   const maxCount = Math.max(...PIPELINE_STAGES.map(s => stats.byStage[s].length), 1);
 
   if (viewingArchive) {
@@ -502,6 +536,9 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
           <div className="flex items-center gap-2">
             {!showArchives && (
               <>
+                <button onClick={handleEmailDigest} className="btn-secondary text-sm" title="Copy a concise 5-line digest for Slack or email">
+                  {digestLabel}
+                </button>
                 <button onClick={handleCopy} className="btn-secondary text-sm">
                   {copyLabel}
                 </button>

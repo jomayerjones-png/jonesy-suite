@@ -5,6 +5,7 @@ import {
   PipelineStage,
   STAGE_CONFIG,
   formatCurrency,
+  daysSince,
 } from '../../types';
 
 interface AnalyticsViewProps {
@@ -154,6 +155,12 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
+    // Deals at risk: active, valued, not contacted in 14+ days
+    const atRisk = active
+      .filter(c => c.value > 0 && daysSince(c.lastContact) >= 14)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
     return {
       won, lost, active, decided,
       winRate, avgWonDeal, avgCloseDays, wonRevenue, lostRevenue, activePipelineValue,
@@ -162,6 +169,7 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
       categories,
       withProposal, withoutProposal, proposalWinRate,
       topReasons,
+      atRisk,
     };
   }, [clients]);
 
@@ -237,6 +245,41 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
               sub={`${formatCurrency(data.activePipelineValue)} active · ${formatCurrency(data.lostRevenue)} lost`}
             />
           </div>
+
+          {/* ── Deals at Risk ────────────────────────────────────────────────── */}
+          {data.atRisk.length > 0 && (
+            <div className="card border-amber-200 p-6">
+              <SectionHeader
+                title="Deals at Risk"
+                subtitle={`${data.atRisk.length} active deal${data.atRisk.length > 1 ? 's' : ''} with value not contacted in 14+ days · ${formatCurrency(data.atRisk.reduce((s, c) => s + c.value, 0))} at risk`}
+              />
+              <div className="space-y-2">
+                {data.atRisk.map(c => {
+                  const days = daysSince(c.lastContact);
+                  const cfg = STAGE_CONFIG[c.stage];
+                  const urgency = days >= 30 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100';
+                  const dayColor = days >= 30 ? 'text-red-600' : 'text-amber-700';
+                  return (
+                    <div key={c.id} className={`flex items-center gap-4 p-3 rounded-lg border ${urgency}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-brand-dark truncate">
+                          {c.name} <span className="font-normal text-brand-dark/50">— {c.company}</span>
+                        </p>
+                        {c.industry && <p className="text-xs text-brand-dark/40 mt-0.5">{c.industry}</p>}
+                      </div>
+                      <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border flex-shrink-0`}>
+                        {cfg.icon} {c.stage}
+                      </span>
+                      <div className="text-right flex-shrink-0 min-w-[72px]">
+                        <p className={`font-bold text-sm ${dayColor}`}>{days}d silent</p>
+                        <p className="text-xs text-brand-gold font-semibold">{formatCurrency(c.value)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── Pipeline Funnel ──────────────────────────────────────────────── */}
           <div className="card p-6">

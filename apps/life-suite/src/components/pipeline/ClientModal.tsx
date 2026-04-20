@@ -44,7 +44,7 @@ const DEFAULT_FORM: ClientFormData = {
   company: '',
   email: '',
   phone: '',
-  value: 0,
+  value: 500_000,
   stage: 'Engaged',
   notes: '',
   lastContact: new Date().toISOString().split('T')[0],

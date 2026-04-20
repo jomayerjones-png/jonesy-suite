@@ -503,4 +503,4 @@ export const SAMPLE_CLIENTS: Client[] = [
     ['culture', 'arts'], 'Culture',
     'Cultural partnership network.', 14, 14),
 
-].map(c => ({ ...c, value: 0 }));
+];
