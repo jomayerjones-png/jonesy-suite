@@ -753,6 +753,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setProposal('');
     setForm(EMPTY_FORM);
     setError('');
+    setSelectedClientId('');
     setSavedClientId('');
     setHistory([]);
     setEditing(false);
