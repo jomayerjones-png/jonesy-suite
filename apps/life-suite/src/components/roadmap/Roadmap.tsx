@@ -1,6 +1,87 @@
 import { useState, useEffect } from 'react';
-import { fetchTodayProspects, updateProspectStatus } from '../../lib/supabase';
+import { fetchTodayProspects, updateProspectStatus, supabase } from '../../lib/supabase';
 import type { DailyProspect } from '../../lib/supabase';
+
+const LIFE_API_KEY = 'life_suite_intel_api_key';
+
+const PROSPECT_SYSTEM_PROMPT = `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
+
+Find 1 real senior contact (CMO, Chief Brand Officer, VP Marketing or equivalent) at a culturally ambitious brand in luxury, auto, finance, fashion, tech, aviation, or consumer goods. Use web search to verify the contact is current and find a specific WHY.
+
+Draft an email using this template:
+Subject: LIFE — [Company]
+Hi [First Name]
+LIFE, one of America's most iconic media brands, is undergoing a ground-up rebuild — reimagined as a quarterly large-format magazine and cultural platform launching this September with Karlie Kloss and Josh Kushner as Publishers.
+The first issue is "Where Are We Now?" — a portrait of an America under construction, told through the engineers, scientists, policymakers, and artists at the frontier.
+[Company] has been on our list from the start. [ONE specific researched sentence: a real recent campaign, brand move, or cultural moment that makes them a natural LIFE founding partner.]
+We're speaking with a small number of founding partners — creative collaboration, not a media buy.
+Can we jump on a call over the next couple of weeks?
+Warm regards, Jo
+
+Return ONLY a JSON object, no prose:
+{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}
+email_confidence="verified" only if confirmed in a public source.`;
+
+async function fetchOneProspect(apiKey: string, excludeCompanies: string[]): Promise<DailyProspect> {
+  const excludeNote = excludeCompanies.length > 0
+    ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
+    : '';
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      system: PROSPECT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Find 1 real senior contact for LIFE magazine's founding partner pipeline.${excludeNote}\nReturn the JSON object only.` }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(err?.error?.message ?? `HTTP ${response.status}`);
+  }
+
+  const data = await response.json() as { content: { type: string; text?: string }[] };
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('');
+  if (!text.trim()) throw new Error('No text response from Claude');
+
+  const fenceMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  const objMatch = text.match(/\{[^{}]*"name"[\s\S]*?\}/);
+  const jsonStr = fenceMatch?.[1] ?? objMatch?.[0];
+  if (!jsonStr) throw new Error(`Could not parse response: ${text.slice(0, 200)}`);
+
+  const p = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as {
+    name: string; title: string; company: string; email: string;
+    email_confidence: string; why: string; draft_subject: string; draft_body: string;
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const row: DailyProspect = {
+    id: crypto.randomUUID(),
+    date: today,
+    name: p.name,
+    title: p.title ?? '',
+    company: p.company,
+    email: p.email ?? '',
+    email_confidence: p.email_confidence ?? 'estimated',
+    why: p.why,
+    draft_subject: p.draft_subject,
+    draft_body: p.draft_body,
+    status: 'pending',
+  };
+
+  const { error } = await supabase.from('daily_prospects').insert(row);
+  if (error) throw new Error(`Save failed: ${error.message}`);
+  return row;
+}
 
 // ── Data ─────────────────────────────────────────────────────────
 const WEEKS_INIT = [
@@ -79,9 +160,11 @@ function Editable({ value, onChange, className = '' }: { value: string; onChange
 function ProspectCard({
   prospect,
   onAdd,
+  onSkip,
 }: {
   prospect: DailyProspect;
   onAdd: (p: DailyProspect) => void;
+  onSkip: (p: DailyProspect) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -161,6 +244,13 @@ function ProspectCard({
       {/* Actions */}
       <div className="px-4 pb-4 pt-3 flex gap-2 border-t border-gray-100">
         <button
+          onClick={() => onSkip(prospect)}
+          className="py-1.5 px-3 text-xs font-medium border border-gray-200 rounded-lg text-gray-400 hover:border-gray-300 hover:text-gray-600 transition-all"
+          title="Skip this prospect"
+        >
+          ✕
+        </button>
+        <button
           onClick={copyEmail}
           className="flex-1 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all"
         >
@@ -197,12 +287,13 @@ export default function Roadmap({
   const [prospects, setProspects] = useState<DailyProspect[]>([]);
   const [prospectsLoading, setProspectsLoading] = useState(true);
   const [prospectsError, setProspectsError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(0); // 0 = idle, 1/2/3 = which prospect
 
   const loadProspects = () => {
     setProspectsLoading(true);
     setProspectsError(null);
     fetchTodayProspects()
-      .then(data => setProspects(data.filter(p => p.status !== 'added')))
+      .then(data => setProspects(data.filter(p => p.status !== 'added' && p.status !== 'skipped')))
       .catch(err => setProspectsError(err instanceof Error ? err.message : String(err)))
       .finally(() => setProspectsLoading(false));
   };
@@ -211,12 +302,36 @@ export default function Roadmap({
 
   const handleAddToEngaged = (prospect: DailyProspect) => {
     onAddToEngaged(prospect);
-    updateProspectStatus(prospect.id, 'added').catch(err =>
-      console.warn('[Roadmap] Failed to update prospect status:', err)
-    );
-    setProspects(prev =>
-      prev.map(p => p.id === prospect.id ? { ...p, status: 'added' } : p)
-    );
+    updateProspectStatus(prospect.id, 'added').catch(() => {});
+    setProspects(prev => prev.map(p => p.id === prospect.id ? { ...p, status: 'added' } : p));
+  };
+
+  const handleSkip = (prospect: DailyProspect) => {
+    updateProspectStatus(prospect.id, 'skipped').catch(() => {});
+    setProspects(prev => prev.filter(p => p.id !== prospect.id));
+  };
+
+  const handleGenerateNew = async () => {
+    const apiKey = localStorage.getItem(LIFE_API_KEY);
+    if (!apiKey) {
+      setProspectsError('Add your Anthropic API key in the Proposal Generator tab first.');
+      return;
+    }
+    setProspectsError(null);
+    const excluded = prospects.map(p => p.company);
+    for (let i = 1; i <= 3; i++) {
+      setGenerating(i);
+      try {
+        const prospect = await fetchOneProspect(apiKey, excluded);
+        excluded.push(prospect.company);
+        setProspects(prev => [...prev, prospect]);
+      } catch (err) {
+        setProspectsError(err instanceof Error ? err.message : String(err));
+        setGenerating(0);
+        return;
+      }
+    }
+    setGenerating(0);
   };
 
   // week mutations
@@ -268,11 +383,23 @@ export default function Roadmap({
             </div>
             <p className="text-xs text-gray-400">Reach out to 3 new prospects · move them to Engaged</p>
           </div>
-          {!prospectsLoading && (
-            <button onClick={loadProspects} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-              ↻ Refresh
+          <div className="flex items-center gap-2">
+            {generating > 0 && (
+              <span className="text-xs text-gray-400 animate-pulse">Finding {generating}/3…</span>
+            )}
+            <button
+              onClick={handleGenerateNew}
+              disabled={generating > 0 || prospectsLoading}
+              className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Get New
             </button>
-          )}
+            {!prospectsLoading && generating === 0 && (
+              <button onClick={loadProspects} className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-1">
+                ↻
+              </button>
+            )}
+          </div>
         </div>
 
         {prospectsLoading ? (
@@ -306,7 +433,7 @@ export default function Roadmap({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {prospects.map(p => (
-              <ProspectCard key={p.id} prospect={p} onAdd={handleAddToEngaged} />
+              <ProspectCard key={p.id} prospect={p} onAdd={handleAddToEngaged} onSkip={handleSkip} />
             ))}
           </div>
         )}
