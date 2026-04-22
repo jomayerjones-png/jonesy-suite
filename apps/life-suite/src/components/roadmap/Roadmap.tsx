@@ -42,8 +42,6 @@ const COMPANY_POOLS: Record<string, string[]> = {
 
 const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'finance, automotive, or media'];
 
-// Titles that indicate marketing/brand decision-makers worth outreaching
-const SENIOR_TITLE_RE = /\b(cmo|ceo|cfo|cto|coo|cpo|cro|cco|cdo|chief|president|managing director|managing partner|svp|evp|vp |vice president|head of|director|partner|principal|founder|co.?founder)\b/i;
 
 function parseLine(line: string, delimiter: string): string[] {
   if (delimiter === '\t') return line.split('\t').map(s => s.trim().replace(/^"|"$/g, ''));
@@ -90,7 +88,6 @@ function parseContactsCSV(text: string): ImportedContact[] {
     const company = compIdx  >= 0 ? (cols[compIdx]  ?? '') : '';
     const title   = titleIdx >= 0 ? (cols[titleIdx] ?? '') : '';
     if (!name || !company) continue;
-    if (!SENIOR_TITLE_RE.test(title)) continue;
     contacts.push({ name, title, company, email });
   }
   return contacts;
@@ -454,7 +451,7 @@ export default function Roadmap({
     const text = await file.text();
     const parsed = parseContactsCSV(text);
     if (parsed.length === 0) {
-      setImportError('No senior contacts found. Make sure the CSV has Company and Position columns with decision-maker titles (CMO, VP, Head of, etc.).');
+      setImportError('No contacts found. Make sure the CSV has Name and Company (or Organization Name) columns.');
       setShowImport(true);
       setImportedContacts([]);
       return;
