@@ -45,7 +45,8 @@ const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'finance, automo
 // Titles that indicate marketing/brand decision-makers worth outreaching
 const SENIOR_TITLE_RE = /\b(cmo|ceo|cfo|cto|coo|cpo|cro|cco|cdo|chief|president|managing director|managing partner|svp|evp|vp |vice president|head of|director|partner|principal|founder|co.?founder)\b/i;
 
-function parseCSVLine(line: string): string[] {
+function parseLine(line: string, delimiter: string): string[] {
+  if (delimiter === '\t') return line.split('\t').map(s => s.trim().replace(/^"|"$/g, ''));
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -62,24 +63,29 @@ function parseContactsCSV(text: string): ImportedContact[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const headerLine = lines[0].replace(/^﻿/, ''); // strip BOM
-  const headers = parseCSVLine(headerLine).map(h => h.toLowerCase());
+  // detect delimiter: tab-separated (Google Contacts) or comma-separated (LinkedIn)
+  const delimiter = headerLine.includes('\t') ? '\t' : ',';
+  const headers = parseLine(headerLine, delimiter).map(h => h.toLowerCase().trim());
 
   const firstIdx = headers.findIndex(h => h === 'first name');
   const lastIdx  = headers.findIndex(h => h === 'last name');
   const nameIdx  = headers.findIndex(h => h === 'name');
-  const emailIdx = headers.findIndex(h => h.includes('email'));
-  const compIdx  = headers.findIndex(h => h === 'company' || h === 'organization');
-  const titleIdx = headers.findIndex(h => h === 'position' || h === 'title' || h === 'job title');
+  // email: match "email", "e-mail 1 - value", "e-mail 2 - value", etc.
+  const emailIdx = headers.findIndex(h => h.includes('email') || h.match(/^e-mail.*value/));
+  // company: LinkedIn "company", Google Contacts "organization name"
+  const compIdx  = headers.findIndex(h => h === 'company' || h === 'organization' || h === 'organization name');
+  // title: LinkedIn "position", Google "organization title", generic "title" / "job title"
+  const titleIdx = headers.findIndex(h => h === 'position' || h === 'organization title' || h === 'title' || h === 'job title');
 
   if (compIdx === -1) return [];
 
   const contacts: ImportedContact[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
+    const cols = parseLine(lines[i], delimiter);
     if (cols.length < 2) continue;
     const firstName = firstIdx >= 0 ? (cols[firstIdx] ?? '') : '';
     const lastName  = lastIdx  >= 0 ? (cols[lastIdx]  ?? '') : '';
-    const name = nameIdx >= 0 ? (cols[nameIdx] ?? '') : `${firstName} ${lastName}`.trim();
+    const name    = nameIdx  >= 0 ? (cols[nameIdx]  ?? '') : `${firstName} ${lastName}`.trim();
     const email   = emailIdx >= 0 ? (cols[emailIdx] ?? '') : '';
     const company = compIdx  >= 0 ? (cols[compIdx]  ?? '') : '';
     const title   = titleIdx >= 0 ? (cols[titleIdx] ?? '') : '';
