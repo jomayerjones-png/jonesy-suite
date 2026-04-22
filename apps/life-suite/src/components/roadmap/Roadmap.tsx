@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchTodayProspects, updateProspectStatus, fetchAllClients, supabase } from '../../lib/supabase';
 import type { DailyProspect } from '../../lib/supabase';
+
+interface ImportedContact {
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+}
 
 const LIFE_API_KEY = 'life_suite_intel_api_key';
 
@@ -34,6 +41,54 @@ const COMPANY_POOLS: Record<string, string[]> = {
 };
 
 const PROSPECT_CATEGORIES = ['tech or AI', 'luxury or fashion', 'finance, automotive, or media'];
+
+// Titles that indicate marketing/brand decision-makers worth outreaching
+const SENIOR_TITLE_RE = /\b(cmo|ceo|cfo|cto|coo|cpo|cro|cco|cdo|chief|president|managing director|managing partner|svp|evp|vp |vice president|head of|director|partner|principal|founder|co.?founder)\b/i;
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; }
+    else if (line[i] === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += line[i]; }
+  }
+  result.push(current);
+  return result.map(s => s.trim().replace(/^"|"$/g, ''));
+}
+
+function parseContactsCSV(text: string): ImportedContact[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headerLine = lines[0].replace(/^﻿/, ''); // strip BOM
+  const headers = parseCSVLine(headerLine).map(h => h.toLowerCase());
+
+  const firstIdx = headers.findIndex(h => h === 'first name');
+  const lastIdx  = headers.findIndex(h => h === 'last name');
+  const nameIdx  = headers.findIndex(h => h === 'name');
+  const emailIdx = headers.findIndex(h => h.includes('email'));
+  const compIdx  = headers.findIndex(h => h === 'company' || h === 'organization');
+  const titleIdx = headers.findIndex(h => h === 'position' || h === 'title' || h === 'job title');
+
+  if (compIdx === -1) return [];
+
+  const contacts: ImportedContact[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 2) continue;
+    const firstName = firstIdx >= 0 ? (cols[firstIdx] ?? '') : '';
+    const lastName  = lastIdx  >= 0 ? (cols[lastIdx]  ?? '') : '';
+    const name = nameIdx >= 0 ? (cols[nameIdx] ?? '') : `${firstName} ${lastName}`.trim();
+    const email   = emailIdx >= 0 ? (cols[emailIdx] ?? '') : '';
+    const company = compIdx  >= 0 ? (cols[compIdx]  ?? '') : '';
+    const title   = titleIdx >= 0 ? (cols[titleIdx] ?? '') : '';
+    if (!name || !company) continue;
+    if (!SENIOR_TITLE_RE.test(title)) continue;
+    contacts.push({ name, title, company, email });
+  }
+  return contacts;
+}
 
 function buildProspectSystemPrompt(category: string, companyPool: string[]): string {
   return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
@@ -356,6 +411,13 @@ export default function Roadmap({
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(0); // 0 = idle, 1/2/3 = which prospect
 
+  // ── CSV import ────────────────────────────────────────────
+  const [showImport, setShowImport] = useState(false);
+  const [importedContacts, setImportedContacts] = useState<ImportedContact[]>([]);
+  const [importingContact, setImportingContact] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
   const loadProspects = () => {
     setProspectsLoading(true);
     setProspectsError(null);
@@ -376,6 +438,76 @@ export default function Roadmap({
   const handleSkip = (prospect: DailyProspect) => {
     updateProspectStatus(prospect.id, 'skipped').catch(() => {});
     setProspects(prev => prev.filter(p => p.id !== prospect.id));
+  };
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportError(null);
+    const text = await file.text();
+    const parsed = parseContactsCSV(text);
+    if (parsed.length === 0) {
+      setImportError('No senior contacts found. Make sure the CSV has Company and Position columns with decision-maker titles (CMO, VP, Head of, etc.).');
+      setShowImport(true);
+      setImportedContacts([]);
+      return;
+    }
+    const clients = await fetchAllClients().catch(() => []);
+    const pipelineCompanies = new Set(clients.map(c => c.company.toLowerCase()));
+    const filtered = parsed.filter(c => !pipelineCompanies.has(c.company.toLowerCase()));
+    setImportedContacts(filtered);
+    setShowImport(true);
+  };
+
+  const handleUseContact = async (contact: ImportedContact) => {
+    const apiKey = localStorage.getItem(LIFE_API_KEY);
+    if (!apiKey) { setImportError('No API key — enter it in the Proposal Generator tab first.'); return; }
+    setImportingContact(contact.name);
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 600,
+          system: `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
+
+Write personalized outreach for the given contact. Return ONLY valid JSON:
+{"why":"one specific sentence about why this company is a natural LIFE founding partner (name a real campaign or brand initiative)","draft_subject":"LIFE — [Company]","draft_body":"Hi [First Name]\\nLIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: \\"Where Are We Now?\\" — America under construction.\\n[Company] has been on our list from the start. [specific reason].\\nWe're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?\\nWarm regards, Jo"}`,
+          messages: [{ role: 'user', content: `Contact: ${contact.name}, ${contact.title} at ${contact.company}${contact.email ? ` (${contact.email})` : ''}. Write the outreach JSON.` }],
+        }),
+      });
+      if (!resp.ok) throw new Error(`API error ${resp.status}`);
+      const data = await resp.json() as { content: { type: string; text?: string }[] };
+      const raw = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+      const match = raw.match(/\{[\s\S]*?"why"[\s\S]*?\}/);
+      const parsed = JSON.parse(match?.[0] ?? raw) as { why: string; draft_subject: string; draft_body: string };
+      const prospect: DailyProspect = {
+        id: crypto.randomUUID(),
+        date: new Date().toISOString().split('T')[0],
+        name: contact.name,
+        title: contact.title,
+        company: contact.company,
+        email: contact.email,
+        email_confidence: contact.email ? 'verified' : 'estimated',
+        why: parsed.why,
+        draft_subject: parsed.draft_subject,
+        draft_body: parsed.draft_body,
+        status: 'pending',
+      };
+      setProspects(prev => [...prev, prospect]);
+      setImportedContacts(prev => prev.filter(c => c.name !== contact.name || c.company !== contact.company));
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to generate prospect — try again.');
+    } finally {
+      setImportingContact(null);
+    }
   };
 
   const handleGenerateNew = async () => {
@@ -465,6 +597,14 @@ export default function Roadmap({
               <span className="text-xs text-gray-400 animate-pulse">Finding {generating}/3… (may take up to 90s)</span>
             )}
             <button
+              onClick={() => csvInputRef.current?.click()}
+              className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all"
+              title="Import from LinkedIn CSV or any contacts export"
+            >
+              Import CSV
+            </button>
+            <input ref={csvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCSVUpload} />
+            <button
               onClick={handleGenerateNew}
               disabled={generating > 0 || prospectsLoading}
               className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed"
@@ -527,6 +667,62 @@ export default function Roadmap({
           </div>
         )}
       </div>
+
+      {/* ── CSV Import Modal ── */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-16 px-4" onClick={() => setShowImport(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[75vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-semibold text-brand-dark">Import Contacts</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {importedContacts.length > 0
+                    ? `${importedContacts.length} senior contact${importedContacts.length !== 1 ? 's' : ''} found — pick who to reach out to`
+                    : 'LinkedIn: Settings → Data privacy → Get a copy of your data → Connections'}
+                </p>
+              </div>
+              <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+            </div>
+
+            {importError && (
+              <div className="mx-4 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-red-700">{importError}</p>
+              </div>
+            )}
+
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
+              {importedContacts.length === 0 && !importError && (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400">No contacts to show.</p>
+                  <button onClick={() => csvInputRef.current?.click()} className="mt-3 text-xs text-brand-red underline">Upload a different file</button>
+                </div>
+              )}
+              {importedContacts.map((c, i) => (
+                <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-brand-dark truncate">{c.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{c.title} · {c.company}</p>
+                    {c.email && <p className="text-[11px] text-gray-400 truncate mt-0.5">{c.email}</p>}
+                  </div>
+                  <button
+                    onClick={() => handleUseContact(c)}
+                    disabled={importingContact !== null}
+                    className="flex-shrink-0 text-xs font-medium bg-brand-dark text-white rounded-lg px-3 py-1.5 hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {importingContact === c.name ? 'Writing…' : 'Use'}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-4 py-3 border-t border-gray-100">
+              <button onClick={() => csvInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600 underline">
+                Upload a different file
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sub-navigation tabs */}
       <div className="no-print flex items-center justify-between border-b border-gray-200 mb-8">
