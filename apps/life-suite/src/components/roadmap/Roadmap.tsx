@@ -603,7 +603,7 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
             >
               Import CSV
             </button>
-            <input ref={csvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCSVUpload} />
+            <input ref={csvInputRef} type="file" accept=".csv,text/csv" style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }} onChange={handleCSVUpload} />
             <button
               onClick={handleGenerateNew}
               disabled={generating > 0 || prospectsLoading}
