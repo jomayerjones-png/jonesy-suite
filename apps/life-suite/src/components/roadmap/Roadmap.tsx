@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchTodayProspects, updateProspectStatus, supabase } from '../../lib/supabase';
+import { fetchTodayProspects, updateProspectStatus, fetchAllClients, supabase } from '../../lib/supabase';
 import type { DailyProspect } from '../../lib/supabase';
 
 const LIFE_API_KEY = 'life_suite_intel_api_key';
@@ -88,8 +88,8 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
         system: buildProspectSystemPrompt(category, activePool),
         messages: [{ role: 'user', content: `Find 1 real senior contact from the company pool for LIFE magazine's founding partner pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only — no other text.` }],
       }),
@@ -385,7 +385,11 @@ export default function Roadmap({
       return;
     }
     setGenerateError(null);
-    const excluded = prospects.map(p => p.company);
+    const pipelineClients = await fetchAllClients().catch(() => []);
+    const excluded = [
+      ...prospects.map(p => p.company),
+      ...pipelineClients.map(c => c.company).filter(Boolean),
+    ];
     let anySucceeded = false;
     for (let i = 1; i <= 3; i++) {
       if (i > 1) await new Promise(r => setTimeout(r, 2000));
