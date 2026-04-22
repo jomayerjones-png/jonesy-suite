@@ -419,6 +419,7 @@ export default function Roadmap({
   const [importedContacts, setImportedContacts] = useState<ImportedContact[]>([]);
   const [importingContact, setImportingContact] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [useAllProgress, setUseAllProgress] = useState<{ done: number; total: number } | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   const loadProspects = () => {
@@ -463,47 +464,51 @@ export default function Roadmap({
     setShowImport(true);
   };
 
+  const buildProspectFromContact = async (contact: ImportedContact, apiKey: string): Promise<DailyProspect> => {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 600,
+        system: `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
+
+Write personalized outreach for the given contact. Return ONLY valid JSON:
+{"why":"one specific sentence about why this company is a natural LIFE founding partner (name a real campaign or brand initiative)","draft_subject":"LIFE — [Company]","draft_body":"Hi [First Name]\\nLIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: \\"Where Are We Now?\\" — America under construction.\\n[Company] has been on our list from the start. [specific reason].\\nWe're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?\\nWarm regards, Jo"}`,
+        messages: [{ role: 'user', content: `Contact: ${contact.name}, ${contact.title} at ${contact.company}${contact.email ? ` (${contact.email})` : ''}. Write the outreach JSON.` }],
+      }),
+    });
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json() as { content: { type: string; text?: string }[] };
+    const raw = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+    const match = raw.match(/\{[\s\S]*?"why"[\s\S]*?\}/);
+    const parsed = JSON.parse(match?.[0] ?? raw) as { why: string; draft_subject: string; draft_body: string };
+    return {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().split('T')[0],
+      name: contact.name,
+      title: contact.title,
+      company: contact.company,
+      email: contact.email,
+      email_confidence: contact.email ? 'verified' : 'estimated',
+      why: parsed.why,
+      draft_subject: parsed.draft_subject,
+      draft_body: parsed.draft_body,
+      status: 'pending',
+    };
+  };
+
   const handleUseContact = async (contact: ImportedContact) => {
     const apiKey = localStorage.getItem(LIFE_API_KEY);
     if (!apiKey) { setImportError('No API key — enter it in the Proposal Generator tab first.'); return; }
     setImportingContact(contact.name);
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 600,
-          system: `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
-
-Write personalized outreach for the given contact. Return ONLY valid JSON:
-{"why":"one specific sentence about why this company is a natural LIFE founding partner (name a real campaign or brand initiative)","draft_subject":"LIFE — [Company]","draft_body":"Hi [First Name]\\nLIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: \\"Where Are We Now?\\" — America under construction.\\n[Company] has been on our list from the start. [specific reason].\\nWe're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?\\nWarm regards, Jo"}`,
-          messages: [{ role: 'user', content: `Contact: ${contact.name}, ${contact.title} at ${contact.company}${contact.email ? ` (${contact.email})` : ''}. Write the outreach JSON.` }],
-        }),
-      });
-      if (!resp.ok) throw new Error(`API error ${resp.status}`);
-      const data = await resp.json() as { content: { type: string; text?: string }[] };
-      const raw = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
-      const match = raw.match(/\{[\s\S]*?"why"[\s\S]*?\}/);
-      const parsed = JSON.parse(match?.[0] ?? raw) as { why: string; draft_subject: string; draft_body: string };
-      const prospect: DailyProspect = {
-        id: crypto.randomUUID(),
-        date: new Date().toISOString().split('T')[0],
-        name: contact.name,
-        title: contact.title,
-        company: contact.company,
-        email: contact.email,
-        email_confidence: contact.email ? 'verified' : 'estimated',
-        why: parsed.why,
-        draft_subject: parsed.draft_subject,
-        draft_body: parsed.draft_body,
-        status: 'pending',
-      };
+      const prospect = await buildProspectFromContact(contact, apiKey);
       setProspects(prev => [...prev, prospect]);
       setImportedContacts(prev => prev.filter(c => c.name !== contact.name || c.company !== contact.company));
     } catch (err) {
@@ -511,6 +516,27 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
     } finally {
       setImportingContact(null);
     }
+  };
+
+  const handleUseAll = async () => {
+    const apiKey = localStorage.getItem(LIFE_API_KEY);
+    if (!apiKey) { setImportError('No API key — enter it in the Proposal Generator tab first.'); return; }
+    const contacts = [...importedContacts];
+    setUseAllProgress({ done: 0, total: contacts.length });
+    setImportError(null);
+    for (let i = 0; i < contacts.length; i++) {
+      try {
+        const prospect = await buildProspectFromContact(contacts[i], apiKey);
+        setProspects(prev => [...prev, prospect]);
+        setImportedContacts(prev => prev.filter(c => c.name !== contacts[i].name || c.company !== contacts[i].company));
+      } catch {
+        // skip failed contacts and keep going
+      }
+      setUseAllProgress({ done: i + 1, total: contacts.length });
+      if (i < contacts.length - 1) await new Promise(r => setTimeout(r, 300));
+    }
+    setUseAllProgress(null);
+    setShowImport(false);
   };
 
   const handleGenerateNew = async () => {
@@ -679,12 +705,35 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
               <div>
                 <p className="text-sm font-semibold text-brand-dark">Import Contacts</p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {importedContacts.length > 0
-                    ? `${importedContacts.length} senior contact${importedContacts.length !== 1 ? 's' : ''} found — pick who to reach out to`
-                    : 'LinkedIn: Settings → Data privacy → Get a copy of your data → Connections'}
+                  {useAllProgress
+                    ? `Writing outreach… ${useAllProgress.done} / ${useAllProgress.total}`
+                    : importedContacts.length > 0
+                    ? `${importedContacts.length} contact${importedContacts.length !== 1 ? 's' : ''} — pick individually or use all`
+                    : 'Upload a CSV export from Google Contacts, LinkedIn, or any contacts app'}
                 </p>
               </div>
-              <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+              <div className="flex items-center gap-2">
+                {importedContacts.length > 0 && !useAllProgress && (
+                  <button
+                    onClick={handleUseAll}
+                    className="text-xs font-medium bg-brand-dark text-white rounded-lg px-3 py-1.5 hover:opacity-80 transition-opacity"
+                  >
+                    Use All
+                  </button>
+                )}
+                {useAllProgress && (
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${(useAllProgress.done / useAllProgress.total) * 100}%`, backgroundColor: '#E8002D' }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400">{useAllProgress.done}/{useAllProgress.total}</span>
+                  </div>
+                )}
+                <button onClick={() => { if (!useAllProgress) setShowImport(false); }} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+              </div>
             </div>
 
             {importError && (
@@ -709,7 +758,7 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
                   </div>
                   <button
                     onClick={() => handleUseContact(c)}
-                    disabled={importingContact !== null}
+                    disabled={importingContact !== null || useAllProgress !== null}
                     className="flex-shrink-0 text-xs font-medium bg-brand-dark text-white rounded-lg px-3 py-1.5 hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {importingContact === c.name ? 'Writing…' : 'Use'}
