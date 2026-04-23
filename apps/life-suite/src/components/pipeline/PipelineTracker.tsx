@@ -95,61 +95,120 @@ export default function PipelineTracker({
     <div className="flex flex-col h-full">
       <style>{`
         @media print {
-          @page { margin: 1.5cm; size: A4; }
-          body { background: white !important; font-size: 10pt; }
+          @page { margin: 1.2cm 1.5cm; size: A4 landscape; }
+          body { background: white !important; font-size: 9pt; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
-          .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-          h1, h2 { page-break-after: avoid; }
           print-color-adjust: exact; -webkit-print-color-adjust: exact;
         }
       `}</style>
 
       {/* Print-only pipeline snapshot */}
       <div className="print-only hidden">
-        <div style={{ padding: '0 0 20px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ backgroundColor: '#E8002D', padding: '6px 14px' }}>
-            <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '28px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '2px solid #1A1A1A', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ backgroundColor: '#E8002D', padding: '5px 12px' }}>
+              <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '22px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
+            </div>
+            <span style={{ fontSize: '11pt', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.02em' }}>Partner Pipeline</span>
           </div>
-          <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>
-            <p style={{ margin: 0, fontWeight: 600 }}>Partner Pipeline Snapshot</p>
-            <p style={{ margin: 0 }}>{activeClients.length} active · {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#666' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p style={{ margin: '1px 0 0', color: '#999' }}>{activeClients.filter(c => c.outcome !== 'won').length} active · {activeClients.filter(c => c.outcome === 'won').length} won</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', flexWrap: 'wrap' }}>
+
+        {/* Summary stats */}
+        <div style={{ display: 'flex', gap: '0', marginBottom: '16px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
           {[
-            { label: 'Active Pipeline', value: formatCurrency(totalValue) },
-            { label: 'Won', value: formatCurrency(wonValue) },
-            { label: 'Active Clients', value: String(activeClients.length) },
-            ...(staleCount > 0 ? [{ label: 'Stale (7d+)', value: String(staleCount) }] : []),
-          ].map(s => (
-            <div key={s.label} style={{ flex: '1', minWidth: '80px' }}>
-              <p style={{ fontSize: '7pt', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px' }}>{s.label}</p>
-              <p style={{ fontSize: '16pt', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s.value}</p>
+            { label: 'Total Pipeline', value: formatCurrency(totalValue), color: '#1A1A1A' },
+            { label: 'Won', value: formatCurrency(wonValue), color: '#059669' },
+            { label: 'Active Deals', value: String(activeClients.filter(c => c.outcome !== 'won').length), color: '#1A1A1A' },
+            ...(staleCount > 0 ? [{ label: 'Needs Attention', value: String(staleCount), color: '#d97706' }] : []),
+          ].map((s, i, arr) => (
+            <div key={s.label} style={{ flex: 1, padding: '10px 14px', borderRight: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', backgroundColor: i === 0 ? '#fafafa' : 'white' }}>
+              <p style={{ margin: '0 0 2px', fontSize: '6.5pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</p>
+              <p style={{ margin: 0, fontSize: '15pt', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</p>
             </div>
           ))}
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #1A1A1A' }}>
-              {['Partner', 'Company', 'Stage', 'Value', 'Last Contact', 'Tags'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '4px 8px 6px', fontSize: '7pt', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {activeClients.map((c, i) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #eee', backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
-                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A' }}>{c.name}</td>
-                <td style={{ padding: '5px 8px', color: '#555' }}>{c.company}</td>
-                <td style={{ padding: '5px 8px', color: '#555' }}>{c.stage}</td>
-                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#C9A84C' }}>{formatCurrency(c.value)}</td>
-                <td style={{ padding: '5px 8px', color: '#888' }}>{c.lastContact}</td>
-                <td style={{ padding: '5px 8px', color: '#888', fontSize: '8pt' }}>{c.tags.join(', ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {/* Pipeline funnel — stage-by-stage summary */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '18px' }}>
+          {PIPELINE_STAGES.filter(s => s !== 'Prospect').map(stage => {
+            const stageClients = activeClients.filter(c => c.stage === stage && c.outcome !== 'won');
+            const stageValue = stageClients.reduce((s, c) => s + c.value, 0);
+            const stageColors: Record<string, string> = {
+              Engaged: '#3b82f6', 'Meeting Set': '#8b5cf6', 'Proposal Sent': '#f59e0b',
+              Feedback: '#f97316', 'Revised Proposal Sent': '#f43f5e', Close: '#10b981',
+            };
+            const col = stageColors[stage] ?? '#6b7280';
+            return (
+              <div key={stage} style={{ flex: 1, borderTop: `3px solid ${col}`, padding: '6px 8px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}>
+                <p style={{ margin: '0 0 1px', fontSize: '6pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stage}</p>
+                <p style={{ margin: 0, fontSize: '11pt', fontWeight: 700, color: '#1A1A1A', lineHeight: 1 }}>{stageClients.length}</p>
+                {stageValue > 0 && <p style={{ margin: '1px 0 0', fontSize: '7pt', color: '#666' }}>{formatCurrency(stageValue)}</p>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Clients grouped by stage */}
+        {PIPELINE_STAGES.filter(stage => {
+          const stageClients = activeClients.filter(c => c.stage === stage);
+          return stageClients.length > 0;
+        }).map(stage => {
+          const stageClients = activeClients.filter(c => c.stage === stage).sort((a, b) => b.value - a.value);
+          const stageValue = stageClients.reduce((s, c) => s + c.value, 0);
+          const stageColors: Record<string, string> = {
+            Prospect: '#94a3b8', Engaged: '#3b82f6', 'Meeting Set': '#8b5cf6',
+            'Proposal Sent': '#f59e0b', Feedback: '#f97316', 'Revised Proposal Sent': '#f43f5e', Close: '#10b981',
+          };
+          const col = stageColors[stage] ?? '#6b7280';
+          return (
+            <div key={stage} style={{ marginBottom: '14px' }}>
+              {/* Stage header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', padding: '4px 0 4px 8px', borderLeft: `3px solid ${col}`, marginBottom: '4px' }}>
+                <span style={{ fontSize: '8pt', fontWeight: 700, color: '#1A1A1A', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{stage}</span>
+                <span style={{ fontSize: '7pt', color: '#888' }}>{stageClients.length} deal{stageClients.length !== 1 ? 's' : ''}</span>
+                {stageValue > 0 && <span style={{ fontSize: '7pt', fontWeight: 600, color: col, marginLeft: 'auto' }}>{formatCurrency(stageValue)}</span>}
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    {['Contact', 'Company', 'Value', 'Last Contact', 'Notes', 'Tags'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '3px 8px', fontSize: '6.5pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stageClients.map((c, i) => {
+                    const stale = isStale(c.lastContact, c.stage);
+                    return (
+                      <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', backgroundColor: stale ? '#fffbeb' : (i % 2 === 0 ? 'white' : '#fafafa') }}>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A', whiteSpace: 'nowrap' }}>
+                          {stale && <span style={{ color: '#d97706', marginRight: '4px' }}>⚠</span>}{c.name}
+                        </td>
+                        <td style={{ padding: '5px 8px', color: '#444', whiteSpace: 'nowrap' }}>{c.company}</td>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: '#C9A84C', whiteSpace: 'nowrap' }}>{c.value > 0 ? formatCurrency(c.value) : '—'}</td>
+                        <td style={{ padding: '5px 8px', color: '#888', whiteSpace: 'nowrap' }}>{c.lastContact}</td>
+                        <td style={{ padding: '5px 8px', color: '#555', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.notes ? c.notes.split('\n')[0].slice(0, 80) : '—'}</td>
+                        <td style={{ padding: '5px 8px', color: '#888', fontSize: '7pt' }}>{c.tags.join(', ') || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+
+        {/* Footer */}
+        <div style={{ marginTop: '20px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', fontSize: '7pt', color: '#999' }}>
+          <span>LIFE Magazine · Confidential</span>
+          <span>Printed {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        </div>
       </div>
 
       {/* Stats bar */}
