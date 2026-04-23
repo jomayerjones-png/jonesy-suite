@@ -1,4 +1,4 @@
-export type PipelineStage = 'Prospect' | 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Feedback' | 'Close';
+export type PipelineStage = 'Prospect' | 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Feedback' | 'Revised Proposal Sent' | 'Close';
 
 export const PIPELINE_STAGES: PipelineStage[] = [
   'Prospect',
@@ -6,6 +6,7 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   'Meeting Set',
   'Proposal Sent',
   'Feedback',
+  'Revised Proposal Sent',
   'Close',
 ];
 
@@ -47,6 +48,13 @@ export const STAGE_CONFIG: Record<
     border: 'border-orange-200',
     dot: 'bg-orange-500',
     icon: '💭',
+  },
+  'Revised Proposal Sent': {
+    color: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    dot: 'bg-rose-500',
+    icon: '📝',
   },
   Close: {
     color: 'text-emerald-700',
