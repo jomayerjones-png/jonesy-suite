@@ -40,7 +40,9 @@ export default function PipelineTracker({
   onUpdateMeetingNotes,
   onUpdateNewsCache,
 }: PipelineTrackerProps) {
-  const [boardView, setBoardView] = useState<BoardView>('kanban');
+  const [boardView, setBoardView] = useState<BoardView>(
+    () => window.innerWidth < 640 ? 'list' : 'kanban'
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [stageFilter, setStageFilter] = useState<PipelineStage | 'All'>('All');
@@ -212,8 +214,46 @@ export default function PipelineTracker({
       </div>
 
       {/* Stats bar */}
-      <div className="bg-white border-b border-brand-cream px-6 py-4 no-print">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-white border-b border-brand-cream px-4 sm:px-6 py-3 sm:py-4 no-print">
+        {/* Mobile: compact single row */}
+        <div className="flex sm:hidden items-center justify-between gap-2">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-[9px] text-brand-dark/40 font-semibold uppercase tracking-wider">Pipeline</p>
+              <p className="font-display text-lg font-bold text-brand-dark leading-none">{formatCurrency(totalValue)}</p>
+            </div>
+            <div className="w-px h-8 bg-brand-cream" />
+            <div>
+              <p className="text-[9px] text-brand-dark/40 font-semibold uppercase tracking-wider">Won</p>
+              <p className="font-display text-lg font-bold text-emerald-600 leading-none">{formatCurrency(wonValue)}</p>
+            </div>
+            {staleCount > 0 && (
+              <>
+                <div className="w-px h-8 bg-brand-cream" />
+                <div>
+                  <p className="text-[9px] text-amber-600 font-semibold uppercase tracking-wider">Stale</p>
+                  <p className="font-display text-lg font-bold text-amber-500 leading-none">{staleCount}</p>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[40%]">
+            {PIPELINE_STAGES.map(stage => {
+              const count = activeClients.filter(c => c.stage === stage).length;
+              if (count === 0) return null;
+              const cfg = STAGE_CONFIG[stage];
+              return (
+                <div key={stage} className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>
+                  <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
+                  {count}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop: full row */}
+        <div className="hidden sm:flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6 flex-wrap">
             <div>
               <p className="text-xs text-brand-dark/50 font-medium uppercase tracking-wider">Active Pipeline</p>
@@ -248,7 +288,6 @@ export default function PipelineTracker({
               </>
             )}
           </div>
-
           <div className="flex items-center gap-1.5 flex-wrap">
             {PIPELINE_STAGES.map(stage => {
               const count = activeClients.filter(c => c.stage === stage).length;
@@ -265,8 +304,8 @@ export default function PipelineTracker({
       </div>
 
       {/* Toolbar */}
-      <div className="no-print bg-brand-light border-b border-brand-cream px-6 py-3 flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48 max-w-xs">
+      <div className="no-print bg-brand-light border-b border-brand-cream px-3 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-0 sm:min-w-48 sm:max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/30 text-sm">⌕</span>
           <input
             className="input-field pl-8 py-1.5 text-sm"
@@ -280,7 +319,7 @@ export default function PipelineTracker({
         </div>
 
         {!showLost && (
-          <>
+          <div className="hidden sm:flex items-center gap-2">
             <select
               className="input-field w-auto py-1.5 text-sm"
               value={stageFilter}
@@ -298,7 +337,7 @@ export default function PipelineTracker({
             >
               ⚠ Stale {staleCount > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 text-xs">{staleCount}</span>}
             </button>
-          </>
+          </div>
         )}
 
         {lostClients.length > 0 && (
@@ -317,28 +356,28 @@ export default function PipelineTracker({
         <div className="flex items-center bg-white rounded-lg border border-brand-cream p-0.5">
           <button
             onClick={() => setBoardView('kanban')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${boardView === 'kanban' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${boardView === 'kanban' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
           >
-            ⬡ Kanban
+            ⬡ <span className="hidden sm:inline">Kanban</span>
           </button>
           <button
             onClick={() => setBoardView('list')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${boardView === 'list' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${boardView === 'list' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
           >
-            ☰ List
+            ☰ <span className="hidden sm:inline">List</span>
           </button>
         </div>
 
-        <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
+        <button onClick={() => window.print()} className="btn-secondary hidden sm:flex items-center gap-2">
           <span>⎙</span> Download PDF
         </button>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <span>+</span> Add Client
+        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+          <span>+</span> <span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span>
         </button>
       </div>
 
       {/* Board */}
-      <div className="no-print flex-1 overflow-auto p-6">
+      <div className="no-print flex-1 overflow-auto p-3 sm:p-6">
         {showLost ? (
           <div className="max-w-3xl mx-auto space-y-2">
             {filteredClients.length === 0 ? (

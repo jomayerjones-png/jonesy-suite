@@ -84,30 +84,29 @@ function App() {
     );
   }, []);
 
-  // ── Initial load (only when authenticated) ───────────────
+  // ── Initial load ─────────────────────────────────────────
   useEffect(() => {
-    if (guestMode) { setLoading(false); return; } // guest: use local data only
-    if (!session) return; // wait for auth
+    if (!guestMode && session === undefined) return; // still checking auth
+    if (!guestMode && session === null) return;      // not logged in, not guest
     let cancelled = false;
     async function bootstrap() {
       try {
         const [remoteClients, remoteCompany] = await Promise.all([
           fetchAllClients(),
-          fetchCompanyName(),
+          guestMode ? Promise.resolve(null) : fetchCompanyName(),
         ]);
         if (cancelled) return;
 
-        let resolved: Client[];
         if (remoteClients.length > 0) {
-          resolved = remoteClients;
-        } else {
+          setClients(remoteClients);
+        } else if (!guestMode) {
           // Supabase is empty — seed it with the real pipeline data
-          resolved = SAMPLE_CLIENTS;
+          setClients(SAMPLE_CLIENTS);
           Promise.all(SAMPLE_CLIENTS.map(c => upsertClient(c))).catch(err =>
             console.warn('[life-suite] Failed to seed Supabase:', err)
           );
         }
-        setClients(resolved);
+        // In guest mode with empty Supabase → keep whatever is in localStorage/sample
 
         if (remoteCompany !== null) {
           setCompanyNameState(remoteCompany);
@@ -124,7 +123,7 @@ function App() {
     bootstrap();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, guestMode]);
 
   // ── Realtime subscription ─────────────────────────────────
   useEffect(() => {
@@ -362,8 +361,9 @@ function App() {
         onViewChange={setView}
         clientCount={clients.length}
         onSignOut={signOut}
+        guestMode={guestMode}
       />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-16 sm:pb-0">
         {view === 'pipeline' && (
           <PipelineTracker
             clients={clients}
