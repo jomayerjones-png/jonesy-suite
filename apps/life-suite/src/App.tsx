@@ -367,6 +367,7 @@ function App() {
         {view === 'pipeline' && (
           <PipelineTracker
             clients={clients}
+            readOnly={guestMode}
             onAdd={addClient}
             onUpdate={updateClient}
             onDelete={deleteClient}

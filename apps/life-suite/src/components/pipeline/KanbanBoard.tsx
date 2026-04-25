@@ -6,9 +6,10 @@ interface KanbanBoardProps {
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, stage: PipelineStage) => void;
+  readOnly?: boolean;
 }
 
-export default function KanbanBoard({ clients, onEdit, onDelete, onMove }: KanbanBoardProps) {
+export default function KanbanBoard({ clients, onEdit, onDelete, onMove, readOnly = false }: KanbanBoardProps) {
   return (
     <div className="flex gap-3 pb-4 min-w-max">
       {PIPELINE_STAGES.map(stage => (
@@ -20,6 +21,7 @@ export default function KanbanBoard({ clients, onEdit, onDelete, onMove }: Kanba
           onDelete={onDelete}
           onMove={onMove}
           onDrop={onMove}
+          readOnly={readOnly}
         />
       ))}
     </div>

@@ -10,6 +10,7 @@ interface PipelineTrackerProps {
   clients: Client[];
   allClients?: Client[];
   defaultNewStage?: Client['stage'];
+  readOnly?: boolean;
   onAdd: (data: Omit<Client, 'id' | 'createdAt'>) => void;
   onUpdate: (id: string, updates: Partial<Client>) => void;
   onDelete: (id: string) => void;
@@ -27,6 +28,7 @@ interface PipelineTrackerProps {
 export default function PipelineTracker({
   clients,
   defaultNewStage = 'Engaged',
+  readOnly = false,
   onAdd,
   onUpdate,
   onDelete,
@@ -371,9 +373,15 @@ export default function PipelineTracker({
         <button onClick={() => window.print()} className="btn-secondary hidden sm:flex items-center gap-2">
           <span>⎙</span> Download PDF
         </button>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
-          <span>+</span> <span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span>
-        </button>
+        {readOnly ? (
+          <button onClick={() => window.location.reload()} className="flex items-center gap-1.5 text-xs font-medium border border-brand-cream rounded-lg px-3 py-1.5 text-brand-dark/50 hover:text-brand-dark hover:border-brand-dark/30 transition-all">
+            Sign in to edit
+          </button>
+        ) : (
+          <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+            <span>+</span> <span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span>
+          </button>
+        )}
       </div>
 
       {/* Board */}
@@ -405,10 +413,10 @@ export default function PipelineTracker({
           </div>
         ) : boardView === 'kanban' ? (
           <div className="overflow-x-auto pb-2">
-            <KanbanBoard clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} />
+            <KanbanBoard clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} readOnly={readOnly} />
           </div>
         ) : (
-          <ListView clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} />
+          <ListView clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} readOnly={readOnly} />
         )}
 
         {filteredClients.length === 0 && displayClients.length > 0 && (

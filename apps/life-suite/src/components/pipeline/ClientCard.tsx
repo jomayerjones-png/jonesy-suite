@@ -8,6 +8,7 @@ interface ClientCardProps {
   onMove: (id: string, stage: Client['stage']) => void;
   draggable?: boolean;
   compact?: boolean;
+  readOnly?: boolean;
 }
 
 export default function ClientCard({
@@ -17,6 +18,7 @@ export default function ClientCard({
   onMove: _onMove,
   draggable = true,
   compact = false,
+  readOnly = false,
 }: ClientCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -31,12 +33,12 @@ export default function ClientCard({
 
   return (
     <div
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      className={`card card-hover animate-fade-in group relative ${
-        draggable ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${stale ? 'border-amber-200' : ''} ${compact ? 'p-3' : 'p-4'}`}
-      onMouseEnter={() => setShowActions(true)}
+      draggable={draggable && !readOnly}
+      onDragStart={readOnly ? undefined : handleDragStart}
+      className={`card animate-fade-in group relative ${
+        !readOnly ? 'card-hover' : ''
+      } ${!readOnly && draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${stale ? 'border-amber-200' : ''} ${compact ? 'p-3' : 'p-4'}`}
+      onMouseEnter={() => { if (!readOnly) setShowActions(true); }}
       onMouseLeave={() => { setShowActions(false); setConfirmDelete(false); }}
     >
       {/* Stale bar */}
@@ -114,8 +116,8 @@ export default function ClientCard({
         </>
       )}
 
-      {/* Actions overlay */}
-      {showActions && (
+      {/* Actions overlay — hidden for read-only guests */}
+      {showActions && !readOnly && (
         <div className="absolute top-2 right-2 flex items-center gap-1 animate-fade-in">
           <button
             onClick={() => onEdit(client)}
