@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Client, PipelineStage, STAGE_CONFIG, PIPELINE_STAGES, formatCurrency, daysSince, isStale } from '../../types';
+import { Client, PipelineStage, STAGE_CONFIG, PIPELINE_STAGES, formatCurrency, daysSince } from '../../types';
 
 type SortKey = 'name' | 'company' | 'value' | 'stage' | 'lastContact';
 type SortDir = 'asc' | 'desc';
@@ -68,7 +68,6 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
           <tbody>
             {sorted.map((client, i) => {
               const cfg = STAGE_CONFIG[client.stage];
-              const stale = isStale(client.lastContact);
               const days = daysSince(client.lastContact);
               const isExpanded = expandedId === client.id;
 
@@ -77,15 +76,12 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                   <tr
                     key={client.id}
                     className={`border-b border-brand-cream/60 hover:bg-brand-light/50 cursor-pointer transition-colors ${
-                      stale ? 'bg-amber-50/30' : i % 2 === 0 ? '' : 'bg-brand-light/20'
+                      i % 2 === 0 ? '' : 'bg-brand-light/20'
                     }`}
                     onClick={() => setExpandedId(isExpanded ? null : client.id)}
                   >
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {stale && <span className="text-amber-500 text-xs">⚠</span>}
-                        <span className="font-medium text-brand-dark">{client.name}</span>
-                      </div>
+                      <span className="font-medium text-brand-dark">{client.name}</span>
                     </td>
                     <td className="px-4 py-3 text-brand-dark/70">{client.company}</td>
                     <td className="px-4 py-3">
@@ -96,15 +92,8 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                     <td className="px-4 py-3 font-semibold text-brand-gold">
                       {formatCurrency(client.value)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className={stale ? 'text-amber-700 font-medium' : 'text-brand-dark/60'}>
-                          {days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`}
-                        </span>
-                        {stale && (
-                          <span className="stale-indicator text-xs">stale</span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3 text-brand-dark/60">
+                      {days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">

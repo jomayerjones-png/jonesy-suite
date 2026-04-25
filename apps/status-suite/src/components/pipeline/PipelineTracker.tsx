@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, ThreadMessage, formatCurrency, isStale } from '../../types';
+import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, ThreadMessage, formatCurrency } from '../../types';
 import KanbanBoard from './KanbanBoard';
 import ListView from './ListView';
 import ClientModal from './ClientModal';
@@ -40,14 +40,12 @@ export default function PipelineTracker({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [stageFilter, setStageFilter] = useState<PipelineStage | 'All'>('All');
-  const [showStaleOnly, setShowStaleOnly] = useState(false);
   const [showLost, setShowLost] = useState(false);
   const [search, setSearch] = useState('');
 
   const activeClients = useMemo(() => clients.filter(c => c.outcome !== 'lost'), [clients]);
   const lostClients = useMemo(() => clients.filter(c => c.outcome === 'lost'), [clients]);
 
-  const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact)).length, [activeClients]);
   const totalValue = useMemo(() => activeClients.reduce((s, c) => s + c.value, 0), [activeClients]);
   const wonValue = useMemo(
     () => activeClients.filter(c => c.outcome === 'won').reduce((s, c) => s + c.value, 0),
@@ -60,7 +58,6 @@ export default function PipelineTracker({
     let list = displayClients;
     if (!showLost) {
       if (stageFilter !== 'All') list = list.filter(c => c.stage === stageFilter);
-      if (showStaleOnly) list = list.filter(c => isStale(c.lastContact));
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -72,7 +69,7 @@ export default function PipelineTracker({
       );
     }
     return list;
-  }, [displayClients, stageFilter, showStaleOnly, showLost, search]);
+  }, [displayClients, stageFilter, showLost, search]);
 
   const openAdd = () => { setEditingClient(null); setModalOpen(true); };
   const openEdit = (client: Client) => { setEditingClient(client); setModalOpen(true); };
@@ -117,7 +114,6 @@ export default function PipelineTracker({
             { label: 'Active Pipeline', value: formatCurrency(totalValue) },
             { label: 'Won', value: formatCurrency(wonValue) },
             { label: 'Active Clients', value: String(activeClients.length) },
-            ...(staleCount > 0 ? [{ label: 'Stale (7d+)', value: String(staleCount) }] : []),
           ].map(s => (
             <div key={s.label} style={{ flex: '1', minWidth: '80px' }}>
               <p style={{ fontSize: '7pt', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px' }}>{s.label}</p>
@@ -175,15 +171,6 @@ export default function PipelineTracker({
                 </div>
               </>
             )}
-            {staleCount > 0 && (
-              <>
-                <div className="w-px h-10 bg-brand-cream" />
-                <div>
-                  <p className="text-xs text-amber-700 font-medium uppercase tracking-wider">Stale</p>
-                  <p className="font-display text-2xl font-bold text-amber-600">{staleCount}</p>
-                </div>
-              </>
-            )}
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -227,14 +214,6 @@ export default function PipelineTracker({
               {PIPELINE_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <button
-              onClick={() => setShowStaleOnly(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                showStaleOnly ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white text-brand-dark/60 border-brand-cream hover:text-brand-dark'
-              }`}
-            >
-              ⚠ Stale {staleCount > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 text-xs">{staleCount}</span>}
-            </button>
           </>
         )}
 
@@ -314,7 +293,7 @@ export default function PipelineTracker({
             <p className="text-4xl mb-3">◎</p>
             <p className="font-medium text-brand-dark/60">No clients match your filters</p>
             <button
-              onClick={() => { setSearch(''); setStageFilter('All'); setShowStaleOnly(false); }}
+              onClick={() => { setSearch(''); setStageFilter('All'); }}
               className="mt-3 text-brand-gold hover:text-brand-gold-dark text-sm underline"
             >
               Clear filters
