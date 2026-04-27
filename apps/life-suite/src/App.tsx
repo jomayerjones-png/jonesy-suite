@@ -317,6 +317,15 @@ function App() {
   }, [addClient]);
 
   // ── Auth guards ───────────────────────────────────────────
+  const handleSignOut = () => {
+    if (guestMode) {
+      localStorage.removeItem('life_guest');
+      setGuestMode(false);
+    } else {
+      signOut();
+    }
+  };
+
   if (!guestMode && session === undefined) return null; // checking session — blank flash
   if (!guestMode && session === null) return (
     <Auth onSkip={() => { localStorage.setItem('life_guest', 'true'); setGuestMode(true); }} />
@@ -360,7 +369,7 @@ function App() {
         activeView={view}
         onViewChange={setView}
         clientCount={clients.length}
-        onSignOut={signOut}
+        onSignOut={handleSignOut}
         guestMode={guestMode}
       />
       <main className="flex-1 overflow-auto pb-16 sm:pb-0">

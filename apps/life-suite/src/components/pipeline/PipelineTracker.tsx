@@ -374,7 +374,10 @@ export default function PipelineTracker({
           <span>⎙</span> Download PDF
         </button>
         {readOnly ? (
-          <button onClick={() => window.location.reload()} className="flex items-center gap-1.5 text-xs font-medium border border-brand-cream rounded-lg px-3 py-1.5 text-brand-dark/50 hover:text-brand-dark hover:border-brand-dark/30 transition-all">
+          <button
+            onClick={() => { localStorage.removeItem('life_guest'); window.location.reload(); }}
+            className="flex items-center gap-1.5 text-xs font-medium border border-brand-cream rounded-lg px-3 py-1.5 text-brand-dark/50 hover:text-brand-dark hover:border-brand-dark/30 transition-all"
+          >
             Sign in to edit
           </button>
         ) : (
