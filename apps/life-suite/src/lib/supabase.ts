@@ -18,6 +18,13 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+export async function resetPassword(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href,
+  });
+  if (error) throw error;
+}
+
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
   const { data, error } = await supabase

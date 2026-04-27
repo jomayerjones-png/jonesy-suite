@@ -1,11 +1,12 @@
 import { useState, FormEvent } from 'react';
-import { signIn } from '../lib/supabase';
+import { signIn, resetPassword } from '../lib/supabase';
 
 export default function Auth({ onSkip }: { onSkip: () => void }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -15,6 +16,20 @@ export default function Auth({ onSkip }: { onSkip: () => void }) {
       await signIn(email.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) { setError('Enter your email address above first.'); return; }
+    setError('');
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email');
     } finally {
       setLoading(false);
     }
@@ -74,6 +89,9 @@ export default function Auth({ onSkip }: { onSkip: () => void }) {
           {error && (
             <p className="text-red-400 text-xs text-center">{error}</p>
           )}
+          {resetSent && (
+            <p className="text-emerald-400 text-xs text-center">Reset email sent — check your inbox.</p>
+          )}
 
           <button
             type="submit"
@@ -82,6 +100,15 @@ export default function Auth({ onSkip }: { onSkip: () => void }) {
                        py-3 transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            className="w-full text-white/30 text-xs hover:text-white/60 transition-colors text-center py-1"
+          >
+            Forgot password?
           </button>
         </form>
 
