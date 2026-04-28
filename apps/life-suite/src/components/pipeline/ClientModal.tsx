@@ -1008,7 +1008,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                       className={`input-field ${errors.name ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                       value={form.name}
                       onChange={e => set('name', e.target.value)}
-                      placeholder="Sarah Chen"
+                      placeholder="Name"
                       autoFocus
                     />
                     {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
@@ -1019,7 +1019,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                       className={`input-field ${errors.company ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                       value={form.company}
                       onChange={e => set('company', e.target.value)}
-                      placeholder="TechFlow Inc."
+                      placeholder="Company"
                     />
                     {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
                   </div>
@@ -1028,11 +1028,11 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Email</label>
-                    <input type="email" className="input-field" value={form.email} onChange={e => set('email', e.target.value)} placeholder="sarah@company.com" />
+                    <input type="email" className="input-field" value={form.email} onChange={e => set('email', e.target.value)} placeholder="Email" />
                   </div>
                   <div>
                     <label className="label">Phone</label>
-                    <input className="input-field" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 (415) 555-0192" />
+                    <input className="input-field" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="Phone" />
                   </div>
                 </div>
 
