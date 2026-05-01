@@ -32,40 +32,39 @@ const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const COMPANY_POOLS = {
   'tech or AI': [
     'Google', 'Microsoft', 'Meta', 'Nvidia', 'Apple', 'Adobe', 'Salesforce', 'IBM',
-    'Intel', 'AMD', 'Qualcomm', 'Anthropic', 'OpenAI', 'xAI', 'Perplexity AI',
-    'Scale AI', 'Runway', 'Cohere', 'Databricks', 'Palantir', 'Snowflake', 'Stripe',
-    'Coinbase', 'LinkedIn', 'Uber', 'Airbnb', 'Pinterest', 'Snap', 'Figma', 'Canva',
-    'Oracle', 'Cisco', 'Dell Technologies', 'HP', 'Lenovo', 'Samsung Electronics',
-    'Spotify', 'Netflix', 'Amazon',
+    'Anthropic', 'OpenAI', 'xAI', 'Perplexity AI', 'Scale AI', 'Runway', 'Cohere',
+    'Databricks', 'Palantir', 'Snowflake', 'Stripe', 'Coinbase', 'LinkedIn',
+    'Uber', 'Airbnb', 'Pinterest', 'Figma', 'Canva', 'Oracle', 'Cisco',
+    'Samsung Electronics', 'Spotify', 'Netflix', 'Amazon', 'Instacart', 'DoorDash',
+    'Reddit', 'Substack', 'beehiiv', 'Arc Browser', 'Notion', 'Slack', 'Zoom',
   ],
-  'luxury or fashion': [
+  'luxury, fashion, or consumer lifestyle': [
     'LVMH', 'Louis Vuitton', 'Christian Dior', 'Hermès', 'Chanel', 'Kering', 'Gucci',
-    'Saint Laurent', 'Bottega Veneta', 'Balenciaga', 'Richemont', 'Cartier',
-    'Van Cleef & Arpels', 'Rolex', 'Prada', 'Miu Miu', 'Burberry', 'Ralph Lauren',
-    'Tapestry', 'Coach', 'Kate Spade', 'Tiffany & Co.', 'Bulgari', 'Moncler',
-    'Brunello Cucinelli', 'Ermenegildo Zegna', 'Tod\'s', 'Loewe', 'Celine',
-    'Valentino', 'Versace', 'Dolce & Gabbana', 'Loro Piana', 'Tom Ford',
-    'Net-a-Porter', 'Farfetch', 'Saks Fifth Avenue', 'Neiman Marcus',
-    'lululemon', 'Alo Yoga', 'Vuori', 'Patagonia', 'Arc\'teryx',
+    'Saint Laurent', 'Bottega Veneta', 'Richemont', 'Cartier', 'Rolex', 'Prada',
+    'Burberry', 'Ralph Lauren', 'Tiffany & Co.', 'Bulgari', 'Moncler',
+    'Brunello Cucinelli', 'Loro Piana', 'Tom Ford', 'Valentino', 'Loewe',
+    'Net-a-Porter', 'Saks Fifth Avenue', 'Neiman Marcus', 'Bergdorf Goodman',
+    'lululemon', 'Alo Yoga', 'Vuori', 'Arc\'teryx', 'Patagonia',
+    'Estée Lauder', 'NARS', 'Charlotte Tilbury', 'Aesop', 'Byredo',
+    'Williams-Sonoma', 'RH (Restoration Hardware)', 'Sonos', 'Bang & Olufsen',
   ],
-  'finance, automotive, or media': [
+  'finance, hospitality, or automotive': [
     'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'American Express',
     'Mastercard', 'Visa', 'BlackRock', 'Capital One', 'Fidelity Investments',
-    'UBS', 'Citi', 'Bank of America', 'Charles Schwab', 'Vanguard',
-    'Bridgewater Associates', 'Two Sigma', 'Citadel',
+    'UBS', 'Citi', 'Bank of America', 'Charles Schwab', 'Bridgewater Associates',
+    'Aman Resorts', 'Four Seasons', 'Rosewood Hotels', 'Belmond', 'Six Senses',
+    'Marriott Bonvoy', 'Hilton', 'Mandarin Oriental', 'Park Hyatt', 'The Peninsula',
     'Porsche', 'Ferrari', 'Bentley', 'Rolls-Royce', 'Aston Martin',
-    'BMW', 'Mercedes-Benz', 'Audi', 'Lamborghini', 'McLaren',
-    'Tesla', 'Rivian', 'Lucid Motors', 'Cadillac',
-    'Condé Nast', 'Hearst', 'Bloomberg', 'The Atlantic', 'Vox Media',
-    'Disney', 'Warner Bros Discovery', 'NBCUniversal', 'Apple TV+',
-    'Substack', 'beehiiv', 'The New York Times', 'Washington Post',
+    'BMW', 'Mercedes-Benz', 'Audi', 'Lamborghini', 'McLaren', 'Cadillac',
+    'Delta Air Lines', 'United Airlines', 'American Airlines', 'Emirates', 'Lufthansa',
+    'NetJets', 'Wheels Up',
   ],
 };
 
 const CATEGORIES = [
   'tech or AI',
-  'luxury or fashion',
-  'finance, automotive, or media',
+  'luxury, fashion, or consumer lifestyle',
+  'finance, hospitality, or automotive',
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -92,30 +91,41 @@ async function getExclusionList() {
 }
 
 function buildSystemPrompt(category, companyPool) {
-  return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction. Founding partners contribute $500K for a year-long creative partnership.
+  return `You are a chief revenue officer advising Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction. Founding partners contribute $500K for a year-long creative partnership (not an ad buy — a cultural co-authorship).
 
-TARGET: Find 1 senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a brand in the ${category} sector.
+LIFE's editorial pillars: American progress, culture, science, technology, people at the frontier. The brand's power is prestige + longevity + cultural legitimacy at a moment when most media has none.
 
-COMPANY POOL — pick one you think is a strong LIFE founding partner fit:
+A good LIFE founding partner is a brand that:
+- Is making a cultural or strategic bet right now (launch, rebrand, new market, new leadership, IPO, milestone)
+- Wants to be associated with quality, depth, and American optimism — not impressions
+- Has a CMO or brand leader who thinks like an editor, not a media buyer
+
+TARGET: Find 1 senior decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Brand Partnerships, or equivalent) at a brand in the ${category} sector.
+
+COMPANY POOL — choose the company with the STRONGEST timing rationale right now:
 ${companyPool.join(', ')}
 
-RESEARCH STEPS (use web search for each):
-1. Search "[chosen company] CMO 2025" or "[chosen company] Chief Marketing Officer" to identify the current decision-maker
-2. Verify the person is still in role — check LinkedIn, recent press releases, company news from 2024–2025
-3. Search for their email: check company press releases, speaker bios at conferences, journalism bylines, or company website footer
-4. Search "[company name] campaign 2024 2025" or "[company name] brand strategy" to find a specific recent move that connects them to LIFE's editorial world
+RESEARCH STEPS — use web search for all of these:
+1. Scan the pool for companies with a recent launch, rebrand, campaign, leadership hire, cultural moment, or market expansion in the last 6 months. Pick the one with the best "why now" story.
+2. Search "[company] CMO 2025" or "[company] Chief Marketing Officer" to find the current decision-maker. Verify they are still in role via LinkedIn or recent press (2024–2025).
+3. Search for the contact's email in public sources: speaker bios at marketing conferences (Cannes Lions, ANA, SXSW), press releases quoting them, company newsroom bylines.
+4. Search "[company] [campaign/launch/moment name]" to get the specific detail you'll use in the WHY.
 
-EMAIL CONFIDENCE RULES:
-- Set "verified" ONLY if you found the email in a public source (press release, speaker bio, company website)
-- Set "estimated" if you're inferring the format from the company's known email pattern (e.g. firstname.lastname@company.com)
-- Common corporate email formats: firstname.lastname@company.com · firstname@company.com · f.lastname@company.com
+EMAIL RULES:
+- If you find the email in a public source → set email_confidence "verified"
+- If you cannot find it in a public source → return email as "" (empty string) and email_confidence as "estimated". DO NOT guess or infer. Blank is correct.
 
-EMAIL TEMPLATE to draft:
+WHY FIELD RULES:
+- Must reference a SPECIFIC, NAMED thing: a campaign name, launch date, product name, exec quote, award, partnership, or cultural moment from 2024–2025
+- Generic statements ("known for quality", "strong brand values") are NOT acceptable
+- Format: one sentence, present tense, specific noun. Example: "Your 'Crafted for Life' rebrand this spring — repositioning [Company] from performance to cultural longevity — maps directly to what LIFE is building."
+
+EMAIL TEMPLATE:
 Subject: LIFE — [Company]
 Hi [First Name]
 LIFE, one of America's most iconic media brands, is undergoing a ground-up rebuild — reimagined as a quarterly large-format magazine and cultural platform launching this September with Karlie Kloss and Josh Kushner as Publishers.
 The first issue is "Where Are We Now?" — a portrait of an America under construction, told through the engineers, scientists, policymakers, and artists at the frontier.
-[Company] has been on our list from the start. [ONE specific researched sentence: a real recent campaign, brand move, or cultural moment that makes them a natural LIFE founding partner.]
+[Company] has been on our list from the start. [WHY — the specific sentence from the why field above.]
 We're speaking with a small number of founding partners — creative collaboration, not a media buy.
 Can we jump on a call over the next couple of weeks?
 Warm regards, Jo

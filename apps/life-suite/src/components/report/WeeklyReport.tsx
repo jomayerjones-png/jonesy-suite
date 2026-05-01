@@ -386,6 +386,12 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const setNote = (key: keyof ReportNotes) => (value: string) =>
     setNotes(prev => ({ ...prev, [key]: value }));
 
+  const weekStartStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay() + 1);
+    return d.toISOString().split('T')[0];
+  }, []);
+
   const stats = useMemo(() => {
     const now = Date.now();
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -408,12 +414,54 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     };
   }, [clients]);
 
+  // WoW: compare to most recently saved archive
+  const prevStats = archives.length > 0 ? archives[0].stats : null;
+
+  function fmtDelta(curr: number, prev: number | undefined): { text: string; positive: boolean } | null {
+    if (prev === undefined || prev === null) return null;
+    const diff = curr - prev;
+    if (Math.abs(diff) < 1) return null;
+    const sign = diff > 0 ? '+' : '';
+    return { text: `${sign}${formatCurrency(diff)}`, positive: diff > 0 };
+  }
+
+  function fmtCountDelta(curr: number, prev: number | undefined): { text: string; positive: boolean } | null {
+    if (prev === undefined || prev === null) return null;
+    const diff = curr - prev;
+    if (diff === 0) return null;
+    return { text: diff > 0 ? `+${diff}` : `${diff}`, positive: diff > 0 };
+  }
+
+  // Auto-populate meetings from client meeting notes this week
+  const thisWeekMeetingLines = useMemo(() => {
+    return clients.flatMap(c =>
+      (c.meetingNotes ?? [])
+        .filter(n => n.date >= weekStartStr)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(n => {
+          const who = n.attendees ? ` — ${n.attendees}` : '';
+          const takeaway = n.takeaways ? ` · ${n.takeaways.split('\n')[0].slice(0, 80)}` : '';
+          return `${c.name} @ ${c.company}${who} (${n.date})${takeaway}`;
+        })
+    );
+  }, [clients, weekStartStr]);
+
+  useEffect(() => {
+    if (!notes.meetings && thisWeekMeetingLines.length > 0) {
+      setNotes(prev => ({ ...prev, meetings: thisWeekMeetingLines.join('\n') }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thisWeekMeetingLines]);
+
   const reportDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+  const weekStart = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay() + 1);
+    return d;
+  }, []);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
   const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -650,17 +698,24 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               <SectionWrapper title="Pipeline Metrics" hidden={!!hiddenSections.metrics} onToggle={() => toggleSection('metrics')}>
               <div className="card p-4">
                 <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
+                {prevStats && (
+                  <p className="text-xs text-brand-dark/40 mb-2 no-print">vs. week of {archives[0].weekLabel}</p>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
                   {[
-                    { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), sub: 'All active deals', color: 'text-brand-dark' },
-                    { label: 'Active Value', value: formatCurrency(stats.activeValue), sub: 'Excl. closed', color: 'text-brand-gold' },
-                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), sub: `${stats.byStage.Close.length} closed`, color: 'text-emerald-600' },
-                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), sub: `${stats.valuedDealsCount} with value`, color: 'text-brand-dark' },
+                    { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), delta: fmtDelta(stats.totalValue, prevStats?.totalValue), color: 'text-brand-dark' },
+                    { label: 'Active Value', value: formatCurrency(stats.activeValue), delta: fmtDelta(stats.activeValue, prevStats?.activeValue), color: 'text-brand-gold' },
+                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), delta: fmtDelta(stats.closedValue, prevStats?.closedValue), color: 'text-emerald-600' },
+                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), delta: fmtDelta(stats.avgDeal, prevStats?.avgDeal), color: 'text-brand-dark' },
                   ].map(m => (
                     <div key={m.label} className="metric-card">
                       <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
                       <p className={`font-display text-xl font-bold ${m.color}`}>{m.value}</p>
-                      <p className="text-xs text-brand-dark/40 no-print">{m.sub}</p>
+                      {m.delta && (
+                        <p className={`text-xs font-medium no-print ${m.delta.positive ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {m.delta.text} {m.delta.positive ? '↑' : '↓'}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -683,12 +738,18 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                       const stageClients = stats.byStage[stage];
                       const value = stageClients.reduce((s, c) => s + c.value, 0);
                       const cfg = STAGE_CONFIG[stage];
+                      const countDelta = fmtCountDelta(stageClients.length, prevStats?.byStage[stage]?.count);
                       return (
                         <div key={stage} className="flex items-center gap-3 print-stage-row">
-                          <div className="w-28 flex-shrink-0">
+                          <div className="w-32 flex-shrink-0">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                               <span className="text-xs font-medium text-brand-dark">{stage}</span>
+                              {countDelta && (
+                                <span className={`text-xs font-bold no-print ${countDelta.positive ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {countDelta.text}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex-1">
@@ -781,12 +842,43 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               )}
 
               <SectionWrapper title="Meetings Attended" hidden={!!hiddenSections.meetings} onToggle={() => toggleSection('meetings')}>
-              <EditableSection
-                title="Meetings Attended"
-                placeholder={`e.g.\nRolex — Arnaud Boetsch — scope clarification call (Tue)\nMeta partnerships team — Chris Cox — intro meeting (Wed)\nInternal strategy sync with team (Thu)`}
-                value={notes.meetings}
-                onChange={setNote('meetings')}
-              />
+              <div className="card p-4 space-y-3">
+                <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Meetings Attended</h2>
+                {thisWeekMeetingLines.length > 0 && (
+                  <div className="bg-brand-light/60 rounded-lg px-3 py-2.5 border border-brand-cream no-print">
+                    <p className="text-xs font-semibold text-brand-dark/40 uppercase tracking-wider mb-1.5">From pipeline notes this week</p>
+                    <ul className="space-y-1">
+                      {thisWeekMeetingLines.map((line, i) => (
+                        <li key={i} className="text-xs text-brand-dark/70 flex items-start gap-1.5">
+                          <span className="mt-1 w-1 h-1 rounded-full bg-brand-gold flex-shrink-0" />
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="no-print">
+                  <p className="text-xs text-brand-dark/40 mb-1">Additional notes / context</p>
+                  <textarea
+                    value={notes.meetings}
+                    onChange={e => setNote('meetings')(e.target.value)}
+                    placeholder={`e.g.\nRolex — Arnaud Boetsch — scope clarification call (Tue)\nMeta partnerships team — Chris Cox — intro meeting (Wed)`}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-brand-light border border-brand-cream-dark rounded-lg text-sm text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold resize-y transition-all duration-150 font-sans leading-relaxed"
+                  />
+                </div>
+                {/* Print view: combined */}
+                <div className="print-only hidden">
+                  <ul className="space-y-0.5">
+                    {[...thisWeekMeetingLines, ...notes.meetings.split('\n').filter(l => l.trim())].map((line, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-xs text-gray-800 leading-snug">
+                        <span className="mt-1 w-1 h-1 rounded-full bg-gray-400 flex-shrink-0" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
               </SectionWrapper>
 
               <SectionWrapper title="Actions Taken & Completed" hidden={!!hiddenSections.actions} onToggle={() => toggleSection('actions')}>
