@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Client, SavedProposal, StageEvent, ThreadMessage, View, SAMPLE_CLIENTS, DATA_VERSION, generateId } from './types';
-import { fetchAllClients, upsertClient, removeClient } from './lib/supabase';
+import { fetchAllClients, upsertClient, removeClient, StatusDailyProspect } from './lib/supabase';
 import AnalyticsView from './components/analytics/AnalyticsView';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
+import Leads from './components/leads/Leads';
 
 const STORAGE_KEY_CLIENTS = 'status_suite_clients';
 const STORAGE_KEY_COMPANY = 'status_suite_company';
@@ -145,6 +146,25 @@ function App() {
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, thread } : c));
   };
 
+  const handleAddProspectToEngaged = useCallback((p: StatusDailyProspect) => {
+    addClient({
+      name: p.name,
+      company: p.company,
+      email: p.email ?? '',
+      phone: '',
+      value: 0,
+      stage: 'Engaged',
+      notes: `Daily prospect. WHY: ${p.why}`,
+      lastContact: new Date().toISOString().split('T')[0],
+      tags: ['prospect', 'ai-generated'],
+      proposals: [],
+      industry: '',
+      outcome: 'active',
+      lostReason: '',
+      stageHistory: [],
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -181,6 +201,9 @@ function App() {
             clients={clients}
             onSaveToClient={saveProposalToClient}
           />
+        )}
+        {view === 'leads' && (
+          <Leads onAddToEngaged={handleAddProspectToEngaged} />
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />

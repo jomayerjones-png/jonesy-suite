@@ -143,42 +143,40 @@ function buildBriefingSystemPrompt(
     formal: 'Precise and measured. Institutional tone, structured sentences.',
   }[tone];
 
-  return `You are the Head of Partnerships at Status, preparing an internal briefing document for the Status sales team before a sponsor meeting.
+  return `You are the Head of Partnerships at Status, writing an internal briefing before a sponsor meeting. Status is a fast-moving startup — write like one. Short, punchy, no fluff.
 
 ${STATUS_CONTEXT}
-
-Write a concise internal briefing that prepares the team for a sponsor pitch. This is a working document — be candid, analytical, and direct. Not for the sponsor.
 
 DOCUMENT STRUCTURE — follow this exactly:
 
 # Internal Briefing: [Company]
-**Status Partnerships | [Current Month Year] | CONFIDENTIAL — INTERNAL USE ONLY**
+**Status Partnerships | [Current Month Year] | CONFIDENTIAL**
 
 ## Account Overview
-2–3 sentences: who they are, who we're meeting, where they are in the pipeline, and what brought them to Status.
+2–3 sentences max. Who they are, who we're meeting, why they're in the pipeline.
 
 ## Why Status is a Fit
-2–3 paragraphs of sharp analysis. Why does this brand need to be in front of Status's audience? What is the strategic case for this sponsorship? Reference their known campaigns, marketing objectives, or audience overlap with Status readers.
+3–5 tight bullet points. Why this brand needs to be in front of Status readers. Specific audience overlap, campaign timing, strategic rationale. No paragraphs.
 
 ## Meeting Objective
-One sentence: exactly what we want to achieve in this meeting.
+One sentence. What do we walk out with?
 
 ## Key Talking Points
-5 bullet points: the strongest, most specific arguments for a Status sponsorship for this brand. Tailor to the company's known priorities and audience.
+5 bullets. Our strongest arguments, tailored to this brand's known priorities. Specific, not generic.
 
 ## Proposed Package
-Which Status product makes sense (solo newsletter, branded content, events, podcast), at what rough investment level, and why.
+2–3 sentences. Solo newsletter / branded content / events / podcast — what makes sense, rough investment level, why now.
 
-## Likely Objections + Responses
-4 objections they might raise, each with a short, confident response:
-**Objection:** [what they say]
-**Response:** [how we reply]
+## Objections + Responses
+4 pairs. Short and sharp:
+**Objection:** [one sentence]
+**Response:** [one sentence]
 
 ## Next Steps
-3–4 concrete post-meeting actions with suggested timelines.
+3 bullets with timelines.
 
 TONE: ${toneGuide}
-LENGTH: 600–800 words. Tight and scannable.
+LENGTH: 400–500 words. Scannable. Bullet-heavy. No long paragraphs — if it's longer than 2 sentences, break it into bullets.
 FORMAT: Markdown with ## headings and bullet points.`
   + (referenceDocs.length > 0 ? `
 
@@ -216,41 +214,41 @@ function buildSponsorProposalSystemPrompt(
     formal: 'Polished and precise. Suitable for brand committee review.',
   }[tone];
 
-  return `You are the Head of Partnerships at Status, writing a client-facing sponsorship proposal. This document will be shared directly with the prospect.
+  return `You are the Head of Partnerships at Status, writing a client-facing sponsorship proposal. Status is a startup — keep this tight, specific, and confident. This goes directly to the sponsor.
 
 ${STATUS_CONTEXT}
 
 DOCUMENT STRUCTURE — follow this exactly:
 
-# Status × [Company]: A Sponsorship Partnership
+# Status × [Company]: Sponsorship Partnership
 
 ---
 
 ## Status
-[2 crisp sentences on what Status is: the daily media intelligence newsletter for America's media and entertainment decision-makers, founded by Oliver Darcy, 110K+ subscribers, 40% daily open rate, the direct line to media's power brokers.]
+2 sentences. What Status is, who reads it, why it matters. Direct.
 
 ## Why [Company]
-[2 paragraphs. The heart of the document. Make the brand feel seen and specifically chosen — not generically pitched. Research their marketing, brand positioning, target audience, and recent campaigns. Explain precisely why Status's readership is the right room for this brand right now. Be specific and flattering.]
+2–3 short paragraphs (2–3 sentences each). Make the brand feel specifically chosen. Reference a real campaign, product launch, or audience goal from 2024–2025. Why is the Status audience the right room for this brand right now?
 
 ## The Opportunity
-[2 paragraphs. What sponsorship with Status looks like for this brand. Which product(s) make sense. What the brand's message looks like in the Status context. Describe the audience they're reaching and why that matters for this specific company's objectives.]
+2 short paragraphs. What this sponsorship looks like — which product(s), what the brand's message looks like in context, what they're buying. Specific. No vague language.
 
 ## The Numbers
 - 110,000+ subscribers, growing 10% monthly
 - 40% daily open rate
 - Key markets: New York, Los Angeles, Washington, Silicon Valley
-- ~25% of readers report personal income above $200K
-- Cited by NYT, WSJ, CNN, Variety, Bloomberg, and more
+- ~25% of readers above $200K personal income
+- Cited by NYT, WSJ, CNN, Variety, Bloomberg
 
 ## Next Steps
-[2–3 sentences. Confident CTA. Reference any prior conversation or context. Name the next concrete step — a call, a follow-up, a proposal revision.]
+2 sentences. Direct CTA. Name the next step.
 
 ---
 Status Partnerships | partnerships@statusworld.com
 
 TONE: ${toneGuide}
-LENGTH: 400–600 words. Two clean pages. No bullet lists in the narrative sections — paragraphs throughout.
-FORMAT: Markdown with ## headings and the horizontal rules (---) as shown.`
+LENGTH: 350–450 words. Punchy. Short paragraphs — 2–3 sentences max each. No filler, no long narrative blocks.
+FORMAT: Markdown with ## headings and horizontal rules (---) as shown.`
   + (referenceDocs.length > 0 ? `
 
 REFERENCE MATERIAL (60% weight — draw heavily from these):
@@ -319,9 +317,15 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+const INTEL_API_KEY = 'status_suite_intel_api_key';
+
 export default function ProposalGenerator({ companyName, clients, onSaveToClient }: ProposalGeneratorProps) {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
   const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    if (apiKey) localStorage.setItem(INTEL_API_KEY, apiKey);
+  }, [apiKey]);
   const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
   const [proposal, setProposal] = useState('');
   const [loading, setLoading] = useState(false);
