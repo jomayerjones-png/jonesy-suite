@@ -369,8 +369,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     setNotes(prev => ({ ...prev, [key]: value }));
 
   const weekStartStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - d.getDay() + 1);
+    const d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return d.toISOString().split('T')[0];
   }, []);
 
@@ -417,13 +416,8 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const weekStart = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - d.getDay() + 1);
-    return d;
-  }, []);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEnd = useMemo(() => new Date(), []);
+  const weekStart = useMemo(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), []);
   const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
   const saveToArchive = () => {
