@@ -18,6 +18,7 @@ interface WeeklyReportProps {
 
 const STORAGE_KEY_REPORT = 'life_suite_weekly_report';
 const STORAGE_KEY_ARCHIVES = 'life_suite_report_archives';
+const INTEL_API_KEY = 'life_suite_intel_api_key';
 
 interface ReportNotes {
   pipelineUpdates: string;
@@ -375,6 +376,11 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const [hiddenSections, setHiddenSections] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setHiddenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_REPORT, JSON.stringify(notes));
   }, [notes]);
@@ -517,6 +523,127 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     deleteReportArchive(id).catch(() => {});
   };
 
+  const generateDraft = async () => {
+    const key = apiKey.trim();
+    if (!key) { setShowApiKeyInput(true); return; }
+    setGenerating(true);
+    setGenerateError('');
+
+    // ── Assemble week data ─────────────────────────────────────────
+    const stageMovements = clients.flatMap(c =>
+      (c.stageHistory ?? [])
+        .filter(e => e.date >= weekStartStr)
+        .map(e => `${c.name} @ ${c.company} → ${e.stage}`)
+    );
+
+    const newClients = stats.newThisWeek.map(c =>
+      `${c.name} @ ${c.company} (${c.stage}, ${formatCurrency(c.value)})`
+    );
+
+    const meetingLines = clients.flatMap(c =>
+      (c.meetingNotes ?? [])
+        .filter(n => n.date >= weekStartStr)
+        .map(n => {
+          const who = n.attendees ? ` with ${n.attendees}` : '';
+          const notes = n.notes ? ` — ${n.notes.slice(0, 120)}` : '';
+          const takeaways = n.takeaways ? ` KEY: ${n.takeaways.slice(0, 80)}` : '';
+          return `${c.name} @ ${c.company}${who} (${n.date})${notes}${takeaways}`;
+        })
+    );
+
+    const staleList = stats.staleClients
+      .sort((a, b) => b.value - a.value)
+      .map(c => `${c.name} @ ${c.company} — ${daysSince(c.lastContact)}d since contact (${c.stage}, ${formatCurrency(c.value)})`);
+
+    const topList = stats.topClients.map((c, i) =>
+      `${i + 1}. ${c.name} @ ${c.company} — ${c.stage} — ${formatCurrency(c.value)}`
+    );
+
+    const prevS = prevStats;
+    const deltaTotal = prevS ? stats.totalValue - prevS.totalValue : null;
+    const deltaActive = prevS ? stats.activeValue - prevS.activeValue : null;
+    const deltaCount = prevS ? clients.length - prevS.clientCount : null;
+
+    const prompt = `You are writing a weekly BD report for Jo Mayer Jones, CRO of LIFE magazine (relaunching September 2026 with Karlie Kloss and Josh Kushner). Write like a sharp, direct chief of staff — specific, no filler, action-oriented.
+
+WEEK: ${weekLabel}
+
+PIPELINE NUMBERS:
+- Total pipeline: ${formatCurrency(stats.totalValue)}${deltaTotal !== null ? ` (${deltaTotal >= 0 ? '+' : ''}${formatCurrency(deltaTotal)} vs last week)` : ''}
+- Active value: ${formatCurrency(stats.activeValue)}${deltaActive !== null ? ` (${deltaActive >= 0 ? '+' : ''}${formatCurrency(deltaActive)} vs last week)` : ''}
+- Closed: ${formatCurrency(stats.closedValue)} across ${stats.byStage.Close.length} deals
+- Total clients: ${clients.length}${deltaCount !== null ? ` (${deltaCount >= 0 ? '+' : ''}${deltaCount} vs last week)` : ''}
+- Contacted this week: ${stats.contactedThisWeek.length}
+- Stale (7d+): ${stats.staleClients.length}
+
+TOP OPPORTUNITIES:
+${topList.length > 0 ? topList.join('\n') : 'None yet'}
+
+STAGE MOVEMENTS THIS WEEK:
+${stageMovements.length > 0 ? stageMovements.join('\n') : 'No stage changes recorded'}
+
+NEW CLIENTS ADDED:
+${newClients.length > 0 ? newClients.join('\n') : 'None this week'}
+
+MEETINGS & CALL NOTES THIS WEEK:
+${meetingLines.length > 0 ? meetingLines.join('\n') : 'No call notes logged this week'}
+
+REQUIRES FOLLOW-UP (stale):
+${staleList.length > 0 ? staleList.slice(0, 6).join('\n') : 'All contacts current'}
+
+---
+Generate a JSON object with exactly these four fields. Each field is a string with bullet points separated by newlines (start each with the text, no dash or bullet character — those are added by the UI).
+
+"pipelineUpdates" — 3–5 bullets on what moved in the pipeline this week. Reference specific names and companies. Note deals that advanced, stalled, or need a push. Include WoW value change if meaningful.
+
+"meetings" — list each meeting from the call notes above as: "[Name] @ [Company] — [one-line summary of outcome or next step] ([date])". If no notes logged, write one bullet: "No meetings logged this week — add notes in client cards to auto-populate".
+
+"actions" — 3–5 bullets on concrete actions taken this week (proposals sent, emails sent, follow-ups done, intros made). Infer from the data and stage movements where possible.
+
+"nextFocus" — 3–5 bullets on the highest-priority actions for next week. Be specific: which deal needs closing, which contact needs chasing, what's the decision to force. Think like a CRO.
+
+Return only the JSON object. No prose, no markdown fences.`;
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: { message?: string } }).error?.message ?? `API error ${resp.status}`);
+      }
+
+      const data = await resp.json() as { content: { type: string; text?: string }[] };
+      const text = data.content.find(b => b.type === 'text')?.text ?? '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON returned from Claude');
+      const draft = JSON.parse(jsonMatch[0]) as Partial<ReportNotes>;
+
+      setNotes(prev => ({
+        pipelineUpdates: draft.pipelineUpdates || prev.pipelineUpdates,
+        meetings: draft.meetings || prev.meetings,
+        actions: draft.actions || prev.actions,
+        nextFocus: draft.nextFocus || prev.nextFocus,
+      }));
+    } catch (e) {
+      setGenerateError(e instanceof Error ? e.message : 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!reportRef.current) return;
     await navigator.clipboard.writeText(reportRef.current.innerText);
@@ -584,10 +711,24 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
           <div className="flex items-center gap-2">
             {!showArchives && (
               <>
-                <button onClick={handleEmailDigest} className="btn-secondary text-sm" title="Copy a concise 5-line digest for Slack or email">
+                <button
+                  onClick={generateDraft}
+                  disabled={generating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all bg-[#E8002D] text-white border-[#E8002D] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Use Claude to draft all four sections from this week's pipeline data"
+                >
+                  {generating ? (
+                    <>
+                      <span className="animate-spin text-xs">◌</span> Drafting…
+                    </>
+                  ) : (
+                    <>✦ Generate Draft</>
+                  )}
+                </button>
+                <button onClick={handleEmailDigest} className="btn-secondary text-sm hidden sm:inline-flex" title="Copy a concise 5-line digest for Slack or email">
                   {digestLabel}
                 </button>
-                <button onClick={handleCopy} className="btn-secondary text-sm">
+                <button onClick={handleCopy} className="btn-secondary text-sm hidden sm:inline-flex">
                   {copyLabel}
                 </button>
                 <button
@@ -617,6 +758,35 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
             </button>
           </div>
         </div>
+
+        {/* API key prompt */}
+        {showApiKeyInput && (
+          <div className="bg-brand-light border-b border-brand-cream px-6 py-3 flex items-center gap-3 no-print">
+            <span className="text-xs text-brand-dark/60 flex-shrink-0">Anthropic API key to generate draft:</span>
+            <input
+              type="password"
+              className="input-field flex-1 py-1.5 text-xs font-mono max-w-xs"
+              placeholder="sk-ant-…"
+              value={apiKey}
+              onChange={e => { setApiKey(e.target.value); localStorage.setItem(INTEL_API_KEY, e.target.value); }}
+            />
+            <button
+              onClick={() => { setShowApiKeyInput(false); if (apiKey.trim()) generateDraft(); }}
+              className="btn-primary text-xs py-1.5 px-3"
+            >
+              Generate
+            </button>
+            <button onClick={() => setShowApiKeyInput(false)} className="text-xs text-brand-dark/40 hover:text-brand-dark">✕</button>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {generateError && (
+          <div className="bg-red-50 border-b border-red-200 px-6 py-2 flex items-center gap-2 no-print">
+            <span className="text-xs text-red-600">⚠ {generateError}</span>
+            <button onClick={() => setGenerateError('')} className="text-xs text-red-400 hover:text-red-600 ml-auto">✕</button>
+          </div>
+        )}
 
         {/* Archives panel */}
         {showArchives ? (
