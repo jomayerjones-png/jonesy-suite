@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Client, STAGE_CONFIG, formatCurrency, formatDate, daysSince } from '../../types';
 
+
 interface ClientCardProps {
   client: Client;
   onEdit: (client: Client) => void;
