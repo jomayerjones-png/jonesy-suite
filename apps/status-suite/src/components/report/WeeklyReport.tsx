@@ -491,10 +491,6 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
       `${c.name} @ ${c.company} (${c.stage}, ${formatCurrency(c.value)})`
     );
 
-    const staleList = stats.staleClients
-      .sort((a, b) => b.value - a.value)
-      .map(c => `${c.name} @ ${c.company} — ${daysSince(c.lastContact)}d stale (${c.stage}, ${formatCurrency(c.value)})`);
-
     const topList = stats.topClients.map((c, i) =>
       `${i + 1}. ${c.name} @ ${c.company} — ${c.stage} — ${formatCurrency(c.value)}`
     );
@@ -504,7 +500,11 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     const deltaActive = prevS ? stats.activeValue - prevS.activeValue : null;
     const deltaCount = prevS ? clients.length - prevS.clientCount : null;
 
-    const prompt = `You are writing a weekly BD report for Johanna Mayer-Jones at STATUS — a premium media intelligence newsletter for America's media, Hollywood, and tech decision-makers. 110K+ subscribers, 40% daily open rate, founded by Oliver Darcy. Write like a sharp, direct chief of staff — bullet points, specific names, zero filler. Short and punchy.
+    const prompt = `Write a weekly revenue update FROM Johanna Mayer-Jones (Head of Revenue / CRO at Jonesy & Co, managing the STATUS sponsorship pipeline) TO Jon Passantino and Oliver Darcy (founders of STATUS).
+
+This is a founder update — direct, confident, no fluff. Jon and Oliver are busy; write like a sharp operator giving them exactly what they need to know. First-person ("I"), addressed to them implicitly. Short punchy bullets, specific names, honest about what's moving and what's stuck.
+
+STATUS context: 110K+ subscribers, 40% daily open rate, the essential media intelligence newsletter. Johanna is selling sponsorships — solo newsletter, branded content, events (Power Players Podcast, Breaking the Status Quo Awards, Insiders), podcast.
 
 WEEK: ${weekLabel}
 
@@ -512,9 +512,8 @@ PIPELINE NUMBERS:
 - Total pipeline: ${formatCurrency(stats.totalValue)}${deltaTotal !== null ? ` (${deltaTotal >= 0 ? '+' : ''}${formatCurrency(deltaTotal)} vs last week)` : ''}
 - Active value: ${formatCurrency(stats.activeValue)}${deltaActive !== null ? ` (${deltaActive >= 0 ? '+' : ''}${formatCurrency(deltaActive)} vs last week)` : ''}
 - Closed: ${formatCurrency(stats.closedValue)} across ${stats.byStage.Close.length} deals
-- Total sponsors: ${clients.length}${deltaCount !== null ? ` (${deltaCount >= 0 ? '+' : ''}${deltaCount} vs last week)` : ''}
+- Total sponsors in pipeline: ${clients.length}${deltaCount !== null ? ` (${deltaCount >= 0 ? '+' : ''}${deltaCount} vs last week)` : ''}
 - Contacted this week: ${stats.contactedThisWeek.length}
-- Stale (7d+): ${stats.staleClients.length}
 
 TOP OPPORTUNITIES:
 ${topList.length > 0 ? topList.join('\n') : 'None yet'}
@@ -525,19 +524,16 @@ ${stageMovements.length > 0 ? stageMovements.join('\n') : 'No stage changes reco
 NEW SPONSORS ADDED:
 ${newClientsList.length > 0 ? newClientsList.join('\n') : 'None this week'}
 
-REQUIRES FOLLOW-UP (stale):
-${staleList.length > 0 ? staleList.slice(0, 6).join('\n') : 'All contacts current'}
-
 ---
-Return a JSON object with exactly these four fields. Each value is a string with bullets separated by newlines — write the text directly, no dash/bullet character prefix, no long paragraphs.
+Return a JSON object with exactly these four fields. Each value is a string with bullet points separated by newlines — write the text directly, no dash/bullet prefix. First-person voice throughout ("I spoke with...", "I sent...", "I'm pushing...").
 
-"pipelineUpdates" — 3–5 tight bullets: what moved, what's stuck, what's the WoW change. Name specific sponsors.
+"pipelineUpdates" — 3–5 bullets: what moved, what the numbers look like vs last week, what's stuck and why. Specific names.
 
-"meetings" — 3–5 bullets on who you spoke with and what came out of it. If no data, write: "No meetings logged this week — add notes to pipeline cards to auto-populate next week".
+"meetings" — 3–5 bullets on calls and meetings this week, what came out of each. If no data: "No meetings logged this week — I'll add notes to pipeline cards going forward."
 
-"actions" — 3–5 bullets: proposals sent, outreach made, follow-ups done, intros facilitated. Infer from stage movements.
+"actions" — 3–5 bullets: outreach sent, proposals delivered, follow-ups made, intros facilitated. Infer from stage movements.
 
-"nextFocus" — 3–5 bullets: the highest-priority moves for next week. Specific deals to close, contacts to chase, decisions to force. Think like a Head of Revenue.
+"nextFocus" — 3–5 bullets: my priorities next week. Which deal am I closing, who am I chasing, what decision am I forcing. Sharp and specific.
 
 Return only the JSON. No prose, no markdown fences.`;
 
@@ -859,14 +855,12 @@ Return only the JSON. No prose, no markdown fences.`;
                   <div className="space-y-1.5">
                     {stats.topClients.map((client, i) => {
                       const cfg = STAGE_CONFIG[client.stage];
-                      const stale = isStale(client.lastContact);
                       return (
-                        <div key={client.id} className={`flex items-center gap-3 p-2 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
+                        <div key={client.id} className="flex items-center gap-3 p-2 rounded-lg bg-brand-light">
                           <span className="w-5 h-5 rounded-full bg-[#E8471C]/20 text-[#E8471C] font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-xs text-brand-dark truncate">
                               {client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span>
-                              {stale && <span className="ml-1 text-amber-600 text-xs">stale</span>}
                             </p>
                           </div>
                           <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
@@ -879,33 +873,6 @@ Return only the JSON. No prose, no markdown fences.`;
                 </SectionWrapper>
               )}
 
-              {stats.staleClients.length > 0 && (
-                <SectionWrapper title="Requires Attention" hidden={!!hiddenSections.attention} onToggle={() => toggleSection('attention')}>
-                <div className="card border-amber-200 p-4">
-                  <div className="mb-3">
-                    <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Requires Attention</h2>
-                    <p className="text-xs text-amber-700">{stats.staleClients.length} sponsor{stats.staleClients.length > 1 ? 's' : ''} not contacted in 7+ days</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    {stats.staleClients
-                      .sort((a, b) => daysSince(b.lastContact) - daysSince(a.lastContact))
-                      .map(client => {
-                        const days = daysSince(client.lastContact);
-                        const cfg = STAGE_CONFIG[client.stage];
-                        return (
-                          <div key={client.id} className="flex items-center justify-between p-2 bg-amber-50 rounded-lg border border-amber-100">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-xs text-brand-dark">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
-                              <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
-                            </div>
-                            <p className="text-xs font-bold text-amber-700">{days}d</p>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-                </SectionWrapper>
-              )}
 
               <SectionWrapper title="Meetings & Calls" hidden={!!hiddenSections.meetings} onToggle={() => toggleSection('meetings')}>
               <EditableSection
