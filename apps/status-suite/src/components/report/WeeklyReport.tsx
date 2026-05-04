@@ -496,7 +496,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
 
     const prompt = `Write a weekly revenue update FROM Johanna Mayer-Jones (Head of Revenue / CRO at Jonesy & Co, managing the STATUS sponsorship pipeline) TO Jon Passantino and Oliver Darcy (founders of STATUS).
 
-This is a founder update — direct, confident, no fluff. Jon and Oliver are busy; write like a sharp operator giving them exactly what they need to know. First-person ("I"), addressed to them implicitly. Short punchy bullets, specific names, honest about what's moving and what's stuck.
+Tone: factual, concise, professional. State what happened — meetings attended, progress made, where things stand. No subjective commentary, no performance judgement, no editorialising. First-person ("I"), addressed to them implicitly. Short bullets, specific names.
 
 STATUS context: 110K+ subscribers, 40% daily open rate, the essential media intelligence newsletter. Johanna is selling sponsorships — solo newsletter, branded content, events (Power Players Podcast, Breaking the Status Quo Awards, Insiders), podcast.
 
@@ -519,15 +519,15 @@ NEW SPONSORS ADDED:
 ${newClientsList.length > 0 ? newClientsList.join('\n') : 'None this week'}
 
 ---
-Return a JSON object with exactly these four fields. Each value is a string with bullet points separated by newlines — write the text directly, no dash/bullet prefix. First-person voice throughout ("I spoke with...", "I sent...", "I'm pushing...").
+Return a JSON object with exactly these four fields. Each value is a string with bullet points separated by newlines — write the text directly, no dash/bullet prefix. First-person ("I spoke with...", "I met with...", "I sent..."). Facts only — no opinions on performance.
 
-"pipelineUpdates" — 3–5 bullets: what moved, what the numbers look like vs last week, what's stuck and why. Specific names.
+"pipelineUpdates" — 3–5 bullets: current pipeline numbers, what moved this week, where each key deal stands. Names and stages only — no commentary.
 
-"meetings" — 3–5 bullets on calls and meetings this week, what came out of each. If no data: "No meetings logged this week — I'll add notes to pipeline cards going forward."
+"meetings" — 3–5 bullets: meetings and calls attended this week, who was present, what was discussed or agreed. If no data: "No meetings logged this week."
 
-"actions" — 3–5 bullets: outreach sent, proposals delivered, follow-ups made, intros facilitated. Infer from stage movements.
+"actions" — 3–5 bullets: outreach sent, proposals delivered, follow-ups made. Factual summary of activity.
 
-"nextFocus" — 3–5 bullets: my priorities next week. Which deal am I closing, who am I chasing, what decision am I forcing. Sharp and specific.
+"nextFocus" — 3–5 bullets: planned activity for next week. Meetings scheduled, follow-ups to send, proposals to deliver.
 
 Return only the JSON. No prose, no markdown fences.`;
 
