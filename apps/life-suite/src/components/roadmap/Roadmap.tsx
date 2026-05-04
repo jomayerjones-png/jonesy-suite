@@ -209,25 +209,22 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
 
 // ── Data ─────────────────────────────────────────────────────────
 const WEEKS_INIT = [
-  { id: 1, label: 'W/C 16 Mar', theme: 'Foundations', phase: 'now' as const, milestones: ['Materials locked and ready', 'Positioning defined', 'Packaging built', 'Pipeline seeded'] },
-  { id: 2, label: 'W/C 23 Mar', theme: 'Market', phase: 'now' as const, milestones: ['Meetings underway', 'Feedback gathered', 'Pipeline developed further'] },
-  { id: 3, label: 'W/C 30 Mar', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals generated', 'Opportunities in active discussion'] },
-  { id: 4, label: 'W/C 6 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Proposals refined and submitted', 'Follow-up conversations active'] },
-  { id: 5, label: 'W/C 13 Apr', theme: 'Proposals', phase: 'april' as const, milestones: ['Pipeline pressure applied', 'Decisions being sought'] },
-  { id: 6, label: 'W/C 20 Apr', theme: 'Deal Moment', phase: 'dinner' as const, milestones: ['Relationships deepened', 'Deals crystallising'] },
-  { id: 7, label: 'W/C 28 Apr', theme: 'Close', phase: 'may' as const, milestones: ['Final negotiations', 'Agreements confirmed', 'Deals closed by 1 May'] },
-  { id: 8, label: 'W/C 4 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Production window opens — 6 weeks to 22 Jun', 'Large campaigns briefed and kicked off', 'Creative execution begins'] },
-  { id: 9, label: 'W/C 11 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Content and assets in progress', 'Client reviews scheduled', 'Campaign delivery tracked'] },
-  { id: 10, label: 'W/C 18 May', theme: 'Production Sprint', phase: 'may' as const, milestones: ['Final approvals sought', 'Print-ready materials signed off', 'Campaigns can stretch into Issue 2 if needed'] },
-  { id: 11, label: 'W/C 25 May', theme: 'Launch Prep', phase: 'june' as const, milestones: ['Press and distribution prep', 'Launch comms ready', 'Issue 1 clients: first-issue placement confirmed'] },
+  { id: 1, label: 'W/C 4 May', theme: 'Close Sprint', phase: 'now' as const, milestones: ['Meta (Alex Schultz) — follow-up on proposal, push for decision', 'Google (Chris Waller) — follow-up on proposal, push for decision', 'Apple, Nike — convert Meeting Set to Proposal this week'] },
+  { id: 2, label: 'W/C 11 May', theme: 'Proposals Out', phase: 'now' as const, milestones: ['AT&T, Samsung, Verizon — proposal or decision meeting', 'Fidelity, NYSE — advance to proposal', 'Airbnb, Delta, Spotify — push engaged accounts to meetings'] },
+  { id: 3, label: 'W/C 18 May', theme: 'Decision Week', phase: 'april' as const, milestones: ['Target: first signed deal by end of week', 'Shopify (KK lead), AmEx (KK+GBV) — activate talent relationships', 'LVMH (Delphine Arnault), JPMorgan (Carla Hassan) — proposal meetings'] },
+  { id: 4, label: 'W/C 25 May', theme: 'Production Lock', phase: 'dinner' as const, milestones: ['Brief signed partners, kick off creative', 'Netflix (Marian Lee), Adobe (Stacy Sharpe) — close or advance', 'Cannes meeting schedule confirmed'] },
+  { id: 5, label: 'W/C 1 Jun', theme: 'Cannes Prep', phase: 'may' as const, milestones: ['LVMH, luxury, auto — confirm Cannes meetings', 'Pre-Cannes outreach to global brand targets', 'Dinner and event schedule locked'] },
+  { id: 6, label: 'W/C 8 Jun', theme: 'Pre-Cannes Push', phase: 'may' as const, milestones: ['Final in-person meetings before Cannes', 'AmEx, JPMorgan — KK+GBV available for meetings', 'All Cannes appointments confirmed'] },
+  { id: 7, label: 'W/C 15 Jun', theme: 'Cannes Lions', phase: 'june' as const, milestones: ['Relationship meetings and pitches on the ground', 'LVMH, luxury, media accounts priority', 'Exit with 2 deals in active close'] },
+  { id: 8, label: 'W/C 22 Jun', theme: 'Post-Cannes Close', phase: 'june' as const, milestones: ['Hot follow-ups within 48 hours', 'Target: 4 deals signed by 27 June', 'Brief new signed partners, production begins'] },
 ];
 
 const PHASE_GROUPS: Partial<Record<Phase, string>> = {
-  now: 'March — Foundations',
-  april: 'April — Proposals & Pipeline',
-  dinner: 'Dinner, 23 April',
-  may: 'May — Deals Close · Production Sprint Begins',
-  june: 'June — Launch Prep',
+  now: 'May — Close Sprint',
+  april: 'May — Decision Week',
+  dinner: 'Production Begins · 25 May',
+  may: 'June — Cannes Preparation',
+  june: 'Cannes Lions · 15–21 June & Close by 27 June',
 };
 
 function parseWeekLabel(label: string): Date | null {
@@ -238,10 +235,10 @@ function parseWeekLabel(label: string): Date | null {
 }
 
 const CLOSERS_INIT = [
-  { id: 1, category: 'PR & Marketing', items: ['PR and marketing plans confirmed for Issue 1', 'Partner visibility commitments defined', 'Editorial calendar shared with key partners'] },
-  { id: 2, category: 'Launch Event & Q4 Activations', items: ['Launch event format confirmed', 'Q4 activation options presented to partners', 'Partner presence at launch event defined'] },
-  { id: 3, category: 'Decision on Next Issues', items: ['Decision on next 2–3 issue themes', 'Forward-planning commitments offered to partners', 'Multi-issue packages available for discussion'] },
-  { id: 4, category: 'Partner Activation Framework', items: ['Post-sale activation process agreed', 'Delivery ownership and contacts confirmed', 'Reporting and measurement approach aligned'] },
+  { id: 1, category: 'Proposal Sent — Decision Needed', items: ['Meta (Alex Schultz) — decision by 11 May', 'Google (Chris Waller) — decision by 11 May'] },
+  { id: 2, category: 'Meeting Set → Proposal This Week', items: ['Apple (Timothee Verrechia / NM+GBV)', 'Nike (Michael McSwain)', 'AT&T · Samsung · Verizon · Fidelity · NYSE'] },
+  { id: 3, category: 'Cannes Priority Accounts', items: ['LVMH (Delphine Arnault) — dinner at Cannes', 'AmEx (Elizabeth Rutledge) — KK+GBV meeting', 'JPMorgan (Carla Hassan) — confirm by 1 June'] },
+  { id: 4, category: 'Close Goals', items: ['2 deals signed by 1 June', '2 more in active close at Cannes', '4 deals signed by 27 June'] },
 ];
 
 type Phase = 'now' | 'april' | 'dinner' | 'may' | 'june';
@@ -607,8 +604,8 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
           <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '22px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
         </div>
         <div style={{ textAlign: 'right', fontSize: '9pt', color: '#888' }}>
-          <p style={{ margin: 0, fontWeight: 600 }}>Strategic Roadmap · March – June 2026</p>
-          <p style={{ margin: 0 }}>{subView === 'roadmap' ? 'Week by Week' : 'Close by 1 May'}</p>
+          <p style={{ margin: 0, fontWeight: 600 }}>Commercial Roadmap · May – June 2026</p>
+          <p style={{ margin: 0 }}>{subView === 'roadmap' ? 'Week by Week' : 'Close by 27 June'}</p>
         </div>
       </div>
 
@@ -779,7 +776,7 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
       {/* Sub-navigation tabs */}
       <div className="no-print flex items-center justify-between border-b border-gray-200 mb-8">
         <div className="flex gap-0">
-          {([['roadmap', 'Week by Week'], ['close', 'Close by 1 May']] as [RoadmapView, string][]).map(([id, label]) => (
+          {([['roadmap', 'Week by Week'], ['close', 'Close by 27 Jun']] as [RoadmapView, string][]).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSubView(id)}
@@ -804,19 +801,19 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
       {/* Page title */}
       <div className="mb-7">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
-          Strategic Roadmap · March – June 2026
+          Commercial Roadmap · May – June 2026
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-brand-dark">
-          {subView === 'roadmap' ? 'The Road to Launch' : 'What We Must Finalise to Close Deals'}
+          {subView === 'roadmap' ? '8 Weeks to Close' : 'What Needs to Close by 27 June'}
         </h1>
         {subView === 'roadmap' && (
           <p className="mt-1.5 text-sm text-gray-500">
-            Deals closed by 1 May · Magazine launch June 2026
+            Goal: 2 signed by 1 June · 4 signed by 27 June · Exit Cannes with a clean pipeline
           </p>
         )}
         {subView === 'close' && (
           <p className="mt-1.5 text-sm text-gray-500">
-            Gate: <strong className="text-brand-gold">1 May 2026</strong> · All of the below must be resolved before contracts are signed.
+            Gate: <strong className="text-brand-gold">27 June 2026</strong> · Priority accounts and what needs to happen before each can close.
           </p>
         )}
       </div>
@@ -882,13 +879,13 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
           <div className="mt-7 bg-brand-gold rounded-lg px-6 py-5 flex items-center justify-between">
             <div>
               <div className="text-[10px] text-white/60 tracking-widest uppercase mb-1">North Star</div>
-              <div className="text-xl font-bold text-white tracking-tight">June 2026 — Magazine goes to print, Issue 1</div>
+              <div className="text-xl font-bold text-white tracking-tight">27 June 2026 — 4 founding partners signed, production briefed</div>
             </div>
             <span className="text-2xl text-white/30">✦</span>
           </div>
 
           <div className="mt-2.5 px-3.5 py-2.5 bg-white border border-gray-200 rounded-md text-xs text-gray-400">
-            Custom programmes require 6 weeks production. Deals closed by 1 May enables delivery for Issue 1. Larger campaigns can stretch across Issues 1 & 2.
+            Custom programmes require 6 weeks production lead time. Deals signed by 1 June deliver fully for Issue 1. Larger campaigns can extend across Issues 1 & 2.
           </div>
         </>
       )}
