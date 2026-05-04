@@ -657,6 +657,14 @@ export default function ClientModal({
     if (tab === 'intelligence') intelEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [intelThread, tab]);
 
+  // Auto-fetch news when Intel tab opens and API key is available but no cache
+  useEffect(() => {
+    if (tab === 'intelligence' && intelApiKey.trim() && !news && !newsFetching) {
+      fetchNews();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   const saveIntelApiKey = (key: string) => {
     setIntelApiKey(key);
     localStorage.setItem(INTEL_API_KEY, key);
@@ -709,16 +717,18 @@ Be concise, strategic, and focused on helping close this partnership. When asked
           'Content-Type': 'application/json',
           'x-api-key': intelApiKey.trim(),
           'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'web-search-2025-03-05',
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
           messages: [{
             role: 'user',
-            content: `Search for the latest news about ${client.name} at ${client.company} from WSJ, Washington Post, Financial Times, Time, or Yahoo Finance. Find 3-5 recent headlines. Then provide: 1) A bulleted list of the headlines with source names, 2) A 2-3 sentence "Key Insights" summary of what this news means for a media partnership pitch with LIFE magazine. Format your response as JSON: {"articles": [{"title": "...", "source": "...", "url": "..."}], "summary": "..."}`
+            content: `Search for the latest news (2025) about ${client.name} at ${client.company}${client.industry ? ` (${client.industry})` : ''}. Find 4-6 recent headlines covering brand campaigns, partnerships, executive moves, earnings, or major announcements. Then write a "Key Insights" paragraph explaining what this means for a LIFE magazine founding partnership pitch — specifically why this company and this person are well-timed targets right now.
+
+Return ONLY a JSON object (no markdown fences, no prose outside it):
+{"articles":[{"title":"...","source":"...","url":"..."}],"summary":"2-3 sentences of key insights for the LIFE pitch."}`
           }],
         }),
       });
@@ -727,17 +737,24 @@ Be concise, strategic, and focused on helping close this partnership. When asked
         throw new Error((err as { error?: { message?: string } }).error?.message ?? `API error ${resp.status}`);
       }
       const data = await resp.json() as { content: { type: string; text?: string }[] };
-      const textBlock = data.content.find(b => b.type === 'text');
-      if (!textBlock?.text) throw new Error('No response from API');
-      const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Could not parse news response');
-      const parsed = JSON.parse(jsonMatch[0]) as { articles: NewsArticle[]; summary: string };
+      // Web search returns multiple content blocks — get the last text block (final answer)
+      const textBlocks = data.content.filter(b => b.type === 'text' && b.text);
+      const lastText = textBlocks[textBlocks.length - 1]?.text ?? '';
+      if (!lastText) throw new Error('No text response from API');
+
+      // Extract JSON — try fence first, then bare object
+      const fenceMatch = lastText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      const bareMatch = lastText.match(/\{[\s\S]*"articles"[\s\S]*\}/);
+      const jsonStr = fenceMatch?.[1] ?? bareMatch?.[0] ?? null;
+      if (!jsonStr) throw new Error('Could not parse news response — try refreshing');
+
+      const parsed = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as { articles: NewsArticle[]; summary: string };
       const cache: Client['newsCache'] = {
         fetchedAt: new Date().toISOString(),
         summary: parsed.summary,
-        articles: parsed.articles,
+        articles: parsed.articles ?? [],
       };
-      setNews({ summary: parsed.summary, articles: parsed.articles });
+      setNews({ summary: parsed.summary, articles: parsed.articles ?? [] });
       onUpdateNewsCache?.(cache);
     } catch (e) {
       setNewsError(e instanceof Error ? e.message : 'Failed to fetch news');
