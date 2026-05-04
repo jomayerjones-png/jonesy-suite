@@ -357,7 +357,10 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   useEffect(() => {
     fetchTodayStatusProspects()
       .then(data => setProspects(data))
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load prospects'))
+      .catch(e => {
+        const msg = e instanceof Error ? e.message : (e as { message?: string })?.message ?? 'Failed to load prospects';
+        setError(msg);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -498,7 +501,9 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-xs font-semibold text-red-700 mb-1">Could not load prospects</p>
+                  <p className="text-xs text-red-600 font-mono break-all">{error}</p>
+                  <p className="text-xs text-red-500 mt-2">If this says "relation does not exist" — the Supabase table needs creating. See setup instructions.</p>
                 </div>
               )}
 
