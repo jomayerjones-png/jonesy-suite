@@ -86,49 +86,61 @@ function App() {
     const d = today();
     setClients(prev => prev.map(c => {
       if (c.id !== id) return c;
-      return {
+      const updated = {
         ...c,
         stage: newStage,
         lastContact: d,
         outcome: newStage === 'Close' ? 'won' : c.outcome,
         stageHistory: [...(c.stageHistory ?? []), { stage: newStage, date: d }],
       };
+      upsertClient(updated).catch(() => {});
+      return updated;
     }));
   };
 
   const markClientLost = (id: string, reason: string) => {
     const d = today();
-    setClients(prev => prev.map(c =>
-      c.id !== id ? c : {
+    setClients(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const updated = {
         ...c,
         outcome: 'lost',
         lostReason: reason,
         stageHistory: [...(c.stageHistory ?? []), { stage: c.stage, date: d }],
-      }
-    ));
+      };
+      upsertClient(updated).catch(() => {});
+      return updated;
+    }));
   };
 
   const reactivateClient = (id: string) => {
-    setClients(prev => prev.map(c =>
-      c.id !== id ? c : { ...c, outcome: 'active', lostReason: '' }
-    ));
+    setClients(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const updated = { ...c, outcome: 'active', lostReason: '' };
+      upsertClient(updated).catch(() => {});
+      return updated;
+    }));
   };
 
   const saveProposalToClient = (clientId: string, proposal: SavedProposal) => {
     setClients(prev =>
-      prev.map(c =>
-        c.id === clientId ? { ...c, proposals: [...(c.proposals ?? []), proposal] } : c
-      )
+      prev.map(c => {
+        if (c.id !== clientId) return c;
+        const updated = { ...c, proposals: [...(c.proposals ?? []), proposal] };
+        upsertClient(updated).catch(() => {});
+        return updated;
+      })
     );
   };
 
   const deleteProposalFromClient = (clientId: string, proposalId: string) => {
     setClients(prev =>
-      prev.map(c =>
-        c.id === clientId
-          ? { ...c, proposals: (c.proposals ?? []).filter(p => p.id !== proposalId) }
-          : c
-      )
+      prev.map(c => {
+        if (c.id !== clientId) return c;
+        const updated = { ...c, proposals: (c.proposals ?? []).filter(p => p.id !== proposalId) };
+        upsertClient(updated).catch(() => {});
+        return updated;
+      })
     );
   };
 
