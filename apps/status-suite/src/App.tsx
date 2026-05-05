@@ -104,7 +104,7 @@ function App() {
       if (c.id !== id) return c;
       const updated = {
         ...c,
-        outcome: 'lost',
+        outcome: 'lost' as const,
         lostReason: reason,
         stageHistory: [...(c.stageHistory ?? []), { stage: c.stage, date: d }],
       };
@@ -116,7 +116,7 @@ function App() {
   const reactivateClient = (id: string) => {
     setClients(prev => prev.map(c => {
       if (c.id !== id) return c;
-      const updated = { ...c, outcome: 'active', lostReason: '' };
+      const updated = { ...c, outcome: 'active' as const, lostReason: '' };
       upsertClient(updated).catch(() => {});
       return updated;
     }));

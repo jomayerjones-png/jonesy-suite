@@ -1,8 +1,154 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchTodayStatusProspects, updateStatusProspectStatus, StatusDailyProspect } from '../../lib/supabase';
+import { fetchTodayStatusProspects, updateStatusProspectStatus, StatusDailyProspect, supabase } from '../../lib/supabase';
 
 interface LeadsProps {
   onAddToEngaged: (prospect: StatusDailyProspect) => void;
+}
+
+// ── Prospect generation ───────────────────────────────────────────
+
+const COMPANY_POOLS: Record<string, string[]> = {
+  'tech or AI': [
+    'Google', 'Microsoft', 'Meta', 'Apple', 'Amazon', 'Nvidia', 'Adobe', 'Salesforce',
+    'LinkedIn', 'Stripe', 'Coinbase', 'Palantir', 'Databricks', 'OpenAI', 'Anthropic',
+    'Oracle', 'Cisco', 'IBM', 'Samsung Electronics', 'Uber', 'Airbnb', 'DoorDash',
+    'Pinterest', 'Reddit', 'Substack', 'beehiiv', 'Figma', 'Canva', 'Notion', 'Zoom',
+  ],
+  'finance, consulting, or professional services': [
+    'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'BlackRock', 'Blackstone',
+    'Fidelity Investments', 'American Express', 'Mastercard', 'Visa', 'Capital One',
+    'UBS', 'Citi', 'Bank of America', 'McKinsey & Company', 'BCG', 'Bain & Company',
+    'Deloitte', 'Accenture', 'PwC', 'Edelman', 'Weber Shandwick',
+  ],
+  'media, entertainment, or Hollywood': [
+    'Disney', 'Warner Bros. Discovery', 'Paramount Global', 'Universal Pictures',
+    'Amazon MGM Studios', 'Apple TV+', 'HBO', 'CAA', 'WME', 'UTA', 'Endeavor',
+    'Condé Nast', 'Hearst', 'The Atlantic', 'Axios', 'Puck', 'Vox Media',
+    'iHeartMedia', 'SiriusXM', 'Variety', 'Hollywood Reporter', 'Deadline',
+  ],
+};
+
+const CATEGORIES = [
+  'tech or AI',
+  'finance, consulting, or professional services',
+  'media, entertainment, or Hollywood',
+];
+
+function buildOneProspectPrompt(category: string, pool: string[]): string {
+  return `You are the Head of Partnerships at Status — the essential daily media intelligence newsletter for America's media, Hollywood, and tech decision-makers. Founded by Oliver Darcy (former CNN senior media reporter). 110,000+ subscribers, 40% daily open rate. Widely cited by NYT, WSJ, CNN, Variety, Bloomberg.
+
+Status sponsorship products:
+- Solo Newsletter Sponsorship: one brand, one edition, 110K+ readers, 40% open rate
+- Branded Content: native editorial in the Status voice
+- Event Sponsorship: Power Players Podcast, Breaking the Status Quo Awards, Insiders events
+- Podcast: flagship Status podcast to the same audience
+
+Find 1 senior decision-maker (CMO, VP Marketing, SVP Brand, Head of Partnerships, or equivalent) at a ${category} brand from this pool:
+${pool.join(', ')}
+
+Pick the company with the strongest "why Status, why now" rationale. Use your knowledge of recent campaigns, launches, rebrands, or cultural moments from 2024–2025.
+
+WHY: One sentence, present tense, specific — name a real campaign, launch, or brand moment. No generics.
+Example: "Your 'Open to More' B2B campaign targeting CFOs maps directly to the Status readers who open us every morning."
+
+Draft email:
+Subject: Status — [Company]
+Hi [First Name]
+I'm reaching out from Status — the daily media intelligence newsletter founded by Oliver Darcy, read by the decision-makers driving American media, Hollywood, and tech.
+We have 110,000+ subscribers and a 40% daily open rate — studio chiefs, newsroom leaders, tech executives, and Washington power players.
+[Company] has been on our list. [WHY sentence.]
+We'd love to talk about a sponsorship that puts your brand directly in front of this audience. Solo newsletter, branded content, events — or a combination.
+Would you have 20 minutes this week?
+Warm regards,
+Johanna
+
+Return ONLY valid JSON (no prose, no markdown):
+{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}`;
+}
+
+async function fetchOneStatusProspect(
+  apiKey: string,
+  excludeCompanies: string[],
+  category: string,
+): Promise<StatusDailyProspect> {
+  const lower = excludeCompanies.map(c => c.toLowerCase());
+  const pool = (COMPANY_POOLS[category] ?? []).filter(c => !lower.includes(c.toLowerCase()));
+  const activePool = pool.length >= 5 ? pool : (COMPANY_POOLS[category] ?? []);
+
+  const excludeNote = excludeCompanies.length > 0
+    ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
+    : '';
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: buildOneProspectPrompt(category, activePool),
+        messages: [{ role: 'user', content: `Find 1 real senior contact for Status's sponsorship pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only.` }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if ((err as { name?: string })?.name === 'AbortError') throw new Error('Request timed out — try again.');
+    throw err;
+  }
+  clearTimeout(timeout);
+
+  if (response.status === 429) {
+    await new Promise(r => setTimeout(r, 30_000));
+    return fetchOneStatusProspect(apiKey, excludeCompanies, category);
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(err?.error?.message ?? `API error ${response.status}`);
+  }
+
+  const data = await response.json() as { content: { type: string; text?: string }[] };
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+  const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  const obj   = text.match(/\{[\s\S]*?"name"[\s\S]*?\}/);
+  const jsonStr = fence?.[1] ?? obj?.[0];
+  if (!jsonStr) throw new Error('Could not parse response — try again.');
+
+  let p: { name: string; title: string; company: string; email: string; email_confidence: string; why: string; draft_subject: string; draft_body: string };
+  try { p = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')); }
+  catch { throw new Error('Invalid JSON from Claude — try again.'); }
+
+  if (!p.name || !p.company) throw new Error('Incomplete data — try again.');
+
+  const today = new Date().toISOString().split('T')[0];
+  const row: StatusDailyProspect = {
+    id: crypto.randomUUID(),
+    date: today,
+    name: p.name,
+    title: p.title ?? '',
+    company: p.company,
+    email: p.email ?? '',
+    email_confidence: p.email_confidence ?? 'estimated',
+    why: p.why ?? '',
+    draft_subject: p.draft_subject ?? `Status — ${p.company}`,
+    draft_body: p.draft_body ?? '',
+    status: 'pending',
+  };
+
+  supabase.from('status_daily_prospects').insert(row).then(({ error }) => {
+    if (error) console.warn('[Leads] Supabase save failed (showing anyway):', error.message);
+  });
+
+  return row;
 }
 
 // ── CSV Prospect (generated from upload) ─────────────────────────
@@ -338,6 +484,8 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   const [prospects, setProspects] = useState<StatusDailyProspect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(0); // 0 = idle, 1/2/3 = which slot
+  const [generateError, setGenerateError] = useState('');
 
   // Upload state
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? '');
@@ -345,7 +493,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   const [csvText, setCsvText] = useState('');
   const [contacts, setContacts] = useState<CsvContact[]>([]);
   const [generated, setGenerated] = useState<GeneratedProspect[]>([]);
-  const [generating, setGenerating] = useState(false);
+  const [csvGenerating, setCsvGenerating] = useState(false);
   const [parseError, setParseError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef(false);
@@ -363,6 +511,27 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleGenerateNew = async () => {
+    const key = apiKey.trim() || localStorage.getItem(API_KEY_STORAGE)?.trim();
+    if (!key) { setGenerateError('Enter your Anthropic API key in the Upload Contacts tab first.'); return; }
+    setGenerateError('');
+    const existing = await fetchTodayStatusProspects().catch(() => prospects);
+    const excluded = existing.map(p => p.company);
+    for (let i = 1; i <= 3; i++) {
+      if (i > 1) await new Promise(r => setTimeout(r, 1500));
+      setGenerating(i);
+      try {
+        const p = await fetchOneStatusProspect(key, excluded, CATEGORIES[i - 1]);
+        excluded.push(p.company);
+        setProspects(prev => [...prev, p]);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGenerateError(`Prospect ${i} failed: ${msg}`);
+      }
+    }
+    setGenerating(0);
+  };
 
   const handleAdd = async (prospect: StatusDailyProspect) => {
     onAddToEngaged(prospect);
@@ -402,7 +571,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
     if (contacts.length === 0) return;
 
     abortRef.current = false;
-    setGenerating(true);
+    setCsvGenerating(true);
 
     const initial: GeneratedProspect[] = contacts.map(c => ({
       contact: c, status: 'idle', why: '', draft_subject: '', draft_body: '', added: false,
@@ -427,7 +596,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
       }
     }
 
-    setGenerating(false);
+    setCsvGenerating(false);
   };
 
   const handleAddGenerated = (item: GeneratedProspect) => {
@@ -488,34 +657,70 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
           {tab === 'daily' && (
             <>
               <div className="bg-brand-dark rounded-xl px-5 py-4">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="bg-[#E8471C] px-2 py-0.5 flex-shrink-0">
-                    <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">status_</span>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="bg-[#E8471C] px-2 py-0.5 flex-shrink-0">
+                        <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">status_</span>
+                      </div>
+                      <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
+                    </div>
+                    <p className="text-white text-sm leading-relaxed">
+                      3 senior contacts — one from tech, one from finance, one from media. Specific WHY for each company, draft email ready to send.
+                    </p>
                   </div>
-                  <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
+                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                    {generating > 0 && (
+                      <span className="text-xs text-white/40 animate-pulse">{generating}/3…</span>
+                    )}
+                    {!loading && (
+                      <button
+                        onClick={handleGenerateNew}
+                        disabled={generating > 0}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#E8471C] text-white hover:bg-[#d43d16] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        {generating > 0 ? 'Generating…' : prospects.length > 0 ? '+ More' : 'Generate'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-white text-sm leading-relaxed">
-                  3 senior contacts, identified each weekday morning by AI. Research-backed outreach — specific WHY for each company, draft email ready to send.
-                </p>
               </div>
+
+              {generateError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+                  <p className="text-xs text-red-700">{generateError}</p>
+                  <button onClick={() => setGenerateError('')} className="text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <p className="text-xs font-semibold text-red-700 mb-1">Could not load prospects</p>
                   <p className="text-xs text-red-600 font-mono break-all">{error}</p>
-                  <p className="text-xs text-red-500 mt-2">If this says "relation does not exist" — the Supabase table needs creating. See setup instructions.</p>
                 </div>
               )}
 
               {loading ? (
                 <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
-              ) : prospects.length === 0 && !error ? (
-                <div className="text-center py-16">
-                  <p className="text-brand-dark/50 font-medium mb-1">No prospects generated yet today</p>
-                  <p className="text-sm text-brand-dark/35">The daily cron runs at 8am EST on weekdays. Trigger the workflow manually in GitHub Actions to test.</p>
-                </div>
               ) : (
-                prospects.map(p => <ProspectCard key={p.id} prospect={p} onAdd={handleAdd} />)
+                <>
+                  {prospects.map(p => <ProspectCard key={p.id} prospect={p} onAdd={handleAdd} />)}
+                  {generating > 0 && Array.from({ length: Math.max(0, 4 - generating) }).map((_, i) => (
+                    <SkeletonCard key={`skel-${i}`} />
+                  ))}
+                  {prospects.length === 0 && generating === 0 && !error && (
+                    <div className="text-center py-12">
+                      <p className="text-brand-dark/50 font-medium mb-1">No prospects yet today</p>
+                      <p className="text-sm text-brand-dark/35 mb-4">Enter your API key in the Upload tab, then hit Generate.</p>
+                      <button
+                        onClick={handleGenerateNew}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#E8471C] text-white hover:bg-[#d43d16] transition-all"
+                      >
+                        Generate Today's Prospects
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -600,7 +805,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                     <p className="text-sm font-semibold text-brand-dark">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} detected</p>
                     <button
                       onClick={handleGenerate}
-                      disabled={generating || !apiKey.trim()}
+                      disabled={csvGenerating || !apiKey.trim()}
                       className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#E8471C] text-white hover:bg-[#d43d16] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       Generate Emails →
@@ -622,11 +827,11 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">
-                      {generating ? `Generating… ${doneCount}/${contacts.length}` : `${doneCount} email${doneCount !== 1 ? 's' : ''} generated`}
+                      {csvGenerating ? `Generating… ${doneCount}/${contacts.length}` : `${doneCount} email${doneCount !== 1 ? 's' : ''} generated`}
                     </p>
-                    {generating ? (
+                    {csvGenerating ? (
                       <button
-                        onClick={() => { abortRef.current = true; setGenerating(false); }}
+                        onClick={() => { abortRef.current = true; setCsvGenerating(false); }}
                         className="text-xs text-red-500 hover:text-red-700"
                       >
                         Stop
