@@ -96,29 +96,29 @@ function parseContactsCSV(text: string): ImportedContact[] {
 function buildProspectSystemPrompt(category: string, companyPool: string[]): string {
   return `You are a BD researcher for Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. Founding partners contribute $500K for a year-long creative partnership.
 
-Find 1 real senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a ${category} brand from this curated list:
+TARGET: Find 1 real, current senior marketing decision-maker (CMO, Chief Brand Officer, VP Marketing, SVP Partnerships, or equivalent) at a ${category} brand.
+
+COMPANY POOL — choose from:
 ${companyPool.join(', ')}
 
-Pick the company you're most confident about — where you have accurate knowledge of the current marketing leadership from your training data (press releases, interviews, LinkedIn, news from 2023–2025).
+RESEARCH STEPS — use web search for each:
+1. Search "[company] CMO 2025" or "[company] Chief Marketing Officer" or "[company] VP Marketing" for each company. Pick the one where you can confirm the current person.
+2. Verify the contact is still in role by checking their LinkedIn, a recent press release, or a news article from 2024–2025.
+3. Search for their email in public sources: speaker bios, press releases, conference agendas. If you can't verify it, return email "" and set email_confidence "estimated".
+4. Search "[company] brand campaign 2024 2025" to find a specific WHY — a real recent initiative that makes this brand a natural LIFE founding partner.
 
-CONTACT QUALITY:
-- Use your knowledge of this brand's confirmed marketing leadership
-- Common corporate email formats: firstname.lastname@company.com · firstname@company.com · f.lastname@company.com
-- Set email_confidence "verified" only if you recall this email appearing in a press release, speaker bio, or news article
-- Set "estimated" if you're inferring the format
-- Provide the most senior person who would make a media partnership decision
+WHY: One sentence, present tense, specific — name the actual campaign, launch, or brand moment from 2024–2025. No generics like "strong brand values" or "great audience fit."
+Example: "Your 'American Progress' campaign aligns with exactly what LIFE Issue 1 — 'Where Are We Now?' — is documenting across science, policy, and culture."
 
-WHY: Write one specific sentence about a real recent campaign, sponsorship, cultural commitment, or brand positioning that makes this company a natural LIFE founding partner. Be specific — name the actual campaign or initiative.
-
-Draft the email:
+EMAIL:
 Subject: LIFE — [Company]
 Hi [First Name]
 LIFE is relaunching this September as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction.
-[Company] has been on our list from the start. [One specific, researched reason this brand is a natural LIFE founding partner.]
+[Company] has been on our list from the start. [WHY sentence.]
 We're speaking with a small number of founding partners — creative collaboration, not a media buy. Can we jump on a call?
 Warm regards, Jo
 
-Return ONLY this JSON (no other text):
+Return ONLY this JSON (no prose, no fences):
 {"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}`;
 }
 
@@ -128,12 +128,11 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
   const activePool = pool.length >= 5 ? pool : (COMPANY_POOLS[category] ?? []);
 
   const excludeNote = excludeCompanies.length > 0
-    ? `\nDO NOT suggest any of these companies (already in pipeline or generated today): ${excludeCompanies.join(', ')}`
+    ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
     : '';
 
-  // 45s timeout — enough for Haiku, short enough to fail fast
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45_000);
+  const timeoutId = setTimeout(() => controller.abort(), 90_000);
 
   let response: Response;
   try {
@@ -147,9 +146,10 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 800,
+        max_tokens: 2048,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: buildProspectSystemPrompt(category, activePool),
-        messages: [{ role: 'user', content: `Find 1 real senior contact from the company pool for LIFE magazine's founding partner pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only — no other text.` }],
+        messages: [{ role: 'user', content: `Use web search to find 1 verified current senior contact for LIFE magazine's founding partner pipeline. Search for who currently holds the top marketing role at one of the companies in the pool.${excludeNote}\n\nReturn the JSON object only.` }],
       }),
       signal: controller.signal,
     });
@@ -170,13 +170,15 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
   }
 
   const data = await response.json() as { content: { type: string; text?: string }[] };
-  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+  // Web search returns multiple blocks — answer is in the last text block
+  const textBlocks = data.content.filter(b => b.type === 'text' && b.text);
+  const text = (textBlocks[textBlocks.length - 1]?.text ?? '').trim();
   if (!text) throw new Error('Empty response from Claude — try again.');
 
   const fenceMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   const objMatch = text.match(/\{[\s\S]*?"name"[\s\S]*?\}/);
   const jsonStr = fenceMatch?.[1] ?? objMatch?.[0];
-  if (!jsonStr) throw new Error(`Could not parse prospect data — model returned unexpected format.`);
+  if (!jsonStr) throw new Error('Could not parse prospect data — try again.');
 
   let p: { name: string; title: string; company: string; email: string; email_confidence: string; why: string; draft_subject: string; draft_body: string };
   try {
@@ -202,8 +204,9 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     status: 'pending',
   };
 
-  const { error } = await supabase.from('daily_prospects').insert(row);
-  if (error) console.warn('[Roadmap] Supabase save failed (showing anyway):', error.message);
+  supabase.from('daily_prospects').insert(row).then(({ error }) => {
+    if (error) console.warn('[Roadmap] Supabase save failed (showing anyway):', error.message);
+  });
   return row;
 }
 
@@ -543,11 +546,25 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
       return;
     }
     setGenerateError(null);
-    const pipelineClients = await fetchAllClients().catch(() => []);
+
+    // Clear today's existing prospects and replace with fresh ones
+    setProspects([]);
+    const today = new Date().toISOString().split('T')[0];
+    supabase.from('daily_prospects').delete().eq('date', today).then(() => {});
+
+    // Exclude pipeline + last 14 days of already-seen companies
+    const [pipelineClients, recentProspects] = await Promise.all([
+      fetchAllClients().catch(() => []),
+      supabase.from('daily_prospects')
+        .select('company')
+        .gte('date', new Date(Date.now() - 14 * 86400_000).toISOString().split('T')[0])
+        .then(({ data }) => (data ?? []).map((r: { company: string }) => r.company)),
+    ]);
     const excluded = [
-      ...prospects.map(p => p.company),
       ...pipelineClients.map(c => c.company).filter(Boolean),
+      ...recentProspects,
     ];
+
     let anySucceeded = false;
     for (let i = 1; i <= 3; i++) {
       if (i > 1) await new Promise(r => setTimeout(r, 2000));
@@ -560,9 +577,7 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
         anySucceeded = true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[Roadmap] Generate failed for slot', i, ':', msg);
-        // Show error but keep trying remaining slots
-        setGenerateError(`Slot ${i} failed: ${msg}${i < 3 ? ' — continuing…' : ''}`);
+        setGenerateError(`Prospect ${i} failed: ${msg}${i < 3 ? ' — continuing…' : ''}`);
       }
     }
     setGenerating(0);
@@ -620,12 +635,11 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
           </div>
           <div className="flex items-center gap-2">
             {generating > 0 && (
-              <span className="text-xs text-gray-400 animate-pulse">Finding {generating}/3… (may take up to 90s)</span>
+              <span className="text-xs text-gray-400 animate-pulse">Searching {generating}/3… (up to 90s each)</span>
             )}
             <button
               onClick={() => csvInputRef.current?.click()}
               className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all"
-              title="Import from LinkedIn CSV or any contacts export"
             >
               Import CSV
             </button>
@@ -633,15 +647,11 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
             <button
               onClick={handleGenerateNew}
               disabled={generating > 0 || prospectsLoading}
-              className="text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-400 hover:text-brand-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs font-semibold rounded-lg px-3 py-1.5 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#E8002D' }}
             >
-              Get New
+              {generating > 0 ? `${generating}/3…` : prospects.length > 0 ? 'Refresh' : 'Generate'}
             </button>
-            {!prospectsLoading && generating === 0 && (
-              <button onClick={loadProspects} className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-1">
-                ↻
-              </button>
-            )}
           </div>
         </div>
 
