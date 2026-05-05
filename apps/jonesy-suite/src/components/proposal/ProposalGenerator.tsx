@@ -224,9 +224,9 @@ Format using markdown. Use ## for section headings. Begin with the cover block a
 
 REFERENCE MATERIAL WEIGHTING
 You have been provided with reference documents below. These are the primary source of truth for this proposal.
-- Draw approximately 60% of your content, frameworks, language, positioning, and specifics from the reference material.
-- Use approximately 40% of your own knowledge to fill gaps, add strategic context, ensure coherence, and enhance the proposal.
-- When the reference material contains specific data points, frameworks, case studies, pricing, or positioning language, prefer those over generic content.
+- All content must be grounded in the reference material and the brief provided. Do not invent facts, case studies, metrics, or client details not present in those sources.
+- Use the reference documents for frameworks, language, positioning, pricing, and examples.
+- Where the brief leaves gaps, write around them or flag with [TO CONFIRM] rather than inventing specifics.
 - Mirror the tone, terminology, and strategic framing found in the reference material.
 
 REFERENCE DOCUMENTS:
@@ -243,7 +243,7 @@ CHALLENGE / PROBLEM THEY FACE:
 ${form.challenge}
 
 CURRENT STATE (where they are now):
-${form.currentState || 'Not specified — infer from the challenge described above.'}
+${form.currentState || 'Not specified — work from the challenge and context provided only.'}
 
 DESIRED OUTCOME (what success looks like):
 ${form.desiredOutcome}
@@ -324,7 +324,7 @@ STYLE:
   + (referenceDocs.length > 0 ? `
 
 REFERENCE MATERIAL WEIGHTING
-Draw approximately 60% of content from the reference material below. Use 40% of your own knowledge to fill gaps.
+All content must come from the reference material and brief. Do not invent facts, metrics, or case studies not present in those sources. Flag missing information as [TO CONFIRM] rather than filling gaps with invented content.
 
 REFERENCE DOCUMENTS:
 ${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
@@ -340,7 +340,7 @@ CHALLENGE / OPPORTUNITY:
 ${form.challenge}
 
 CURRENT STATE:
-${form.currentState || 'Not specified — infer from the challenge described above.'}
+${form.currentState || 'Not specified — work from the challenge and context provided only.'}
 
 DESIRED OUTCOME:
 ${form.desiredOutcome}
