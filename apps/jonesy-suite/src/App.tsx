@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client, SavedProposal, StageEvent, View, SAMPLE_CLIENTS, generateId } from './types';
 import {
-  supabase, supabaseEnabled,
+  supabase,
   fetchAllClients, upsertClient, removeClient,
-  fetchCompanyName, saveCompanyName,
+  fetchCompanyName, saveCompanyName, signOut,
 } from './lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
@@ -12,6 +12,7 @@ import {
   LS_LAST_SYNC,
 } from './lib/gmail';
 import AnalyticsView from './components/analytics/AnalyticsView';
+import Auth from './components/Auth';
 import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
@@ -38,9 +39,21 @@ function writeLocalCompany(name: string) {
 const today = () => new Date().toISOString().split('T')[0];
 
 function App() {
-  const [view, setView]     = useState<View>('pipeline');
-  const [loading, setLoading] = useState(supabaseEnabled);
-  const [dbError, setDbError] = useState(false);
+  const [view, setView]         = useState<View>('pipeline');
+  const [authed, setAuthed]     = useState<boolean | null>(null); // null = checking
+  const [loading, setLoading]   = useState(true);
+  const [dbError, setDbError]   = useState(false);
+
+  // Check auth session on mount, listen for changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthed(!!data.session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [companyName, setCompanyNameState] = useState<string>(() =>
     localStorage.getItem(STORAGE_KEY_COMPANY) ?? 'Jonesy & Co'
@@ -73,9 +86,9 @@ function App() {
     saveCompanyName(name).catch(console.warn);
   }, []);
 
-  // ── Supabase bootstrap ────────────────────────────────
+  // ── Supabase bootstrap (runs only when authenticated) ──
   useEffect(() => {
-    if (!supabaseEnabled) return;
+    if (!authed) return;
     let cancelled = false;
     (async () => {
       try {
@@ -96,14 +109,14 @@ function App() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authed]);
 
   // ── Supabase realtime ─────────────────────────────────
   useEffect(() => {
-    if (!supabase || loading) return;
+    if (!authed || loading) return;
     const channel = supabase
       .channel('jonesy-clients')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jonesy_clients' }, payload => {
         const { eventType, new: newRow, old: oldRow } = payload;
         if (eventType === 'INSERT' || eventType === 'UPDATE') {
           const incoming = (newRow as { data: Client }).data;
@@ -283,16 +296,30 @@ function App() {
     });
   }, [setClients]);
 
-  // ── Loading screen ────────────────────────────────────
+  // ── Auth / loading gates ──────────────────────────────
+  if (authed === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0EB' }}>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:0ms]" />
+          <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:150ms]" />
+          <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!authed) return <Auth />;
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-dark flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0EB' }}>
         <div className="text-center space-y-4">
-          <div className="text-white font-display text-3xl font-bold tracking-widest">JMJ</div>
+          <div className="font-display text-2xl text-brand-dark tracking-wide">Jonesy &amp; Co</div>
           <div className="flex items-center gap-2 justify-center">
-            <span className="w-2 h-2 rounded-full bg-white/30 animate-bounce [animation-delay:0ms]" />
-            <span className="w-2 h-2 rounded-full bg-white/30 animate-bounce [animation-delay:150ms]" />
-            <span className="w-2 h-2 rounded-full bg-white/30 animate-bounce [animation-delay:300ms]" />
+            <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:0ms]" />
+            <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:150ms]" />
+            <span className="w-2 h-2 rounded-full bg-brand-dark/20 animate-bounce [animation-delay:300ms]" />
           </div>
         </div>
       </div>
@@ -356,7 +383,15 @@ function App() {
         <p className="text-xs text-white/25 font-medium">
           CONFIDENTIAL — Property of Jonesy &amp; Co. Strictly private.
         </p>
-        <p className="text-xs text-white/20 flex-shrink-0 ml-6">© {new Date().getFullYear()} JMJ</p>
+        <div className="flex items-center gap-4">
+          <p className="text-xs text-white/20">© {new Date().getFullYear()} JMJ</p>
+          <button
+            onClick={() => signOut()}
+            className="text-xs text-white/20 hover:text-white/50 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
       </footer>
     </div>
   );
