@@ -360,6 +360,9 @@ function App() {
             onDeleteProposal={deleteProposalFromClient}
             onAddProposal={saveProposalToClient}
             onUpdateProposal={updateProposalForClient}
+            onUpdateThread={(id, thread) => updateClient(id, { thread })}
+            onUpdateMeetingNotes={(id, meetingNotes) => updateClient(id, { meetingNotes })}
+            onUpdateNewsCache={(id, newsCache) => updateClient(id, { newsCache })}
           />
         )}
         {view === 'report' && (

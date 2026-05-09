@@ -54,6 +54,34 @@ export interface StageEvent {
   date: string; // YYYY-MM-DD
 }
 
+export interface MeetingNote {
+  id: string;
+  date: string;
+  attendees: string;
+  notes: string;
+  takeaways: string;
+  createdAt: string;
+}
+
+export interface ThreadMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface NewsArticle {
+  title: string;
+  source: string;
+  url?: string;
+}
+
+export interface NewsCache {
+  fetchedAt: string;
+  summary: string;
+  articles: NewsArticle[];
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -72,8 +100,11 @@ export interface Client {
   lostReason: string;
   stageHistory: StageEvent[];
   documents: ProjectDocument[];
-  gmailSynced?: boolean;   // true if lastContact was set by Gmail sync
-  emailCount?: number;     // number of emails matched in last sync
+  meetingNotes?: MeetingNote[];
+  thread?: ThreadMessage[];
+  newsCache?: NewsCache;
+  gmailSynced?: boolean;
+  emailCount?: number;
 }
 
 export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects';
