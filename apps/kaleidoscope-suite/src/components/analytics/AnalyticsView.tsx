@@ -199,14 +199,16 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
         </button>
       </div>
 
-      {/* Print-only LIFE header */}
-      <div className="print-only hidden" style={{ padding: '0 0 24px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ backgroundColor: '#E8471C', padding: '6px 14px' }}>
-          <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: '#0A0A0A', fontSize: '28px', letterSpacing: '-1px', lineHeight: 1 }}>STATUS</span>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>
-          <p style={{ margin: 0, fontWeight: 600 }}>Performance Analytics</p>
-          <p style={{ margin: 0 }}>{clients.length} deals · {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      {/* Print-only header */}
+      <div className="print-only hidden" style={{ padding: '0 0 24px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ backgroundColor: '#7C3AED', padding: '6px 14px' }}>
+            <span style={{ fontFamily: 'sans-serif', fontWeight: 700, color: '#fff', fontSize: '16px', letterSpacing: '2px', lineHeight: 1 }}>KALEIDOSCOPE</span>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>Performance Analytics</p>
+            <p style={{ margin: 0 }}>{clients.length} deals · {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
         </div>
       </div>
 
