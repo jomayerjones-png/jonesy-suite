@@ -11,6 +11,46 @@ import {
 } from '../../types';
 import { fetchReportArchives, saveReportArchive, deleteReportArchive } from '../../lib/supabase';
 
+// Lazy-load pdfjs only when needed
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+async function getPdfjs() {
+  if (!pdfjsLib) {
+    pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.mjs',
+      import.meta.url,
+    ).toString();
+  }
+  return pdfjsLib;
+}
+async function readPdfAsText(file: File): Promise<string> {
+  const lib = await getPdfjs();
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+  }
+  return pages.join('\n\n');
+}
+
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/\n\n/g, '</p><p>')
+    .trim();
+}
+
 interface WeeklyReportProps {
   clients: Client[];
   companyName: string;
@@ -56,6 +96,8 @@ interface ArchivedReport {
   companyName: string;
   notes: ReportNotes;
   stats: ArchivedStats;
+  uploadedContent?: string;  // set for manually uploaded reports
+  uploadedFilename?: string;
 }
 
 const PRINT_STYLE = `
@@ -176,6 +218,155 @@ function SectionWrapper({
   );
 }
 
+// ── Upload Report Modal ───────────────────────────────────────────────────────
+function UploadReportModal({
+  companyName,
+  onSave,
+  onClose,
+}: {
+  companyName: string;
+  onSave: (report: ArchivedReport) => void;
+  onClose: () => void;
+}) {
+  const [content, setContent] = useState('');
+  const [filename, setFilename] = useState('');
+  const [weekLabel, setWeekLabel] = useState('');
+  const [savedAt, setSavedAt] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setError('');
+    setLoading(true);
+    try {
+      let text = '';
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        text = await readPdfAsText(file);
+      } else if (file.name.match(/\.(txt|md|markdown)$/i)) {
+        text = await file.text();
+      } else {
+        setError('Unsupported file type. Upload a .pdf, .txt, or .md file.');
+        setLoading(false);
+        return;
+      }
+      setContent(text);
+      setFilename(file.name);
+      // Try to auto-detect week label from filename (e.g. "report-2026-03-10.pdf")
+      const dateMatch = file.name.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch && !weekLabel) {
+        const d = new Date(dateMatch[1]);
+        setWeekLabel(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+      }
+    } catch {
+      setError('Failed to read file.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  const handleSave = () => {
+    if (!content.trim()) { setError('No content loaded.'); return; }
+    if (!weekLabel.trim()) { setError('Enter a week label.'); return; }
+    const emptyByStage = Object.fromEntries(
+      ['Prospect', 'Engaged', 'Meeting Set', 'Proposal Sent', 'Feedback', 'Revised Proposal Sent', 'Close']
+        .map(s => [s, { count: 0, value: 0 }])
+    ) as ArchivedStats['byStage'];
+    const report: ArchivedReport = {
+      id: generateId(),
+      weekLabel: weekLabel.trim(),
+      savedAt: new Date(savedAt).toISOString(),
+      companyName,
+      notes: { pipelineUpdates: '', meetings: '', actions: '', nextFocus: '' },
+      stats: {
+        totalValue: 0, activeValue: 0, closedValue: 0, avgDeal: 0,
+        clientCount: 0, newThisWeek: 0, contactedThisWeek: 0, staleCount: 0,
+        byStage: emptyByStage, topClients: [], staleClients: [], newClients: [],
+      },
+      uploadedContent: content,
+      uploadedFilename: filename,
+    };
+    onSave(report);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-brand-dark/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="px-6 py-5 border-b border-brand-cream flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="font-display text-xl font-semibold text-brand-dark">Upload Report</h2>
+            <p className="text-xs text-brand-dark/50 mt-0.5">Add a past report to your archive</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-brand-cream flex items-center justify-center text-brand-dark/50 hover:text-brand-dark transition-all">✕</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* File drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all ${
+              dragging ? 'border-[#E8002D] bg-red-50' :
+              content ? 'border-emerald-300 bg-emerald-50' :
+              'border-brand-cream-dark hover:border-[#E8002D]/40 hover:bg-red-50/30'
+            }`}
+          >
+            <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.markdown" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            {loading ? (
+              <><span className="text-2xl animate-spin">◌</span><p className="text-sm text-brand-dark/60">Reading file…</p></>
+            ) : content ? (
+              <><span className="text-3xl">✓</span><p className="text-sm font-semibold text-emerald-700">{filename}</p><p className="text-xs text-brand-dark/50">{content.length.toLocaleString()} characters · click to replace</p></>
+            ) : (
+              <><span className="text-3xl text-brand-dark/20">⬆</span><p className="text-sm font-semibold text-brand-dark/60">Drop file or click to browse</p><p className="text-xs text-brand-dark/40">Accepts PDF, .txt, and .md files</p></>
+            )}
+          </div>
+
+          {/* Week label */}
+          <div>
+            <label className="label">Week Label *</label>
+            <input
+              className="input-field"
+              value={weekLabel}
+              onChange={e => setWeekLabel(e.target.value)}
+              placeholder="e.g. Mar 10 – Mar 17, 2026"
+            />
+          </div>
+
+          {/* Report date */}
+          <div>
+            <label className="label">Report Date</label>
+            <input type="date" className="input-field" value={savedAt}
+              onChange={e => setSavedAt(e.target.value)} />
+          </div>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠ {error}</p>}
+        </div>
+
+        <div className="px-6 py-4 border-t border-brand-cream flex items-center justify-end gap-3 flex-shrink-0">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleSave} disabled={!content.trim() || !weekLabel.trim()}
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+            Add to Archive
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Archived Report View ──────────────────────────────────────────────────────
 function ArchivedReportView({
   archive,
   onClose,
@@ -187,6 +378,45 @@ function ArchivedReportView({
   const savedDate = new Date(archive.savedAt).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+
+  // Uploaded report: render as document reader
+  if (archive.uploadedContent) {
+    const looksLikeMarkdown = /^#{1,3} /m.test(archive.uploadedContent);
+    return (
+      <div className="fixed inset-0 z-50 bg-brand-light overflow-auto">
+        <style>{PRINT_STYLE}</style>
+        <div className="no-print bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} className="btn-secondary flex items-center gap-1.5 text-sm">← Back to Reports</button>
+            <div className="w-px h-5 bg-brand-cream" />
+            <div>
+              <p className="text-sm font-semibold text-brand-dark">Week of {archive.weekLabel}</p>
+              <p className="text-xs text-brand-dark/40">{archive.uploadedFilename ?? 'Uploaded report'} · {savedDate}</p>
+            </div>
+          </div>
+          <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">Download PDF</button>
+        </div>
+        <div className="max-w-3xl mx-auto p-8">
+          <div className="card overflow-hidden mb-6">
+            <div className="bg-brand-dark px-6 py-4">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="bg-[#E8002D] px-2 py-0.5"><span className="font-display font-bold text-white text-xs tracking-tighter leading-none">LIFE</span></div>
+                <p className="text-white/40 text-xs font-medium uppercase tracking-widest">Weekly Business Report</p>
+              </div>
+              <p className="text-white font-semibold">Week of {archive.weekLabel}</p>
+              <p className="text-white/40 text-xs mt-0.5">{savedDate}</p>
+            </div>
+            <div className="h-0.5 bg-[#E8002D]" />
+          </div>
+          {looksLikeMarkdown ? (
+            <div className="prose-proposal" dangerouslySetInnerHTML={{ __html: renderMarkdown(archive.uploadedContent) }} />
+          ) : (
+            <pre className="text-sm text-brand-dark/80 leading-relaxed whitespace-pre-wrap font-sans">{archive.uploadedContent}</pre>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-brand-light overflow-auto print:relative print:inset-auto print:overflow-visible">
@@ -369,6 +599,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   }, []);
 
   const [showArchives, setShowArchives] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
   const [digestLabel, setDigestLabel] = useState('Email Digest');
@@ -515,6 +746,12 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const deleteArchive = (id: string) => {
     setArchives(prev => prev.filter(a => a.id !== id));
     deleteReportArchive(id).catch(() => {});
+  };
+
+  const handleUploadSave = (report: ArchivedReport) => {
+    setArchives(prev => [report, ...prev]);
+    saveReportArchive(report as unknown as Record<string, unknown>).catch(() => {});
+    setShowUpload(false);
   };
 
   const generateDraft = async () => {
@@ -693,6 +930,14 @@ Return only the JSON object. No prose, no markdown fences.`;
     <>
       <style>{PRINT_STYLE}</style>
 
+      {showUpload && (
+        <UploadReportModal
+          companyName={companyName}
+          onSave={handleUploadSave}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
+
       <div className="flex flex-col h-full print:block print:h-auto">
         {/* Toolbar */}
         <div className="bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between no-print">
@@ -786,10 +1031,21 @@ Return only the JSON object. No prose, no markdown fences.`;
         {showArchives ? (
           <div className="flex-1 overflow-auto p-5">
             <div className="max-w-3xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-brand-dark/40 font-medium uppercase tracking-wider">
+                  {archives.length} saved report{archives.length !== 1 ? 's' : ''}
+                </p>
+                <button
+                  onClick={() => setShowUpload(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-brand-cream bg-white text-brand-dark/60 hover:text-brand-dark hover:border-brand-cream-dark transition-all"
+                >
+                  ⬆ Upload Past Report
+                </button>
+              </div>
               {archives.length === 0 ? (
                 <div className="text-center py-16 text-brand-dark/40">
                   <p className="font-medium text-brand-dark/50 mb-1">No saved reports yet</p>
-                  <p className="text-sm">Save a report to archive it here.</p>
+                  <p className="text-sm">Save a report to archive it, or upload a past report above.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -800,13 +1056,20 @@ Return only the JSON object. No prose, no markdown fences.`;
                     return (
                       <div key={archive.id} className="card p-4 flex items-center gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-brand-dark">Week of {archive.weekLabel}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm text-brand-dark">Week of {archive.weekLabel}</p>
+                            {archive.uploadedContent && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-brand-cream text-brand-dark/50">Uploaded</span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-xs text-brand-dark/40">{saved}</span>
-                            <span className="text-xs text-brand-dark/20">·</span>
-                            <span className="text-xs text-brand-gold font-medium">{formatCurrency(archive.stats.totalValue)}</span>
-                            <span className="text-xs text-brand-dark/20">·</span>
-                            <span className="text-xs text-brand-dark/50">{archive.stats.clientCount} clients</span>
+                            {!archive.uploadedContent && (<>
+                              <span className="text-xs text-brand-dark/20">·</span>
+                              <span className="text-xs text-brand-gold font-medium">{formatCurrency(archive.stats.totalValue)}</span>
+                              <span className="text-xs text-brand-dark/20">·</span>
+                              <span className="text-xs text-brand-dark/50">{archive.stats.clientCount} clients</span>
+                            </>)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
