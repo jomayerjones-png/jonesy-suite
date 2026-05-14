@@ -77,6 +77,15 @@ export interface ThreadMessage {
   timestamp: string; // ISO datetime
 }
 
+export interface ClientContact {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  callNotes: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -96,6 +105,7 @@ export interface Client {
   stageHistory: StageEvent[];
   thread?: ThreadMessage[];
   callNotes?: string;
+  contacts?: ClientContact[];
 }
 
 export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
