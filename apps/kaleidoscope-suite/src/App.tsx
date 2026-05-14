@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Client, SavedProposal, ThreadMessage, View, SAMPLE_CLIENTS, generateId } from './types';
+import { Client, SavedProposal, ThreadMessage, View, PipelineStage, SAMPLE_CLIENTS, generateId } from './types';
 import {
   supabase,
   fetchAllClients, upsertClient, removeClient,
@@ -230,6 +230,108 @@ function App() {
     });
   }, [addClient]);
 
+  // ── Airtable import ─────────────────────────────────
+  const [showAirtableImport, setShowAirtableImport] = useState(false);
+  const [airtableToken, setAirtableToken] = useState(() => localStorage.getItem('kaleidoscope_airtable_token') ?? '');
+  const [airtableImporting, setAirtableImporting] = useState(false);
+  const [airtableError, setAirtableError] = useState('');
+  const [airtableResult, setAirtableResult] = useState('');
+
+  const AIRTABLE_BASE_ID = 'appmRe5dF9c2ESygI';
+
+  const probabilityToStage = (prob: number): PipelineStage => {
+    if (prob >= 90) return 'Close';
+    if (prob >= 50) return 'Proposal Sent';
+    if (prob >= 20) return 'Engaged';
+    return 'Prospect';
+  };
+
+  const handleAirtableImport = async () => {
+    const token = airtableToken.trim();
+    if (!token) { setAirtableError('Enter your Airtable Personal Access Token.'); return; }
+    localStorage.setItem('kaleidoscope_airtable_token', token);
+    setAirtableError('');
+    setAirtableResult('');
+    setAirtableImporting(true);
+
+    try {
+      const tablesResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!tablesResp.ok) throw new Error(tablesResp.status === 401 ? 'Invalid token — check your Airtable Personal Access Token.' : `Airtable error ${tablesResp.status}`);
+      const tablesData = await tablesResp.json() as { tables: { id: string; name: string }[] };
+      const table = tablesData.tables[0];
+      if (!table) throw new Error('No tables found in this base.');
+
+      let allRecords: Record<string, unknown>[] = [];
+      let offset: string | undefined;
+      do {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
+        const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+        allRecords = [...allRecords, ...data.records.map(r => r.fields)];
+        offset = data.offset;
+      } while (offset);
+
+      if (allRecords.length === 0) throw new Error('No records found in the table.');
+
+      const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
+      let imported = 0;
+      let skipped = 0;
+
+      for (const fields of allRecords) {
+        const rawName = String(fields['Name'] ?? '').trim();
+        if (!rawName) continue;
+
+        const company = rawName;
+        if (existingCompanies.has(company.toLowerCase())) { skipped++; continue; }
+
+        const rawAmount = fields['$ Amount'] ?? fields['Amount'] ?? 0;
+        const value = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/[$,]/g, '')) || 0;
+
+        const rawProb = fields['Probability'] ?? '10%';
+        const probNum = parseFloat(String(rawProb).replace('%', '')) || 10;
+
+        const rawDate = fields['Last touchpoint'] ?? '';
+        let lastContact = today();
+        if (rawDate) {
+          const d = new Date(String(rawDate));
+          if (!isNaN(d.getTime())) lastContact = d.toISOString().split('T')[0];
+        }
+
+        const nextScheduled = fields['Next Scheduled Meeting'] ?? fields['Next Scheduled...'] ?? '';
+        const notes = nextScheduled ? `Next scheduled: ${nextScheduled}` : '';
+
+        addClient({
+          name: '',
+          company,
+          email: '',
+          phone: '',
+          value,
+          stage: probabilityToStage(probNum),
+          notes,
+          lastContact,
+          tags: ['airtable-import'],
+          proposals: [],
+          industry: '',
+          outcome: 'active',
+          lostReason: '',
+          stageHistory: [{ stage: probabilityToStage(probNum), date: lastContact }],
+        });
+
+        existingCompanies.add(company.toLowerCase());
+        imported++;
+      }
+
+      setAirtableResult(`Imported ${imported} deal${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? 's' : ''}` : ''}.`);
+    } catch (err) {
+      setAirtableError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setAirtableImporting(false);
+    }
+  };
+
   // ── Auth / loading gates ──────────────────────────────
   if (authed === null) {
     return (
@@ -279,6 +381,50 @@ function App() {
       />
       <main className="flex-1 overflow-auto">
         {view === 'pipeline' && (
+          <>
+          {/* Airtable Import Panel */}
+          <div className="max-w-7xl mx-auto px-6 pt-4">
+            {!showAirtableImport ? (
+              <button
+                onClick={() => setShowAirtableImport(true)}
+                className="text-xs text-brand-dark/30 hover:text-brand-dark/60 transition-colors"
+              >
+                Import from Airtable
+              </button>
+            ) : (
+              <div className="bg-white border border-brand-cream rounded-xl p-4 mb-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-brand-dark">Import from Airtable</h3>
+                  <button onClick={() => { setShowAirtableImport(false); setAirtableError(''); setAirtableResult(''); }} className="text-xs text-brand-dark/30 hover:text-brand-dark/60">Close</button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2 bg-brand-light border border-brand-cream rounded-lg text-xs font-mono text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20 focus:border-[#7C3AED]"
+                    value={airtableToken}
+                    onChange={e => setAirtableToken(e.target.value)}
+                    placeholder="pat... Airtable Personal Access Token"
+                  />
+                </div>
+                <p className="text-xs text-brand-dark/40">Generate at airtable.com/create/tokens — needs data.records:read scope on the K-Scope base.</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleAirtableImport}
+                    disabled={airtableImporting}
+                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    {airtableImporting ? 'Importing…' : 'Import Deals'}
+                  </button>
+                  {airtableResult && <span className="text-xs text-emerald-600 font-medium">{airtableResult}</span>}
+                </div>
+                {airtableError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-red-700">{airtableError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <PipelineTracker
             clients={clients}
             allClients={clients}
@@ -294,6 +440,7 @@ function App() {
             onUpdateProposal={updateProposalForClient}
             onUpdateThread={updateClientThread}
           />
+          </>
         )}
         {view === 'report' && (
           <WeeklyReport clients={clients} companyName={companyName} />
