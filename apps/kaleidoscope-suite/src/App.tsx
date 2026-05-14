@@ -236,6 +236,9 @@ function App() {
   const [airtableImporting, setAirtableImporting] = useState(false);
   const [airtableError, setAirtableError] = useState('');
   const [airtableResult, setAirtableResult] = useState('');
+  const [airtableTables, setAirtableTables] = useState<{ id: string; name: string }[]>([]);
+  const [airtableSelectedTable, setAirtableSelectedTable] = useState('');
+  const [airtableLoadingTables, setAirtableLoadingTables] = useState(false);
 
   const AIRTABLE_BASE_ID = 'appmRe5dF9c2ESygI';
 
@@ -246,9 +249,33 @@ function App() {
     return 'Prospect';
   };
 
+  const handleLoadTables = async () => {
+    const token = airtableToken.trim();
+    if (!token) { setAirtableError('Enter your Airtable Personal Access Token.'); return; }
+    localStorage.setItem('kaleidoscope_airtable_token', token);
+    setAirtableError('');
+    setAirtableLoadingTables(true);
+    try {
+      const resp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error(resp.status === 401 ? 'Invalid token.' : `Error ${resp.status}`);
+      const data = await resp.json() as { tables: { id: string; name: string }[] };
+      setAirtableTables(data.tables);
+      if (data.tables.length > 0 && !airtableSelectedTable) {
+        setAirtableSelectedTable(data.tables[0].id);
+      }
+    } catch (err) {
+      setAirtableError(err instanceof Error ? err.message : 'Failed to load tables.');
+    } finally {
+      setAirtableLoadingTables(false);
+    }
+  };
+
   const handleAirtableImport = async () => {
     const token = airtableToken.trim();
     if (!token) { setAirtableError('Enter your Airtable Personal Access Token.'); return; }
+    if (!airtableSelectedTable) { setAirtableError('Select a table first.'); return; }
     localStorage.setItem('kaleidoscope_airtable_token', token);
     setAirtableError('');
     setAirtableResult('');
@@ -256,97 +283,30 @@ function App() {
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const log: string[] = [];
+      const selectedName = airtableTables.find(t => t.id === airtableSelectedTable)?.name ?? airtableSelectedTable;
 
-      // Step 1: try metadata API to discover tables — find the DEALS table
-      let tableId = '';
-      let tableName = '';
-      try {
-        const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
-        log.push(`Meta API: ${metaResp.status}`);
-        if (metaResp.ok) {
-          const metaData = await metaResp.json() as { tables: { id: string; name: string; fields?: { name: string }[] }[] };
-          log.push(`Tables: ${metaData.tables.map(t => t.name).join(', ')}`);
-          const dealFields = ['$ Amount', 'Probability', 'Last touchpoint'];
-          for (const t of metaData.tables) {
-            const fieldNames = (t.fields ?? []).map(f => f.name);
-            if (dealFields.some(df => fieldNames.includes(df))) {
-              tableId = t.id;
-              tableName = t.name;
-              log.push(`Matched deals table: "${t.name}" (has ${dealFields.filter(df => fieldNames.includes(df)).join(', ')})`);
-              break;
-            }
-          }
-          if (!tableId && metaData.tables.length > 0) {
-            tableId = metaData.tables[0].id;
-            tableName = metaData.tables[0].name;
-            log.push(`No deals table found, falling back to first: "${tableName}"`);
-          }
-        } else {
-          const errText = await metaResp.text();
-          log.push(`Meta error: ${errText.slice(0, 200)}`);
-        }
-      } catch (e) {
-        log.push(`Meta exception: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      // Step 2: if no table from metadata, try common names
-      if (!tableId) {
-        const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main', 'Contacts', 'Sponsors'];
-        for (const name of TABLE_NAMES) {
-          try {
-            const resp = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(name)}?maxRecords=1`, { headers });
-            if (resp.ok) {
-              tableName = name;
-              tableId = name;
-              log.push(`Found table by name: "${name}"`);
-              break;
-            }
-          } catch { /* skip */ }
-        }
-      }
-
-      if (!tableId) {
-        throw new Error(`Could not find any table. Debug: ${log.join(' | ')}`);
-      }
-
-      // Step 3: fetch all records
       let rawRecords: { id: string; fields: Record<string, unknown> }[] = [];
       let offset: string | undefined;
       do {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableId)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(airtableSelectedTable)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
         const resp = await fetch(url, { headers });
-        if (!resp.ok) {
-          const errText = await resp.text();
-          throw new Error(`Fetch records failed (${resp.status}): ${errText.slice(0, 200)}`);
-        }
+        if (!resp.ok) throw new Error(`Failed to fetch from "${selectedName}": ${resp.status}`);
         const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
         rawRecords = [...rawRecords, ...data.records];
         offset = data.offset;
       } while (offset);
 
-      log.push(`Table "${tableName}": ${rawRecords.length} records`);
+      if (rawRecords.length === 0) throw new Error(`"${selectedName}" has no records.`);
 
-      if (rawRecords.length === 0) {
-        throw new Error(`Table "${tableName}" has 0 records. Debug: ${log.join(' | ')}`);
-      }
-
-      // Step 4: detect field names
       const sampleFields = rawRecords[0].fields;
       const fieldKeys = Object.keys(sampleFields);
-      log.push(`Fields: ${fieldKeys.join(', ')}`);
 
-      // Find the name/company field
       const nameKey = (() => {
-        const candidates = ['Name', 'name', 'Company', 'company', 'Client', 'client', 'Brand', 'brand', 'Account', 'account', 'Deal', 'deal', 'Title', 'title'];
-        for (const c of candidates) {
-          if (c in sampleFields) return c;
-        }
+        const candidates = ['Name', 'name', 'Company', 'company', 'Client', 'client', 'Brand', 'brand'];
+        for (const c of candidates) { if (c in sampleFields) return c; }
         return fieldKeys[0] || 'Name';
       })();
-      log.push(`Using "${nameKey}" as name field`);
 
-      // Step 5: import records
       const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
       let imported = 0;
       let skipped = 0;
@@ -395,7 +355,7 @@ function App() {
         imported++;
       }
 
-      setAirtableResult(`Imported ${imported}, skipped ${skipped} of ${rawRecords.length} records (table: "${tableName}", name field: "${nameKey}"). ${fieldKeys.length > 0 ? 'Fields: ' + fieldKeys.join(', ') : ''}`);
+      setAirtableResult(`Imported ${imported} deal${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? 's' : ''}` : ''} from "${selectedName}".`);
     } catch (err) {
       setAirtableError(err instanceof Error ? err.message : 'Import failed.');
     } finally {
@@ -477,14 +437,33 @@ function App() {
                     placeholder="pat... Airtable Personal Access Token"
                   />
                 </div>
-                <p className="text-xs text-brand-dark/40">Generate at airtable.com/create/tokens — add <strong>data.records:read</strong> + <strong>schema.bases:read</strong> scopes, and grant access to the K-Scope base.</p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleLoadTables}
+                    disabled={airtableLoadingTables}
+                    className="px-3 py-2 text-xs font-semibold rounded-lg border border-brand-cream text-brand-dark hover:bg-brand-light disabled:opacity-40 transition-all"
+                  >
+                    {airtableLoadingTables ? 'Loading…' : airtableTables.length > 0 ? 'Refresh Tables' : '1. Load Tables'}
+                  </button>
+                  {airtableTables.length > 0 && (
+                    <select
+                      value={airtableSelectedTable}
+                      onChange={e => setAirtableSelectedTable(e.target.value)}
+                      className="px-3 py-2 bg-brand-light border border-brand-cream rounded-lg text-xs text-brand-dark focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20"
+                    >
+                      {airtableTables.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
                   <button
                     onClick={handleAirtableImport}
-                    disabled={airtableImporting}
+                    disabled={airtableImporting || airtableTables.length === 0}
                     className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
-                    {airtableImporting ? 'Importing…' : 'Import Deals'}
+                    {airtableImporting ? 'Importing…' : '2. Import Deals'}
                   </button>
                   {airtableResult && <span className="text-xs text-emerald-600 font-medium">{airtableResult}</span>}
                   {clients.some(c => c.tags?.includes('airtable-import')) && (
@@ -500,6 +479,7 @@ function App() {
                     </button>
                   )}
                 </div>
+                <p className="text-xs text-brand-dark/40">Token needs <strong>data.records:read</strong> + <strong>schema.bases:read</strong> scopes at airtable.com/create/tokens.</p>
                 {airtableError && (
                   <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                     <p className="text-xs text-red-700">{airtableError}</p>
