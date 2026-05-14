@@ -16,11 +16,12 @@ interface HeaderProps {
 }
 
 const NAV_ITEMS: { id: View; label: string }[] = [
-  { id: 'pipeline',  label: 'Pipeline'      },
-  { id: 'report',    label: 'Weekly Report' },
-  { id: 'proposal',  label: 'Proposal AI'   },
-  { id: 'analytics', label: 'Analytics'     },
-  { id: 'projects',  label: 'Live Projects' },
+  { id: 'pipeline',  label: 'Pipeline'   },
+  { id: 'bd',        label: 'BD'         },
+  { id: 'roadmap',   label: 'Roadmap'    },
+  { id: 'report',    label: 'Report'     },
+  { id: 'proposal',  label: 'Proposals'  },
+  { id: 'analytics', label: 'Analytics'  },
 ];
 
 function relativeSync(iso: string | null): string {

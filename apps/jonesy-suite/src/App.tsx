@@ -17,8 +17,9 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
-import LiveProjects from './components/projects/LiveProjects';
-import BDTracker from './components/bd/BDTracker';
+import Leads from './components/leads/Leads';
+import Roadmap from './components/roadmap/Roadmap';
+import { JonesyDailyProspect } from './lib/supabase';
 
 const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
 const STORAGE_KEY_COMPANY  = 'jonesy_suite_company';
@@ -296,6 +297,26 @@ function App() {
       return next;
     });
   }, [setClients]);
+
+  const addProspectToEngaged = useCallback((p: JonesyDailyProspect) => {
+    addClient({
+      name: p.name,
+      company: p.company,
+      email: p.email,
+      phone: '',
+      value: 500_000,
+      stage: 'Engaged',
+      notes: `Prospected via daily agent.\n\nWHY: ${p.why}\n\nDraft email subject: ${p.draft_subject}`,
+      lastContact: today(),
+      tags: ['prospected'],
+      proposals: [],
+      industry: '',
+      outcome: 'active',
+      lostReason: '',
+      stageHistory: [],
+      documents: [],
+    });
+  }, [addClient]);
 
   // ── Auth / loading gates ──────────────────────────────
   if (authed === null) {
