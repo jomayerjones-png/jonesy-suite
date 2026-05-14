@@ -145,7 +145,8 @@ export interface ProposalFormData {
 }
 
 // Helpers
-export const isStale = (lastContact: string, _stage?: PipelineStage, days = 15): boolean => {
+export const isStale = (lastContact: string, daysOrStage: number | PipelineStage = 15): boolean => {
+  const days = typeof daysOrStage === 'number' ? daysOrStage : 15;
   const last = new Date(lastContact).getTime();
   const now = Date.now();
   return (now - last) / (1000 * 60 * 60 * 24) > days;
