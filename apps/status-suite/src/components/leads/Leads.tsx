@@ -8,58 +8,83 @@ interface LeadsProps {
 // ── Prospect generation ───────────────────────────────────────────
 
 const COMPANY_POOLS: Record<string, string[]> = {
-  'tech or AI': [
+  'media': [
+    'Disney', 'Warner Bros. Discovery', 'Paramount Global', 'Universal Pictures', 'Lionsgate',
+    'Amazon MGM Studios', 'Apple TV+', 'Netflix', 'HBO', 'Hulu',
+    'CAA', 'WME', 'UTA', 'Endeavor',
+    'Condé Nast', 'Hearst', 'The New York Times Company', 'Vox Media',
+    'iHeartMedia', 'SiriusXM', 'Spotify',
+    'Dotdash Meredith', 'BDG', 'Group Nine', 'Bustle Digital Group',
+  ],
+  'tech': [
     'Google', 'Microsoft', 'Meta', 'Apple', 'Amazon', 'Nvidia', 'Adobe', 'Salesforce',
     'LinkedIn', 'Stripe', 'Coinbase', 'Palantir', 'Databricks', 'OpenAI', 'Anthropic',
     'Oracle', 'Cisco', 'IBM', 'Samsung Electronics', 'Uber', 'Airbnb', 'DoorDash',
     'Pinterest', 'Reddit', 'Substack', 'beehiiv', 'Figma', 'Canva', 'Notion', 'Zoom',
   ],
-  'finance, consulting, or professional services': [
-    'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'BlackRock', 'Blackstone',
-    'Fidelity Investments', 'American Express', 'Mastercard', 'Visa', 'Capital One',
-    'UBS', 'Citi', 'Bank of America', 'McKinsey & Company', 'BCG', 'Bain & Company',
-    'Deloitte', 'Accenture', 'PwC', 'Edelman', 'Weber Shandwick',
+  'policy and public affairs': [
+    'Boeing', 'Lockheed Martin', 'Raytheon', 'Northrop Grumman', 'General Dynamics',
+    'Comcast NBCUniversal', 'AT&T', 'Verizon', 'T-Mobile',
+    'Amazon Web Services', 'Google Public Policy', 'Meta Policy', 'Microsoft Government',
+    'PhRMA', 'Blue Cross Blue Shield', 'UnitedHealth Group', 'CVS Health',
+    'Koch Industries', 'ExxonMobil', 'Chevron', 'BP',
+    'Goldman Sachs', 'JPMorgan Chase', 'Citadel', 'BlackRock',
   ],
-  'media, entertainment, or Hollywood': [
-    'Disney', 'Warner Bros. Discovery', 'Paramount Global', 'Universal Pictures',
-    'Amazon MGM Studios', 'Apple TV+', 'HBO', 'CAA', 'WME', 'UTA', 'Endeavor',
-    'Condé Nast', 'Hearst', 'The Atlantic', 'Axios', 'Puck', 'Vox Media',
-    'iHeartMedia', 'SiriusXM', 'Variety', 'Hollywood Reporter', 'Deadline',
+  'publisher advertisers (Puck, Axios, WSJ, WaPo)': [
+    'Deloitte', 'McKinsey & Company', 'BCG', 'Bain & Company', 'Accenture', 'PwC', 'EY', 'KPMG',
+    'American Express', 'Mastercard', 'Capital One', 'Morgan Stanley', 'Charles Schwab',
+    'BMW', 'Mercedes-Benz', 'Porsche', 'Lexus', 'Audi',
+    'Rolex', 'LVMH', 'Hermès', 'Tiffany & Co.',
+    'Dell Technologies', 'Hewlett Packard Enterprise', 'ServiceNow', 'Workday', 'Snowflake',
+    'Pfizer', 'AbbVie', 'Merck', 'Johnson & Johnson',
   ],
 };
 
 const CATEGORIES = [
-  'tech or AI',
-  'finance, consulting, or professional services',
-  'media, entertainment, or Hollywood',
+  'media',
+  'tech',
+  'policy and public affairs',
 ];
 
 function buildOneProspectPrompt(category: string, pool: string[]): string {
-  return `You are the Head of Partnerships at Status — the essential daily media intelligence newsletter for America's media, Hollywood, and tech decision-makers. Founded by Oliver Darcy (former CNN senior media reporter). 110,000+ subscribers, 40% daily open rate. Widely cited by NYT, WSJ, CNN, Variety, Bloomberg.
+  const publisherPool = COMPANY_POOLS['publisher advertisers (Puck, Axios, WSJ, WaPo)'] ?? [];
+  const combinedPool = [...new Set([...pool, ...publisherPool.slice(0, 8)])];
+
+  return `You are the Head of Partnerships at Status — the essential daily media intelligence newsletter founded by Oliver Darcy and Jon Passantino. 115,000+ subscribers, 40% daily open rate. Read by the decision-makers driving American media, Hollywood, and tech. Widely cited by NYT, WSJ, CNN, Variety, Bloomberg.
 
 Status sponsorship products:
-- Solo Newsletter Sponsorship: one brand, one edition, 110K+ readers, 40% open rate
+- Solo Newsletter Sponsorship: one brand, one edition, 115K+ readers, 40% open rate
 - Branded Content: native editorial in the Status voice
 - Event Sponsorship: Power Players Podcast, Breaking the Status Quo Awards, Insiders events
 - Podcast: flagship Status podcast to the same audience
 
-Find 1 senior decision-maker (CMO, VP Marketing, SVP Brand, Head of Partnerships, or equivalent) at a ${category} brand from this pool:
-${pool.join(', ')}
+Target: companies that want to reach ${category} executives and leaders. Also consider brands that currently advertise with Puck, Axios, Wall Street Journal, or Washington Post — they already understand premium newsletter audiences.
 
-Pick the company with the strongest "why Status, why now" rationale. Use your knowledge of recent campaigns, launches, rebrands, or cultural moments from 2024–2025.
+Find 1 senior decision-maker (CMO, VP Marketing, SVP Brand, Head of Comms, Head of Partnerships, or equivalent) at a brand from this pool:
+${combinedPool.join(', ')}
 
-WHY: One sentence, present tense, specific — name a real campaign, launch, or brand moment. No generics.
-Example: "Your 'Open to More' B2B campaign targeting CFOs maps directly to the Status readers who open us every morning."
+Pick the company with the strongest "why Status, why now" rationale. Use your knowledge of announcements, campaigns, launches, or news from the LAST 7 DAYS if possible, otherwise within the last month.
 
-Draft email:
-Subject: Status — [Company]
-Hi [First Name]
-I'm reaching out from Status — the daily media intelligence newsletter founded by Oliver Darcy, read by the decision-makers driving American media, Hollywood, and tech.
-We have 110,000+ subscribers and a 40% daily open rate — studio chiefs, newsroom leaders, tech executives, and Washington power players.
-[Company] has been on our list. [WHY sentence.]
-We'd love to talk about a sponsorship that puts your brand directly in front of this audience. Solo newsletter, branded content, events — or a combination.
+HOOK: You MUST include:
+- HOOK_EVENT: The prospect's own recent announcement (verb phrase, e.g. "launched a new streaming tier")
+- HOOK_DETAILS: Must include a metric or verified quote from that announcement
+- HOOK_POSITIONING: One-line market read — confident, not flattering
+
+Draft email (max 9 words in subject):
+Subject: Status — [Company] [≤9 words total]
+Hi [First Name],
+
+[HOOK_EVENT sentence with HOOK_DETAILS.] [HOOK_POSITIONING.]
+
+Status reaches 115,000+ studio chiefs, newsroom leaders, tech executives, and Washington policy leaders every morning — 40% daily open rate. Founded by Oliver Darcy and Jon Passantino. The decision-makers driving American media, Hollywood, and tech open us first.
+
+[Company] is exactly the kind of brand our readers want to hear from. [One sentence connecting their announcement to the Status audience.]
+
+I'd love to show you what a Status partnership looks like — solo newsletter, branded content, events, or a combination.
+
 Would you have 20 minutes this week?
-Warm regards,
+
+Best,
 Johanna
 
 Return ONLY valid JSON (no prose, no markdown):
@@ -241,10 +266,10 @@ function mapContacts(headers: string[], rows: Record<string, string>[]): CsvCont
 
 // ── Claude call ───────────────────────────────────────────────────
 
-const STATUS_CONTEXT = `Status is the essential daily media intelligence newsletter for America's media, Hollywood, and tech decision-makers. Founded by Oliver Darcy. 110,000+ subscribers, 40% daily open rate, growing 10% monthly. Widely cited by NYT, WSJ, CNN, Variety, Bloomberg. "Insiders Tell Status."
+const STATUS_CONTEXT = `Status is the essential daily media intelligence newsletter founded by Oliver Darcy and Jon Passantino. 115,000+ subscribers, 40% daily open rate. Read by the decision-makers driving American media, Hollywood, and tech. Widely cited by NYT, WSJ, CNN, Variety, Bloomberg. "Insiders Tell Status."
 
 Sponsorship products:
-- Solo Newsletter Sponsorship: one brand, one edition, 110K+ readers, 40% open rate
+- Solo Newsletter Sponsorship: one brand, one edition, 115K+ readers, 40% open rate
 - Branded Content: native editorial in the Status voice
 - Event Sponsorship: Power Players Podcast, Breaking the Status Quo Awards, Insiders
 - Podcast: flagship Status podcast`;
@@ -255,23 +280,23 @@ async function generateForContact(contact: CsvContact, apiKey: string): Promise<
 ${STATUS_CONTEXT}
 
 Given a contact's details, write:
-1. A WHY sentence — one specific, present-tense sentence explaining why this brand is a natural Status sponsor right now. Name a real campaign, launch, product, or brand moment. No generics.
-2. A draft email using this template:
+1. A HOOK — find the prospect's own recent announcement (last 7 days if possible). Include a metric or verified quote. Then a one-line market read — confident, not flattering.
+2. A draft email (max 9 words in subject) using this template:
 
-Subject: Status — [Company]
-Hi [First Name]
+Subject: Status — [Company] [≤9 words total]
+Hi [First Name],
 
-I'm reaching out from Status — the daily media intelligence newsletter founded by Oliver Darcy, read by the decision-makers driving American media, Hollywood, and tech.
+[Their recent announcement with a metric or quote.] [One-line market positioning.]
 
-We have 110,000+ subscribers and a 40% daily open rate — the studio chiefs, newsroom leaders, tech executives, and Washington power players your brand needs in the room.
+Status reaches 115,000+ studio chiefs, newsroom leaders, tech executives, and Washington policy leaders every morning — 40% daily open rate. Founded by Oliver Darcy and Jon Passantino. The decision-makers driving American media, Hollywood, and tech open us first.
 
-[Company] has been on our list. [WHY sentence here.]
+[Company] is exactly the kind of brand our readers want to hear from. [One sentence connecting their news to the Status audience.]
 
-We'd love to talk about a sponsorship that puts your brand directly in front of this audience. Solo newsletter, branded content, events — or a combination.
+I'd love to show you what a Status partnership looks like — solo newsletter, branded content, events, or a combination.
 
 Would you have 20 minutes this week?
 
-Warm regards,
+Best,
 Johanna
 
 Return ONLY a JSON object:
