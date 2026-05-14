@@ -496,12 +496,13 @@ Return ONLY valid JSON (no markdown, no prose):
       const data = await response.json() as { content: { type: string; text?: string }[] };
       const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
 
-      const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-      const obj = text.match(/\{[\s\S]*?"stageChanges"[\s\S]*?\}/);
-      const jsonStr = fence?.[1] ?? obj?.[0];
+      let jsonStr: string | undefined;
+      const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (fence) { jsonStr = fence[1]; }
+      else { const s = text.indexOf('{'), e = text.lastIndexOf('}'); if (s !== -1 && e > s) jsonStr = text.slice(s, e + 1); }
       if (!jsonStr) throw new Error('Could not parse AI response — try again.');
-
-      const parsed = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as ReportNotes;
+      const cleaned = jsonStr.replace(/,\s*([}\]])/g, '$1').replace(/[\x00-\x1f]/g, ch => ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : '');
+      const parsed = JSON.parse(cleaned) as ReportNotes;
       setNotes({
         stageChanges: parsed.stageChanges || '',
         activity: parsed.activity || '',
