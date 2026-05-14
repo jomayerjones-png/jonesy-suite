@@ -1,8 +1,156 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchTodayKaleidoscopeProspects, updateKaleidoscopeProspectStatus, KaleidoscopeDailyProspect } from '../../lib/supabase';
+import { fetchTodayKaleidoscopeProspects, updateKaleidoscopeProspectStatus, KaleidoscopeDailyProspect, supabase } from '../../lib/supabase';
 
 interface LeadsProps {
   onAddToEngaged: (prospect: KaleidoscopeDailyProspect) => void;
+}
+
+// ── AI Prospect Generation ───────────────────────────────────────
+
+const COMPANY_POOLS: Record<string, string[]> = {
+  'tech or AI': [
+    'Google', 'Microsoft', 'Meta', 'Apple', 'Amazon', 'Nvidia', 'Adobe', 'Salesforce',
+    'IBM', 'Samsung Electronics', 'Intel', 'Qualcomm', 'OpenAI', 'Anthropic', 'Databricks',
+    'Palantir', 'Snowflake', 'Cisco', 'Oracle', 'Figma', 'Canva', 'Notion', 'Stripe',
+    'Uber', 'Airbnb', 'Reddit', 'LinkedIn', 'Pinterest', 'Substack', 'beehiiv',
+  ],
+  'pharma, biotech, or health': [
+    'Pfizer', 'Johnson & Johnson', 'Moderna', 'AbbVie', 'Merck', 'Eli Lilly', 'Roche',
+    'Novartis', 'AstraZeneca', 'Bristol-Myers Squibb', 'Amgen', 'Gilead Sciences',
+    'Regeneron', 'Biogen', 'Illumina', '23andMe', 'Genentech', 'Bayer', 'GSK',
+    'Thermo Fisher Scientific', 'Abbott', 'Medtronic', 'Hologic', 'Exact Sciences',
+  ],
+  'finance, consumer, or media': [
+    'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'BlackRock', 'Fidelity Investments',
+    'American Express', 'Mastercard', 'Visa', 'Capital One', 'Charles Schwab',
+    'Patagonia', 'LVMH', 'Rolex', 'BMW', 'Mercedes-Benz', 'Porsche', 'Tesla',
+    'Condé Nast', 'The Atlantic', 'Bloomberg', 'WIRED', 'National Geographic',
+    'Disney', 'Warner Bros. Discovery', 'Paramount Global', 'iHeartMedia', 'SiriusXM',
+  ],
+};
+
+const CATEGORIES = [
+  'tech or AI',
+  'pharma, biotech, or health',
+  'finance, consumer, or media',
+];
+
+function buildOneProspectPrompt(category: string, pool: string[]): string {
+  return `You are the Head of Partnerships at Kaleidoscope — a premium podcast studio and iHeart's flagship science and technology network. "The National Geographic of podcasting." Founded by Oz Woloshyn and Mangesh Hattikudur. 1 million monthly listeners. $5M Series A (2025).
+
+Shows: The Builders with Walter Isaacson (Q4 2026), Two Percent with Michael Easter (Q2 2026), TechStuff with Oz Woloshyn (100M+ downloads), No Such Thing as a Fish (Apple's Best Podcast 2025), Shell Game with Evan Ratliff (Apple's #1 Tech Podcast), Inventors with Simone Giertz (Q3 2026), Superhuman with Chris Gayomali (Q3 2026), How to Live Forever, De-Extinction (Q4 2026).
+
+Sponsorship products:
+- Custom Partnerships: co-produced original shows or series built around a brand's narrative (WIRED, The Atlantic, Bloomberg — Webby finalist, Google + aiEDU)
+- Creative Sponsorship: host-read, deeply integrated show sponsorship — one brand per show
+- Events + Live Activation: live shows and brand activations tied to Kaleidoscope talent
+
+Find 1 senior decision-maker (CMO, VP Marketing, SVP Brand, Head of Partnerships, or equivalent) at a ${category} brand from this pool:
+${pool.join(', ')}
+
+Pick the company with the strongest "why Kaleidoscope, why now" rationale. Use your knowledge of recent campaigns, launches, rebrands, or cultural moments from 2024–2025.
+
+WHY: One sentence, present tense, specific — name a real campaign, launch, or brand moment. No generics.
+Example: "Your 'Year of AI' campaign positions perfectly alongside The Builders with Walter Isaacson — reaching the founders and investors shaping the next decade."
+
+Draft email:
+Subject: Kaleidoscope — [Company]
+Hi [First Name]
+I'm reaching out from Kaleidoscope — iHeart's flagship science and technology podcast network. 1 million monthly listeners, Apple's Best Podcast 2025, and The Builders with Walter Isaacson launching this autumn. "The National Geographic of podcasting."
+We produce deeply reported audio at the intersection of science, technology, discovery, and human ambition.
+[Company] has been on our list from the start. [WHY sentence.]
+We're building our founding partner roster now and speaking with a small number of brands who want to be part of something built for the long term. I'd love to share what that looks like.
+Would you have time for a call over the next couple of weeks?
+Warm regards,
+Johanna
+
+Return ONLY valid JSON (no prose, no markdown):
+{"name":"","title":"","company":"","email":"","email_confidence":"estimated","why":"","draft_subject":"","draft_body":""}`;
+}
+
+async function fetchOneKaleidoscopeProspect(
+  apiKey: string,
+  excludeCompanies: string[],
+  category: string,
+): Promise<KaleidoscopeDailyProspect> {
+  const lower = excludeCompanies.map(c => c.toLowerCase());
+  const pool = (COMPANY_POOLS[category] ?? []).filter(c => !lower.includes(c.toLowerCase()));
+  const activePool = pool.length >= 5 ? pool : (COMPANY_POOLS[category] ?? []);
+
+  const excludeNote = excludeCompanies.length > 0
+    ? `\nDO NOT suggest any of these companies: ${excludeCompanies.join(', ')}`
+    : '';
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: buildOneProspectPrompt(category, activePool),
+        messages: [{ role: 'user', content: `Find 1 real senior contact for Kaleidoscope's sponsorship pipeline. Pick the company you're most confident about.${excludeNote}\nReturn the JSON object only.` }],
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if ((err as { name?: string })?.name === 'AbortError') throw new Error('Request timed out — try again.');
+    throw err;
+  }
+  clearTimeout(timeout);
+
+  if (response.status === 429) {
+    await new Promise(r => setTimeout(r, 30_000));
+    return fetchOneKaleidoscopeProspect(apiKey, excludeCompanies, category);
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(err?.error?.message ?? `API error ${response.status}`);
+  }
+
+  const data = await response.json() as { content: { type: string; text?: string }[] };
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+  const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  const obj   = text.match(/\{[\s\S]*?"name"[\s\S]*?\}/);
+  const jsonStr = fence?.[1] ?? obj?.[0];
+  if (!jsonStr) throw new Error('Could not parse response — try again.');
+
+  let p: { name: string; title: string; company: string; email: string; email_confidence: string; why: string; draft_subject: string; draft_body: string };
+  try { p = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')); }
+  catch { throw new Error('Invalid JSON from Claude — try again.'); }
+
+  if (!p.name || !p.company) throw new Error('Incomplete data — try again.');
+
+  const today = new Date().toISOString().split('T')[0];
+  const row: KaleidoscopeDailyProspect = {
+    id: crypto.randomUUID(),
+    date: today,
+    name: p.name,
+    title: p.title ?? '',
+    company: p.company,
+    email: p.email ?? '',
+    email_confidence: p.email_confidence ?? 'estimated',
+    why: p.why ?? '',
+    draft_subject: p.draft_subject ?? `Kaleidoscope — ${p.company}`,
+    draft_body: p.draft_body ?? '',
+    status: 'pending',
+  };
+
+  supabase.from('kaleidoscope_daily_prospects').insert(row).then(({ error }) => {
+    if (error) console.warn('[Leads] Supabase save failed (showing anyway):', error.message);
+  });
+
+  return row;
 }
 
 // ── CSV Prospect (generated from upload) ─────────────────────────
@@ -342,6 +490,8 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   const [prospects, setProspects] = useState<KaleidoscopeDailyProspect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(0);
+  const [generateError, setGenerateError] = useState('');
 
   // Upload state
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? '');
@@ -349,7 +499,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   const [csvText, setCsvText] = useState('');
   const [contacts, setContacts] = useState<CsvContact[]>([]);
   const [generated, setGenerated] = useState<GeneratedProspect[]>([]);
-  const [generating, setGenerating] = useState(false);
+  const [csvGenerating, setCsvGenerating] = useState(false);
   const [parseError, setParseError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef(false);
@@ -364,6 +514,27 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load prospects'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleGenerateNew = async () => {
+    const key = apiKey.trim() || localStorage.getItem(API_KEY_STORAGE)?.trim();
+    if (!key) { setGenerateError('Enter your Anthropic API key in the Upload Contacts tab first.'); return; }
+    setGenerateError('');
+    const existing = await fetchTodayKaleidoscopeProspects().catch(() => prospects);
+    const excluded = existing.map(p => p.company);
+    for (let i = 1; i <= 3; i++) {
+      if (i > 1) await new Promise(r => setTimeout(r, 1500));
+      setGenerating(i);
+      try {
+        const p = await fetchOneKaleidoscopeProspect(key, excluded, CATEGORIES[i - 1]);
+        excluded.push(p.company);
+        setProspects(prev => [...prev, p]);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGenerateError(`Prospect ${i} failed: ${msg}`);
+      }
+    }
+    setGenerating(0);
+  };
 
   const handleAdd = async (prospect: KaleidoscopeDailyProspect) => {
     onAddToEngaged(prospect);
@@ -402,7 +573,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
     if (contacts.length === 0) return;
 
     abortRef.current = false;
-    setGenerating(true);
+    setCsvGenerating(true);
 
     const initial: GeneratedProspect[] = contacts.map(c => ({
       contact: c, status: 'idle', why: '', draft_subject: '', draft_body: '', added: false,
@@ -426,7 +597,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
       }
     }
 
-    setGenerating(false);
+    setCsvGenerating(false);
   };
 
   const handleAddGenerated = (item: GeneratedProspect) => {
@@ -487,45 +658,70 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
           {tab === 'daily' && (
             <>
               <div className="bg-brand-dark rounded-xl px-5 py-4">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="bg-[#7C3AED] px-2 py-0.5 flex-shrink-0">
-                    <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">K⟡</span>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="bg-[#7C3AED] px-2 py-0.5 flex-shrink-0">
+                        <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">K⟡</span>
+                      </div>
+                      <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
+                    </div>
+                    <p className="text-white text-sm leading-relaxed">
+                      3 senior contacts — one from tech/AI, one from pharma/biotech, one from finance/media. Specific show alignment, draft email ready to send.
+                    </p>
                   </div>
-                  <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
+                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                    {generating > 0 && (
+                      <span className="text-xs text-white/40 animate-pulse">{generating}/3…</span>
+                    )}
+                    {!loading && (
+                      <button
+                        onClick={handleGenerateNew}
+                        disabled={generating > 0}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        {generating > 0 ? 'Generating…' : prospects.length > 0 ? '+ More' : 'Generate'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-white text-sm leading-relaxed">
-                  3 senior contacts in Tech/AI, Pharma-Biotech, and Finance/Consumer — identified each weekday morning by AI. Specific show alignment, draft email ready to send.
-                </p>
               </div>
+
+              {generateError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+                  <p className="text-xs text-red-700">{generateError}</p>
+                  <button onClick={() => setGenerateError('')} className="text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                  <p className="text-xs text-red-500 mt-1">Check that the <code>kaleidoscope_daily_prospects</code> table exists in Supabase and RLS allows anon SELECT.</p>
+                  <p className="text-xs font-semibold text-red-700 mb-1">Could not load prospects</p>
+                  <p className="text-xs text-red-600 font-mono break-all">{error}</p>
                 </div>
               )}
 
               {loading ? (
                 <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
-              ) : prospects.length === 0 && !error ? (
-                <div className="text-center py-16">
-                  <p className="text-brand-dark/50 font-medium mb-1">No prospects generated yet today</p>
-                  <p className="text-sm text-brand-dark/35">The daily cron runs at 8am EST on weekdays. Trigger the workflow manually in GitHub Actions to test.</p>
-                </div>
               ) : (
-                prospects.map(p => <ProspectCard key={p.id} prospect={p} onAdd={handleAdd} />)
-              )}
-
-              {!loading && prospects.length === 0 && !error && (
-                <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
-                  <p className="font-semibold mb-1">Setup required</p>
-                  <ol className="list-decimal list-inside space-y-1 text-xs text-violet-800">
-                    <li>Create <code>kaleidoscope_daily_prospects</code> table in Supabase (SQL in project plan)</li>
-                    <li>Add RLS: anon SELECT, anon INSERT</li>
-                    <li><code>ANTHROPIC_API_KEY</code> secret already set in GitHub</li>
-                    <li>Trigger <code>kaleidoscope-prospects.yml</code> workflow manually in GitHub Actions</li>
-                  </ol>
-                </div>
+                <>
+                  {prospects.map(p => <ProspectCard key={p.id} prospect={p} onAdd={handleAdd} />)}
+                  {generating > 0 && Array.from({ length: Math.max(0, 4 - generating) }).map((_, i) => (
+                    <SkeletonCard key={`skel-${i}`} />
+                  ))}
+                  {prospects.length === 0 && generating === 0 && !error && (
+                    <div className="text-center py-12">
+                      <p className="text-brand-dark/50 font-medium mb-1">No prospects yet today</p>
+                      <p className="text-sm text-brand-dark/35 mb-4">Enter your API key in the Upload tab, then hit Generate.</p>
+                      <button
+                        onClick={handleGenerateNew}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-all"
+                      >
+                        Generate Today's Prospects
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -610,7 +806,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                     <p className="text-sm font-semibold text-brand-dark">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} detected</p>
                     <button
                       onClick={handleGenerate}
-                      disabled={generating || !apiKey.trim()}
+                      disabled={csvGenerating || !apiKey.trim()}
                       className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       Generate Emails →
@@ -632,10 +828,10 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">
-                      {generating ? `Generating… ${doneCount}/${contacts.length}` : `${doneCount} email${doneCount !== 1 ? 's' : ''} generated`}
+                      {csvGenerating ? `Generating… ${doneCount}/${contacts.length}` : `${doneCount} email${doneCount !== 1 ? 's' : ''} generated`}
                     </p>
-                    {generating ? (
-                      <button onClick={() => { abortRef.current = true; setGenerating(false); }} className="text-xs text-red-500 hover:text-red-700">Stop</button>
+                    {csvGenerating ? (
+                      <button onClick={() => { abortRef.current = true; setCsvGenerating(false); }} className="text-xs text-red-500 hover:text-red-700">Stop</button>
                     ) : (
                       <button onClick={() => { setGenerated([]); setContacts([]); setCsvText(''); }} className="text-xs text-brand-dark/40 hover:text-brand-dark">Clear &amp; start over</button>
                     )}
