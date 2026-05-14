@@ -10,11 +10,12 @@ interface HeaderProps {
 }
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
-  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
-  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
+  { id: 'pipeline',  label: 'Pipeline',  icon: '⬡', desc: 'Track deals & clients' },
+  { id: 'bd',        label: 'BD',        icon: '◇', desc: 'Business development' },
+  { id: 'roadmap',   label: 'Roadmap',   icon: '◆', desc: 'Timeline & milestones' },
+  { id: 'report',    label: 'Report',    icon: '◎', desc: 'Client summary' },
+  { id: 'proposal',  label: 'Proposals', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
-  { id: 'bd', label: 'BD', icon: '◇', desc: 'Business development' },
 ];
 
 export default function Header({

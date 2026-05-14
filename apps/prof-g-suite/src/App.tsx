@@ -5,7 +5,9 @@ import Header from './components/Header';
 import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
-import BDTracker from './components/bd/BDTracker';
+import Leads from './components/leads/Leads';
+import Roadmap from './components/roadmap/Roadmap';
+import { ProfGDailyProspect } from './components/leads/Leads';
 
 const STORAGE_KEY_CLIENTS = 'prof_g_suite_clients';
 const STORAGE_KEY_COMPANY = 'prof_g_suite_company';
@@ -117,6 +119,25 @@ function App() {
     );
   };
 
+  const addProspectToEngaged = (p: ProfGDailyProspect) => {
+    addClient({
+      name: p.name,
+      company: p.company,
+      email: p.email,
+      phone: '',
+      value: 500_000,
+      stage: 'Engaged',
+      notes: `Prospected via daily agent.\n\nWHY: ${p.why}\n\nDraft email subject: ${p.draft_subject}`,
+      lastContact: today(),
+      tags: ['prospected'],
+      proposals: [],
+      industry: '',
+      outcome: 'active',
+      lostReason: '',
+      stageHistory: [],
+    });
+  };
+
   return (
     <div className="min-h-screen bg-brand-light flex flex-col">
       <Header
@@ -154,7 +175,12 @@ function App() {
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
         )}
-        {view === 'bd' && <BDTracker storageKey="prof_g_suite_bd" suiteName="Prof G" />}
+        {view === 'bd' && (
+          <Leads onAddToEngaged={addProspectToEngaged} />
+        )}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
+        )}
       </main>
       <footer className="no-print bg-white border-t border-brand-cream px-6 py-2 flex items-center justify-between">
         <p className="text-xs text-brand-dark/35 font-medium">
