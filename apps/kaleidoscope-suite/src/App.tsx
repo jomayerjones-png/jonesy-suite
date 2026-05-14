@@ -255,26 +255,63 @@ function App() {
     setAirtableImporting(true);
 
     try {
-      const tablesResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!tablesResp.ok) throw new Error(tablesResp.status === 401 ? 'Invalid token — check your Airtable Personal Access Token.' : `Airtable error ${tablesResp.status}`);
-      const tablesData = await tablesResp.json() as { tables: { id: string; name: string }[] };
-      const table = tablesData.tables[0];
-      if (!table) throw new Error('No tables found in this base.');
+      const headers = { Authorization: `Bearer ${token}` };
+      const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main'];
 
       let allRecords: Record<string, unknown>[] = [];
-      let offset: string | undefined;
-      do {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
-        const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
-        allRecords = [...allRecords, ...data.records.map(r => r.fields)];
-        offset = data.offset;
-      } while (offset);
+      let foundTable = false;
 
-      if (allRecords.length === 0) throw new Error('No records found in the table.');
+      for (const tableName of TABLE_NAMES) {
+        try {
+          const testUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?maxRecords=1`;
+          const testResp = await fetch(testUrl, { headers });
+          if (testResp.status === 401 || testResp.status === 403) {
+            throw new Error('Invalid or expired token — check your Airtable Personal Access Token and ensure it has data.records:read scope.');
+          }
+          if (!testResp.ok) continue;
+          const testData = await testResp.json() as { records: unknown[] };
+          if (!testData.records) continue;
+
+          let offset: string | undefined;
+          do {
+            const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+            const resp = await fetch(url, { headers });
+            if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
+            const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+            allRecords = [...allRecords, ...data.records.map(r => r.fields)];
+            offset = data.offset;
+          } while (offset);
+
+          foundTable = true;
+          break;
+        } catch (e) {
+          if (e instanceof Error && e.message.includes('Invalid or expired token')) throw e;
+        }
+      }
+
+      if (!foundTable) {
+        try {
+          const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
+          if (metaResp.ok) {
+            const metaData = await metaResp.json() as { tables: { id: string; name: string }[] };
+            const table = metaData.tables[0];
+            if (table) {
+              let offset: string | undefined;
+              do {
+                const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
+                const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+                allRecords = [...allRecords, ...data.records.map(r => r.fields)];
+                offset = data.offset;
+              } while (offset);
+              foundTable = true;
+            }
+          }
+        } catch { /* metadata API unavailable, that's fine */ }
+      }
+
+      if (!foundTable || allRecords.length === 0) throw new Error('Could not find records. Check that the token has access to this base.');
 
       const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
       let imported = 0;
@@ -300,7 +337,7 @@ function App() {
           if (!isNaN(d.getTime())) lastContact = d.toISOString().split('T')[0];
         }
 
-        const nextScheduled = fields['Next Scheduled Meeting'] ?? fields['Next Scheduled...'] ?? '';
+        const nextScheduled = fields['Next Scheduled'] ?? fields['Next Scheduled Meeting'] ?? fields['Next Scheduled...'] ?? '';
         const notes = nextScheduled ? `Next scheduled: ${nextScheduled}` : '';
 
         addClient({
