@@ -97,7 +97,7 @@ export interface Client {
   thread?: ThreadMessage[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'leads';
+export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
 
 export interface SavedProposal {
   id: string;

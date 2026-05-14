@@ -123,7 +123,7 @@ export interface Client {
   emailCount?: number;
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'projects' | 'bd';
+export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
 
 export interface ProjectDocument {
   id: string;

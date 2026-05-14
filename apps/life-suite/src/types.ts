@@ -120,7 +120,7 @@ export interface Client {
   newsCache?: NewsCache;
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'roadmap' | 'bd';
+export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
 
 export interface SavedProposal {
   id: string;
