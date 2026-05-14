@@ -15,36 +15,38 @@ interface WeeklyReportProps {
   companyName: string;
 }
 
-const STORAGE_KEY_REPORT = 'life_suite_weekly_report';
-const STORAGE_KEY_ARCHIVES = 'life_suite_report_archives';
+const STORAGE_KEY_REPORT = 'status_suite_weekly_report';
+const STORAGE_KEY_ARCHIVES = 'status_suite_report_archives';
+const STORAGE_KEY_PREV_SNAPSHOT = 'status_suite_prev_snapshot';
+
+const STALE_DAYS = 15;
 
 interface ReportNotes {
-  pipelineUpdates: string;
-  meetings: string;
-  actions: string;
-  nextFocus: string;
+  stageChanges: string;
+  activity: string;
+  materials: string;
+  focusAhead: string;
 }
 
 const EMPTY_NOTES: ReportNotes = {
-  pipelineUpdates: '',
-  meetings: '',
-  actions: '',
-  nextFocus: '',
+  stageChanges: '',
+  activity: '',
+  materials: '',
+  focusAhead: '',
 };
 
-interface ArchivedStats {
+interface PipelineSnapshot {
   totalValue: number;
   activeValue: number;
   closedValue: number;
-  avgDeal: number;
   clientCount: number;
-  newThisWeek: number;
-  contactedThisWeek: number;
-  staleCount: number;
   byStage: Record<PipelineStage, { count: number; value: number }>;
-  topClients: Array<{ name: string; company: string; stage: PipelineStage; value: number; stale: boolean }>;
-  staleClients: Array<{ name: string; company: string; stage: PipelineStage; value: number; days: number; lastContact: string }>;
-  newClients: Array<{ name: string; company: string; stage: PipelineStage; value: number }>;
+}
+
+interface ArchivedStats extends PipelineSnapshot {
+  avgDeal: number;
+  staleCount: number;
+  deals: Array<{ name: string; company: string; stage: PipelineStage; value: number; stale: boolean; daysSinceContact: number }>;
 }
 
 interface ArchivedReport {
@@ -54,6 +56,23 @@ interface ArchivedReport {
   companyName: string;
   notes: ReportNotes;
   stats: ArchivedStats;
+  prevStats: PipelineSnapshot | null;
+}
+
+function delta(current: number, previous: number | undefined): string {
+  if (previous === undefined || previous === null) return '';
+  const diff = current - previous;
+  if (diff === 0) return '';
+  const sign = diff > 0 ? '+' : '';
+  return `${sign}${formatCurrency(diff)}`;
+}
+
+function deltaCount(current: number, previous: number | undefined): string {
+  if (previous === undefined || previous === null) return '';
+  const diff = current - previous;
+  if (diff === 0) return '';
+  const sign = diff > 0 ? '+' : '';
+  return `${sign}${diff}`;
 }
 
 const PRINT_STYLE = `
@@ -174,6 +193,16 @@ function SectionWrapper({
   );
 }
 
+function DeltaBadge({ value }: { value: string }) {
+  if (!value) return null;
+  const isPositive = value.startsWith('+');
+  return (
+    <span className={`text-xs font-medium ${isPositive ? 'text-emerald-600' : 'text-red-500'}`}>
+      {value}
+    </span>
+  );
+}
+
 function ArchivedReportView({
   archive,
   onClose,
@@ -185,12 +214,12 @@ function ArchivedReportView({
   const savedDate = new Date(archive.savedAt).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+  const prev = archive.prevStats;
 
   return (
     <div className="fixed inset-0 z-50 bg-brand-light overflow-auto">
       <style>{PRINT_STYLE}</style>
 
-      {/* Archive viewer toolbar */}
       <div className="no-print bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button onClick={onClose} className="btn-secondary flex items-center gap-1.5 text-sm">
@@ -207,7 +236,6 @@ function ArchivedReportView({
         </button>
       </div>
 
-      {/* Archived report content */}
       <div className="p-5">
         <div className="max-w-4xl mx-auto space-y-4 print-compact">
 
@@ -216,45 +244,36 @@ function ArchivedReportView({
             <div className="bg-brand-dark px-6 py-4 print-header">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Weekly Business Report</p>
+                  <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Partnership Update</p>
                   <h1 className="font-display text-2xl font-bold text-white">{archive.companyName}</h1>
                   <p className="text-white/50 text-xs mt-0.5">Saved {savedDate}</p>
                 </div>
                 <div className="text-right hidden sm:block">
                   <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Week of</p>
                   <p className="text-white font-medium text-sm">{archive.weekLabel}</p>
-                  <p className="text-white/50 text-xs mt-0.5">{archive.stats.clientCount} clients</p>
+                  <p className="text-white/50 text-xs mt-0.5">{archive.stats.clientCount} deals</p>
                 </div>
               </div>
             </div>
             <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark print-accent" />
           </div>
 
-          {/* Pipeline Metrics */}
+          {/* Pipeline Summary */}
           <div className="card p-4">
-            <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
+            <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Summary</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
               {[
-                { label: 'Total Pipeline', value: formatCurrency(archive.stats.totalValue), color: 'text-brand-dark' },
-                { label: 'Active Value', value: formatCurrency(archive.stats.activeValue), color: 'text-brand-gold' },
-                { label: 'Closed Value', value: formatCurrency(archive.stats.closedValue), color: 'text-emerald-600' },
-                { label: 'Avg. Deal Size', value: formatCurrency(archive.stats.avgDeal), color: 'text-brand-dark' },
+                { label: 'Total Pipeline', value: formatCurrency(archive.stats.totalValue), delta: delta(archive.stats.totalValue, prev?.totalValue) },
+                { label: 'Active Value', value: formatCurrency(archive.stats.activeValue), delta: delta(archive.stats.activeValue, prev?.activeValue) },
+                { label: 'Closed Value', value: formatCurrency(archive.stats.closedValue), delta: delta(archive.stats.closedValue, prev?.closedValue) },
+                { label: 'Total Deals', value: String(archive.stats.clientCount), delta: deltaCount(archive.stats.clientCount, prev?.clientCount) },
               ].map(m => (
                 <div key={m.label} className="metric-card">
                   <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
-                  <p className={`font-display text-xl font-bold ${m.color}`}>{m.value}</p>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-3 print-metrics mb-4">
-              {[
-                { label: 'New', value: archive.stats.newThisWeek, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-                { label: 'Contacted', value: archive.stats.contactedThisWeek, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-                { label: 'Stale (7d+)', value: archive.stats.staleCount, color: archive.stats.staleCount > 0 ? 'text-amber-700' : 'text-emerald-600', bg: archive.stats.staleCount > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: archive.stats.staleCount > 0 ? 'border-amber-100' : 'border-emerald-100' },
-              ].map(item => (
-                <div key={item.label} className={`rounded-lg px-3 py-2 text-center ${item.bg} border ${item.border}`}>
-                  <p className={`font-display text-xl font-bold ${item.color}`}>{item.value}</p>
-                  <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="font-display text-xl font-bold text-brand-dark">{m.value}</p>
+                    <DeltaBadge value={m.delta} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -263,6 +282,7 @@ function ArchivedReportView({
               <div className="space-y-1.5">
                 {PIPELINE_STAGES.map(stage => {
                   const s = archive.stats.byStage[stage] ?? { count: 0, value: 0 };
+                  const prevS = prev?.byStage[stage];
                   const cfg = STAGE_CONFIG[stage];
                   return (
                     <div key={stage} className="flex items-center gap-3 print-stage-row">
@@ -282,8 +302,9 @@ function ArchivedReportView({
                           </div>
                         </div>
                       </div>
-                      <div className="w-20 text-right flex-shrink-0">
+                      <div className="w-24 text-right flex-shrink-0 flex items-center justify-end gap-1.5">
                         <span className="text-xs font-semibold text-brand-gold">{formatCurrency(s.value)}</span>
+                        {prevS && <DeltaBadge value={deltaCount(s.count, prevS.count)} />}
                       </div>
                     </div>
                   );
@@ -292,23 +313,26 @@ function ArchivedReportView({
             </div>
           </div>
 
-          {archive.notes.pipelineUpdates && <NotesReadOnly title="Pipeline Updates" value={archive.notes.pipelineUpdates} />}
+          {archive.notes.stageChanges && <NotesReadOnly title="Stage Changes" value={archive.notes.stageChanges} />}
+          {archive.notes.activity && <NotesReadOnly title="Activity This Week" value={archive.notes.activity} />}
 
-          {/* Top opportunities */}
-          {archive.stats.topClients.length > 0 && (
+          {/* Deal overview */}
+          {archive.stats.deals.length > 0 && (
             <div className="card p-4">
-              <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Top Opportunities</h2>
+              <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">All Deals</h2>
               <div className="space-y-1.5">
-                {archive.stats.topClients.map((client, i) => {
-                  const cfg = STAGE_CONFIG[client.stage];
+                {archive.stats.deals.map((deal, i) => {
+                  const cfg = STAGE_CONFIG[deal.stage];
                   return (
-                    <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${client.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                      <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                    <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${deal.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs text-brand-dark truncate">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
+                        <p className="font-semibold text-xs text-brand-dark truncate">
+                          {deal.name} <span className="font-normal text-brand-dark/50">— {deal.company}</span>
+                          {deal.stale && <span className="ml-1 text-amber-600 text-xs">· {deal.daysSinceContact}d since contact</span>}
+                        </p>
                       </div>
-                      <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
-                      <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(client.value)}</span>
+                      <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{deal.stage}</span>
+                      <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(deal.value)}</span>
                     </div>
                   );
                 })}
@@ -316,14 +340,13 @@ function ArchivedReportView({
             </div>
           )}
 
-          {archive.notes.meetings && <NotesReadOnly title="Meetings Attended" value={archive.notes.meetings} />}
-          {archive.notes.actions && <NotesReadOnly title="Actions Taken & Completed" value={archive.notes.actions} />}
-          {archive.notes.nextFocus && <NotesReadOnly title="This Week's Focus" value={archive.notes.nextFocus} />}
+          {archive.notes.materials && <NotesReadOnly title="New Materials" value={archive.notes.materials} />}
+          {archive.notes.focusAhead && <NotesReadOnly title="Focus for Weeks Ahead" value={archive.notes.focusAhead} />}
 
           {/* Footer */}
           <div className="text-center py-2 border-t border-brand-cream">
             <p className="text-xs text-brand-dark/30">
-              {archive.companyName} Suite · Week of {archive.weekLabel}
+              {archive.companyName} · Week of {archive.weekLabel} · Prepared by Jonesy&amp;Co
             </p>
           </div>
         </div>
@@ -351,6 +374,14 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     return [];
   });
 
+  const [prevSnapshot, setPrevSnapshot] = useState<PipelineSnapshot | null>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_PREV_SNAPSHOT);
+      if (stored) return JSON.parse(stored) as PipelineSnapshot;
+    } catch { /* fall through */ }
+    return null;
+  });
+
   const [showArchives, setShowArchives] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
@@ -370,11 +401,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     setNotes(prev => ({ ...prev, [key]: value }));
 
   const stats = useMemo(() => {
-    const now = Date.now();
-    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const staleClients = clients.filter(c => isStale(c.lastContact));
-    const newThisWeek = clients.filter(c => new Date(c.createdAt).getTime() >= oneWeekAgo);
-    const contactedThisWeek = clients.filter(c => new Date(c.lastContact).getTime() >= oneWeekAgo);
+    const staleClients = clients.filter(c => isStale(c.lastContact, STALE_DAYS));
     const byStage: Record<PipelineStage, Client[]> = {
       Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
     };
@@ -382,13 +409,32 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     const totalValue = clients.reduce((s, c) => s + c.value, 0);
     const closedValue = byStage.Close.reduce((s, c) => s + c.value, 0);
     const activeValue = clients.filter(c => c.stage !== 'Close').reduce((s, c) => s + c.value, 0);
-    const avgDeal = clients.length > 0 ? totalValue / clients.length : 0;
-    const topClients = [...clients].sort((a, b) => b.value - a.value).slice(0, 5);
+    const sortedDeals = [...clients].sort((a, b) => b.value - a.value);
     return {
-      staleClients, newThisWeek, contactedThisWeek, byStage,
-      totalValue, closedValue, activeValue, avgDeal, topClients,
+      staleClients, byStage,
+      totalValue, closedValue, activeValue, sortedDeals,
     };
   }, [clients]);
+
+  const currentSnapshot: PipelineSnapshot = useMemo(() => {
+    const byStage: Record<PipelineStage, { count: number; value: number }> = {
+      Engaged: { count: 0, value: 0 }, 'Meeting Set': { count: 0, value: 0 },
+      'Proposal Sent': { count: 0, value: 0 }, Feedback: { count: 0, value: 0 }, Close: { count: 0, value: 0 },
+    };
+    PIPELINE_STAGES.forEach(s => {
+      byStage[s] = {
+        count: stats.byStage[s].length,
+        value: stats.byStage[s].reduce((sum, c) => sum + c.value, 0),
+      };
+    });
+    return {
+      totalValue: stats.totalValue,
+      activeValue: stats.activeValue,
+      closedValue: stats.closedValue,
+      clientCount: clients.length,
+      byStage,
+    };
+  }, [stats, clients.length]);
 
   const reportDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -400,17 +446,9 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   weekEnd.setDate(weekEnd.getDate() + 6);
   const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
+  const maxCount = Math.max(...PIPELINE_STAGES.map(s => stats.byStage[s].length), 1);
+
   const saveToArchive = () => {
-    const byStageSnapshot: Record<PipelineStage, { count: number; value: number }> = {
-      Engaged: { count: 0, value: 0 }, 'Meeting Set': { count: 0, value: 0 },
-      'Proposal Sent': { count: 0, value: 0 }, Feedback: { count: 0, value: 0 }, Close: { count: 0, value: 0 },
-    };
-    PIPELINE_STAGES.forEach(s => {
-      byStageSnapshot[s] = {
-        count: stats.byStage[s].length,
-        value: stats.byStage[s].reduce((sum, c) => sum + c.value, 0),
-      };
-    });
     const archive: ArchivedReport = {
       id: generateId(),
       weekLabel,
@@ -418,29 +456,20 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
       companyName,
       notes: { ...notes },
       stats: {
-        totalValue: stats.totalValue,
-        activeValue: stats.activeValue,
-        closedValue: stats.closedValue,
-        avgDeal: stats.avgDeal,
-        clientCount: clients.length,
-        newThisWeek: stats.newThisWeek.length,
-        contactedThisWeek: stats.contactedThisWeek.length,
+        ...currentSnapshot,
+        avgDeal: clients.length > 0 ? stats.totalValue / clients.length : 0,
         staleCount: stats.staleClients.length,
-        byStage: byStageSnapshot,
-        topClients: stats.topClients.map(c => ({
+        deals: stats.sortedDeals.map(c => ({
           name: c.name, company: c.company, stage: c.stage, value: c.value,
-          stale: isStale(c.lastContact),
-        })),
-        staleClients: stats.staleClients.map(c => ({
-          name: c.name, company: c.company, stage: c.stage, value: c.value,
-          days: daysSince(c.lastContact), lastContact: c.lastContact,
-        })),
-        newClients: stats.newThisWeek.map(c => ({
-          name: c.name, company: c.company, stage: c.stage, value: c.value,
+          stale: isStale(c.lastContact, STALE_DAYS),
+          daysSinceContact: daysSince(c.lastContact),
         })),
       },
+      prevStats: prevSnapshot,
     };
     setArchives(prev => [archive, ...prev]);
+    setPrevSnapshot(currentSnapshot);
+    localStorage.setItem(STORAGE_KEY_PREV_SNAPSHOT, JSON.stringify(currentSnapshot));
     setSaveLabel('✓ Saved!');
     setTimeout(() => setSaveLabel('Save Report'), 2500);
   };
@@ -455,8 +484,6 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     setCopyLabel('Copied!');
     setTimeout(() => setCopyLabel('Copy Text'), 2000);
   };
-
-  const maxCount = Math.max(...PIPELINE_STAGES.map(s => stats.byStage[s].length), 1);
 
   if (viewingArchive) {
     return (
@@ -475,7 +502,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
         {/* Toolbar */}
         <div className="bg-white border-b border-brand-cream px-6 py-3 flex items-center justify-between no-print">
           <div>
-            <h1 className="font-display text-lg font-semibold text-brand-dark">Weekly Report</h1>
+            <h1 className="font-display text-lg font-semibold text-brand-dark">Partnership Update</h1>
             <p className="text-xs text-brand-dark/50 mt-0.5">
               {showArchives ? `${archives.length} saved report${archives.length !== 1 ? 's' : ''}` : `Week of ${weekLabel}`}
             </p>
@@ -538,7 +565,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                             <span className="text-xs text-brand-dark/20">·</span>
                             <span className="text-xs text-brand-gold font-medium">{formatCurrency(archive.stats.totalValue)}</span>
                             <span className="text-xs text-brand-dark/20">·</span>
-                            <span className="text-xs text-brand-dark/50">{archive.stats.clientCount} clients</span>
+                            <span className="text-xs text-brand-dark/50">{archive.stats.clientCount} deals</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
@@ -573,47 +600,37 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 <div className="bg-brand-dark px-6 py-4 print-header">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Weekly Business Report</p>
+                      <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Partnership Update</p>
                       <h1 className="font-display text-2xl font-bold text-white">{companyName}</h1>
                       <p className="text-white/50 text-xs mt-0.5">{reportDate}</p>
                     </div>
                     <div className="text-right hidden sm:block">
                       <p className="text-brand-gold/70 text-xs font-medium uppercase tracking-widest mb-0.5">Week of</p>
                       <p className="text-white font-medium text-sm">{weekLabel}</p>
-                      <p className="text-white/50 text-xs mt-0.5">{clients.length} active clients</p>
+                      <p className="text-white/50 text-xs mt-0.5">{clients.length} active deals</p>
                     </div>
                   </div>
                 </div>
                 <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark print-accent" />
               </div>
 
-              {/* Pipeline Metrics */}
-              <SectionWrapper title="Pipeline Metrics" hidden={!!hiddenSections.metrics} onToggle={() => toggleSection('metrics')}>
+              {/* Pipeline Summary with WoW deltas */}
+              <SectionWrapper title="Pipeline Summary" hidden={!!hiddenSections.metrics} onToggle={() => toggleSection('metrics')}>
               <div className="card p-4">
-                <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Metrics</h2>
+                <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Pipeline Summary</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print-metrics mb-4">
                   {[
-                    { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), sub: 'All active deals', color: 'text-brand-dark' },
-                    { label: 'Active Value', value: formatCurrency(stats.activeValue), sub: 'Excl. closed', color: 'text-brand-gold' },
-                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), sub: `${stats.byStage.Close.length} closed`, color: 'text-emerald-600' },
-                    { label: 'Avg. Deal', value: formatCurrency(stats.avgDeal), sub: `${clients.length} clients`, color: 'text-brand-dark' },
+                    { label: 'Total Pipeline', value: formatCurrency(stats.totalValue), delta: delta(stats.totalValue, prevSnapshot?.totalValue) },
+                    { label: 'Active Value', value: formatCurrency(stats.activeValue), delta: delta(stats.activeValue, prevSnapshot?.activeValue) },
+                    { label: 'Closed Value', value: formatCurrency(stats.closedValue), delta: delta(stats.closedValue, prevSnapshot?.closedValue) },
+                    { label: 'Total Deals', value: String(clients.length), delta: deltaCount(clients.length, prevSnapshot?.clientCount) },
                   ].map(m => (
                     <div key={m.label} className="metric-card">
                       <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">{m.label}</p>
-                      <p className={`font-display text-xl font-bold ${m.color}`}>{m.value}</p>
-                      <p className="text-xs text-brand-dark/40 no-print">{m.sub}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-3 print-metrics mb-4">
-                  {[
-                    { label: 'New', value: stats.newThisWeek.length, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-                    { label: 'Contacted', value: stats.contactedThisWeek.length, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-                    { label: 'Stale (7d+)', value: stats.staleClients.length, color: stats.staleClients.length > 0 ? 'text-amber-700' : 'text-emerald-600', bg: stats.staleClients.length > 0 ? 'bg-amber-50' : 'bg-emerald-50', border: stats.staleClients.length > 0 ? 'border-amber-100' : 'border-emerald-100' },
-                  ].map(item => (
-                    <div key={item.label} className={`rounded-lg px-3 py-2 text-center ${item.bg} border ${item.border}`}>
-                      <p className={`font-display text-xl font-bold ${item.color}`}>{item.value}</p>
-                      <p className="text-xs text-brand-dark/60 font-medium">{item.label}</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="font-display text-xl font-bold text-brand-dark">{m.value}</p>
+                        <DeltaBadge value={m.delta} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -624,6 +641,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                       const stageClients = stats.byStage[stage];
                       const value = stageClients.reduce((s, c) => s + c.value, 0);
                       const cfg = STAGE_CONFIG[stage];
+                      const prevS = prevSnapshot?.byStage[stage];
                       return (
                         <div key={stage} className="flex items-center gap-3 print-stage-row">
                           <div className="w-28 flex-shrink-0">
@@ -642,8 +660,9 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                               </div>
                             </div>
                           </div>
-                          <div className="w-20 text-right flex-shrink-0">
+                          <div className="w-24 text-right flex-shrink-0 flex items-center justify-end gap-1.5">
                             <span className="text-xs font-semibold text-brand-gold">{formatCurrency(value)}</span>
+                            {prevS && <DeltaBadge value={deltaCount(stageClients.length, prevS.count)} />}
                           </div>
                         </div>
                       );
@@ -653,30 +672,42 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
               </div>
               </SectionWrapper>
 
-              <SectionWrapper title="Pipeline Updates" hidden={!!hiddenSections.pipelineUpdates} onToggle={() => toggleSection('pipelineUpdates')}>
+              {/* Stage Changes — specific deal movements */}
+              <SectionWrapper title="Stage Changes" hidden={!!hiddenSections.stageChanges} onToggle={() => toggleSection('stageChanges')}>
               <EditableSection
-                title="Pipeline Updates"
-                placeholder={`e.g.\nRolex follow-up call completed — awaiting revised scope feedback\nSamsung proposal at decision stage, chasing CMO sign-off\nNew intro to Verizon sport team via Diego`}
-                value={notes.pipelineUpdates}
-                onChange={setNote('pipelineUpdates')}
+                title="Stage Changes"
+                placeholder={`e.g.\nNike moved from Proposal Sent → Feedback — awaiting CMO sign-off\nSpotify advanced to Meeting Set — call confirmed for Apr 12\nAmex closed at $100K — 3-month activation deal`}
+                value={notes.stageChanges}
+                onChange={setNote('stageChanges')}
               />
               </SectionWrapper>
 
-              {stats.topClients.length > 0 && (
-                <SectionWrapper title="Top Opportunities" hidden={!!hiddenSections.topOpportunities} onToggle={() => toggleSection('topOpportunities')}>
+              {/* Activity this week */}
+              <SectionWrapper title="Activity This Week" hidden={!!hiddenSections.activity} onToggle={() => toggleSection('activity')}>
+              <EditableSection
+                title="Activity This Week"
+                placeholder={`e.g.\nCall with Sarah Chen — reviewed pipeline priorities (Tue)\nProposal sent to Nike — integrated campaign scope, $250K (Wed)\nIntro meeting with David Kim, American Express (Thu)`}
+                value={notes.activity}
+                onChange={setNote('activity')}
+              />
+              </SectionWrapper>
+
+              {/* All Deals table */}
+              {stats.sortedDeals.length > 0 && (
+                <SectionWrapper title="All Deals" hidden={!!hiddenSections.deals} onToggle={() => toggleSection('deals')}>
                 <div className="card p-4">
-                  <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">Top Opportunities</h2>
+                  <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">All Deals</h2>
                   <div className="space-y-1.5">
-                    {stats.topClients.map((client, i) => {
+                    {stats.sortedDeals.map(client => {
                       const cfg = STAGE_CONFIG[client.stage];
-                      const stale = isStale(client.lastContact);
+                      const stale = isStale(client.lastContact, STALE_DAYS);
+                      const days = daysSince(client.lastContact);
                       return (
                         <div key={client.id} className={`flex items-center gap-3 p-2 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                          <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-xs text-brand-dark truncate">
                               {client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span>
-                              {stale && <span className="ml-1 text-amber-600 text-xs">stale</span>}
+                              {stale && <span className="ml-1 text-amber-600 text-xs">· {days}d since contact</span>}
                             </p>
                           </div>
                           <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
@@ -689,68 +720,30 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 </SectionWrapper>
               )}
 
-              {stats.staleClients.length > 0 && (
-                <SectionWrapper title="Requires Attention" hidden={!!hiddenSections.attention} onToggle={() => toggleSection('attention')}>
-                <div className="card border-amber-200 p-4">
-                  <div className="mb-3">
-                    <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Requires Attention</h2>
-                    <p className="text-xs text-amber-700">{stats.staleClients.length} client{stats.staleClients.length > 1 ? 's' : ''} not contacted in 7+ days</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    {stats.staleClients
-                      .sort((a, b) => daysSince(b.lastContact) - daysSince(a.lastContact))
-                      .map(client => {
-                        const days = daysSince(client.lastContact);
-                        const cfg = STAGE_CONFIG[client.stage];
-                        return (
-                          <div key={client.id} className="flex items-center justify-between p-2 bg-amber-50 rounded-lg border border-amber-100">
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <p className="font-semibold text-xs text-brand-dark">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
-                              </div>
-                              <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-amber-700">{days}d</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-                </SectionWrapper>
-              )}
-
-              <SectionWrapper title="Meetings Attended" hidden={!!hiddenSections.meetings} onToggle={() => toggleSection('meetings')}>
+              {/* New Materials */}
+              <SectionWrapper title="New Materials" hidden={!!hiddenSections.materials} onToggle={() => toggleSection('materials')}>
               <EditableSection
-                title="Meetings Attended"
-                placeholder={`e.g.\nRolex — Arnaud Boetsch — scope clarification call (Tue)\nMeta partnerships team — Chris Cox — intro meeting (Wed)\nInternal strategy sync with team (Thu)`}
-                value={notes.meetings}
-                onChange={setNote('meetings')}
+                title="New Materials"
+                placeholder={`e.g.\nNike x LIFE Brand Partnership deck — Q3 2026 (approved)\nSpotify Exclusive Podcast Distribution proposal (draft)\nUpdated media kit with Q1 performance data`}
+                value={notes.materials}
+                onChange={setNote('materials')}
               />
               </SectionWrapper>
 
-              <SectionWrapper title="Actions Taken & Completed" hidden={!!hiddenSections.actions} onToggle={() => toggleSection('actions')}>
+              {/* Focus for Weeks Ahead */}
+              <SectionWrapper title="Focus for Weeks Ahead" hidden={!!hiddenSections.focusAhead} onToggle={() => toggleSection('focusAhead')}>
               <EditableSection
-                title="Actions Taken & Completed"
-                placeholder={`e.g.\nSent revised Samsung proposal with updated integration scope\nFollowed up with Toyota on end-of-month decision timeline\nOnboarded HubSpot contact to Prof G content partnership deck`}
-                value={notes.actions}
-                onChange={setNote('actions')}
+                title="Focus for Weeks Ahead"
+                placeholder={`e.g.\nClose Nike partnership — final sign-off expected by Apr 15\nSecond meeting with Spotify — present distribution terms\nInitiate Amex event co-branding conversation`}
+                value={notes.focusAhead}
+                onChange={setNote('focusAhead')}
               />
               </SectionWrapper>
 
-              <SectionWrapper title="This Week's Focus" hidden={!!hiddenSections.nextFocus} onToggle={() => toggleSection('nextFocus')}>
-              <EditableSection
-                title="This Week's Focus"
-                placeholder={`e.g.\nClose Samsung partnership — final sign-off\nSecond meeting with United Airlines — destination storytelling examples\nInitiate LVMH event co-branding conversation`}
-                value={notes.nextFocus}
-                onChange={setNote('nextFocus')}
-              />
-              </SectionWrapper>
-
+              {/* Footer */}
               <div className="text-center py-2 border-t border-brand-cream">
                 <p className="text-xs text-brand-dark/30">
-                  {companyName} Suite · {reportDate}
+                  {companyName} · {reportDate} · Prepared by Jonesy&amp;Co
                 </p>
               </div>
 
