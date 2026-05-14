@@ -256,62 +256,71 @@ function App() {
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main'];
 
       let allRecords: Record<string, unknown>[] = [];
       let foundTable = false;
+      let got401 = false;
 
-      for (const tableName of TABLE_NAMES) {
-        try {
-          const testUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?maxRecords=1`;
-          const testResp = await fetch(testUrl, { headers });
-          if (testResp.status === 401 || testResp.status === 403) {
-            throw new Error('Invalid or expired token — check your Airtable Personal Access Token and ensure it has data.records:read scope.');
+      // Strategy 1: try the metadata API to discover the real table name
+      try {
+        const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
+        if (metaResp.status === 401) got401 = true;
+        if (metaResp.ok) {
+          const metaData = await metaResp.json() as { tables: { id: string; name: string }[] };
+          const table = metaData.tables[0];
+          if (table) {
+            let offset: string | undefined;
+            do {
+              const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+              const resp = await fetch(url, { headers });
+              if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
+              const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+              allRecords = [...allRecords, ...data.records.map(r => r.fields)];
+              offset = data.offset;
+            } while (offset);
+            foundTable = true;
           }
-          if (!testResp.ok) continue;
-          const testData = await testResp.json() as { records: unknown[] };
-          if (!testData.records) continue;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('Failed to fetch records')) throw e;
+      }
 
-          let offset: string | undefined;
-          do {
-            const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
-            const resp = await fetch(url, { headers });
-            if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
-            const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
-            allRecords = [...allRecords, ...data.records.map(r => r.fields)];
-            offset = data.offset;
-          } while (offset);
+      // Strategy 2: try common table names directly
+      if (!foundTable) {
+        const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main', 'Contacts', 'Sponsors', 'Partners'];
+        for (const tableName of TABLE_NAMES) {
+          try {
+            const testUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?maxRecords=1`;
+            const testResp = await fetch(testUrl, { headers });
+            if (testResp.status === 401) { got401 = true; continue; }
+            if (!testResp.ok) continue;
+            const testData = await testResp.json() as { records: unknown[] };
+            if (!testData.records) continue;
 
-          foundTable = true;
-          break;
-        } catch (e) {
-          if (e instanceof Error && e.message.includes('Invalid or expired token')) throw e;
+            let offset: string | undefined;
+            do {
+              const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+              const resp = await fetch(url, { headers });
+              if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
+              const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+              allRecords = [...allRecords, ...data.records.map(r => r.fields)];
+              offset = data.offset;
+            } while (offset);
+
+            foundTable = true;
+            break;
+          } catch (e) {
+            if (e instanceof Error && e.message.includes('Failed to fetch records')) throw e;
+          }
         }
       }
 
-      if (!foundTable) {
-        try {
-          const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
-          if (metaResp.ok) {
-            const metaData = await metaResp.json() as { tables: { id: string; name: string }[] };
-            const table = metaData.tables[0];
-            if (table) {
-              let offset: string | undefined;
-              do {
-                const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
-                const resp = await fetch(url, { headers });
-                if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
-                const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
-                allRecords = [...allRecords, ...data.records.map(r => r.fields)];
-                offset = data.offset;
-              } while (offset);
-              foundTable = true;
-            }
-          }
-        } catch { /* metadata API unavailable, that's fine */ }
+      if (!foundTable || allRecords.length === 0) {
+        if (got401) {
+          throw new Error('Invalid or expired token — check your Airtable Personal Access Token.');
+        }
+        throw new Error('Could not access the base. When creating your token at airtable.com/create/tokens, make sure you add both "data.records:read" AND "schema.bases:read" scopes, and grant access to the K-Scope base.');
       }
-
-      if (!foundTable || allRecords.length === 0) throw new Error('Could not find records. Check that the token has access to this base.');
 
       const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
       let imported = 0;
@@ -443,7 +452,7 @@ function App() {
                     placeholder="pat... Airtable Personal Access Token"
                   />
                 </div>
-                <p className="text-xs text-brand-dark/40">Generate at airtable.com/create/tokens — needs data.records:read scope on the K-Scope base.</p>
+                <p className="text-xs text-brand-dark/40">Generate at airtable.com/create/tokens — add <strong>data.records:read</strong> + <strong>schema.bases:read</strong> scopes, and grant access to the K-Scope base.</p>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleAirtableImport}
