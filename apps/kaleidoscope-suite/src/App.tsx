@@ -322,12 +322,24 @@ function App() {
         throw new Error('Could not access the base. When creating your token at airtable.com/create/tokens, make sure you add both "data.records:read" AND "schema.bases:read" scopes, and grant access to the K-Scope base.');
       }
 
+      const nameKey = (() => {
+        if (allRecords.length === 0) return 'Name';
+        const first = allRecords[0];
+        const candidates = ['Name', 'name', 'Company', 'company', 'Client', 'client', 'Brand', 'brand', 'Account', 'account', 'Deal', 'deal', 'Title', 'title'];
+        for (const c of candidates) {
+          if (c in first && String(first[c]).trim()) return c;
+        }
+        const keys = Object.keys(first);
+        if (keys.length > 0) return keys[0];
+        return 'Name';
+      })();
+
       const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
       let imported = 0;
       let skipped = 0;
 
       for (const fields of allRecords) {
-        const rawName = String(fields['Name'] ?? '').trim();
+        const rawName = String(fields[nameKey] ?? '').trim();
         if (!rawName) continue;
 
         const company = rawName;
@@ -370,7 +382,12 @@ function App() {
         imported++;
       }
 
-      setAirtableResult(`Imported ${imported} deal${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? 's' : ''}` : ''}.`);
+      if (imported === 0 && skipped === 0 && allRecords.length > 0) {
+        const sampleKeys = Object.keys(allRecords[0]).join(', ');
+        setAirtableResult(`Found ${allRecords.length} records but no names matched. Fields: ${sampleKeys}`);
+      } else {
+        setAirtableResult(`Imported ${imported} deal${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? 's' : ''}` : ''}.`);
+      }
     } catch (err) {
       setAirtableError(err instanceof Error ? err.message : 'Import failed.');
     } finally {
