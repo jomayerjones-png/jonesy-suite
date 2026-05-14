@@ -524,13 +524,20 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
     for (let i = 1; i <= 3; i++) {
       if (i > 1) await new Promise(r => setTimeout(r, 1500));
       setGenerating(i);
-      try {
-        const p = await fetchOneKaleidoscopeProspect(key, excluded, CATEGORIES[i - 1]);
-        excluded.push(p.company);
-        setProspects(prev => [...prev, p]);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setGenerateError(`Prospect ${i} failed: ${msg}`);
+      let success = false;
+      for (let attempt = 0; attempt < 2 && !success; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+          const p = await fetchOneKaleidoscopeProspect(key, excluded, CATEGORIES[i - 1]);
+          excluded.push(p.company);
+          setProspects(prev => [...prev, p]);
+          success = true;
+        } catch (err) {
+          if (attempt === 1) {
+            const msg = err instanceof Error ? err.message : String(err);
+            setGenerateError(`Prospect ${i} failed: ${msg}`);
+          }
+        }
       }
     }
     setGenerating(0);
