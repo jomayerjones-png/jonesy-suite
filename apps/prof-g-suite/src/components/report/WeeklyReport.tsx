@@ -320,22 +320,32 @@ function ArchivedReportView({
           {archive.stats.deals.length > 0 && (
             <div className="card p-4">
               <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">All Deals</h2>
-              <div className="space-y-1.5">
-                {archive.stats.deals.map((deal, i) => {
-                  const cfg = STAGE_CONFIG[deal.stage];
-                  return (
-                    <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${deal.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs text-brand-dark truncate">
-                          {deal.name} <span className="font-normal text-brand-dark/50">— {deal.company}</span>
-                          {deal.stale && <span className="ml-1 text-amber-600 text-xs">· {deal.daysSinceContact}d since contact</span>}
-                        </p>
-                      </div>
-                      <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{deal.stage}</span>
-                      <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(deal.value)}</span>
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-brand-cream">
+                      <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Prospect</th>
+                      <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Company</th>
+                      <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Stage</th>
+                      <th className="text-right py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Value</th>
+                      <th className="text-right py-2 font-semibold text-brand-dark/50 uppercase tracking-wider">Last Contact</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archive.stats.deals.map((deal, i) => {
+                      const cfg = STAGE_CONFIG[deal.stage];
+                      return (
+                        <tr key={i} className={`border-b border-brand-cream/50 ${deal.stale ? 'bg-amber-50' : ''}`}>
+                          <td className="py-2 pr-3 font-semibold text-brand-dark">{deal.name}</td>
+                          <td className="py-2 pr-3 text-brand-dark/60">{deal.company}</td>
+                          <td className="py-2 pr-3"><span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{deal.stage}</span></td>
+                          <td className="py-2 pr-3 text-right font-bold text-brand-gold">{formatCurrency(deal.value)}</td>
+                          <td className={`py-2 text-right ${deal.stale ? 'text-amber-600 font-medium' : 'text-brand-dark/50'}`}>{deal.daysSinceContact}d ago</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -697,24 +707,34 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 <SectionWrapper title="All Deals" hidden={!!hiddenSections.deals} onToggle={() => toggleSection('deals')}>
                 <div className="card p-4">
                   <h2 className="text-sm font-semibold text-brand-dark uppercase tracking-wider mb-3">All Deals</h2>
-                  <div className="space-y-1.5">
-                    {stats.sortedDeals.map(client => {
-                      const cfg = STAGE_CONFIG[client.stage];
-                      const stale = isStale(client.lastContact, STALE_DAYS);
-                      const days = daysSince(client.lastContact);
-                      return (
-                        <div key={client.id} className={`flex items-center gap-3 p-2 rounded-lg ${stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-xs text-brand-dark truncate">
-                              {client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span>
-                              {stale && <span className="ml-1 text-amber-600 text-xs">· {days}d since contact</span>}
-                            </p>
-                          </div>
-                          <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
-                          <span className="font-bold text-brand-gold text-xs flex-shrink-0">{formatCurrency(client.value)}</span>
-                        </div>
-                      );
-                    })}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-brand-cream">
+                          <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Prospect</th>
+                          <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Company</th>
+                          <th className="text-left py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Stage</th>
+                          <th className="text-right py-2 pr-3 font-semibold text-brand-dark/50 uppercase tracking-wider">Value</th>
+                          <th className="text-right py-2 font-semibold text-brand-dark/50 uppercase tracking-wider">Last Contact</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.sortedDeals.map(client => {
+                          const cfg = STAGE_CONFIG[client.stage];
+                          const stale = isStale(client.lastContact, STALE_DAYS);
+                          const days = daysSince(client.lastContact);
+                          return (
+                            <tr key={client.id} className={`border-b border-brand-cream/50 ${stale ? 'bg-amber-50' : ''}`}>
+                              <td className="py-2 pr-3 font-semibold text-brand-dark">{client.name}</td>
+                              <td className="py-2 pr-3 text-brand-dark/60">{client.company}</td>
+                              <td className="py-2 pr-3"><span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span></td>
+                              <td className="py-2 pr-3 text-right font-bold text-brand-gold">{formatCurrency(client.value)}</td>
+                              <td className={`py-2 text-right ${stale ? 'text-amber-600 font-medium' : 'text-brand-dark/50'}`}>{days}d ago</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
                 </SectionWrapper>
