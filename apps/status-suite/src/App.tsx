@@ -13,6 +13,7 @@ import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import Leads from './components/leads/Leads';
+import Roadmap from './components/roadmap/Roadmap';
 
 const STORAGE_KEY_CLIENTS = 'status_suite_clients';
 const STORAGE_KEY_COMPANY = 'status_suite_company';
@@ -304,8 +305,11 @@ function App() {
             onSaveToClient={saveProposalToClient}
           />
         )}
-        {view === 'leads' && (
+        {view === 'bd' && (
           <Leads onAddToEngaged={handleAddProspectToEngaged} />
+        )}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
         )}
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />

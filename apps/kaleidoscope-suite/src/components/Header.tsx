@@ -10,9 +10,10 @@ interface HeaderProps {
 
 const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'All deals' },
-  { id: 'leads', label: 'Leads', icon: '✦', desc: "Today's prospects" },
-  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Revenue update' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
+  { id: 'bd', label: 'BD', icon: '✦', desc: "Today's prospects" },
+  { id: 'roadmap', label: 'Roadmap', icon: '◇', desc: 'Strategic roadmap' },
+  { id: 'report', label: 'Report', icon: '◎', desc: 'Revenue update' },
+  { id: 'proposal', label: 'Proposals', icon: '◈', desc: 'Generate proposals' },
   { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
 ];
 

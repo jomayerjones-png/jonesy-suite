@@ -400,10 +400,12 @@ function App() {
         {view === 'analytics' && (
           <AnalyticsView clients={clients} companyName={companyName} />
         )}
-        {view === 'projects' && (
-          <LiveProjects clients={clients} onUpdateClient={updateClient} />
+        {view === 'bd' && (
+          <Leads onAddToEngaged={addProspectToEngaged} />
         )}
-        {view === 'bd' && <BDTracker storageKey="jonesy_suite_bd" suiteName="Jonesy&Co" />}
+        {view === 'roadmap' && (
+          <Roadmap companyName={companyName} />
+        )}
       </main>
       <footer className="no-print bg-brand-dark border-t border-white/10 px-6 py-2 flex items-center justify-between">
         <p className="text-xs text-white/25 font-medium">
