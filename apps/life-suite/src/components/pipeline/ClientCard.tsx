@@ -50,14 +50,14 @@ export default function ClientCard({
         <div className="flex-1 min-w-0">
           {/* Name & company */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-brand-dark text-sm truncate">{client.name}</span>
+            <span className="font-semibold text-brand-dark text-sm truncate">{client.company}</span>
             {stale && (
               <span className="stale-indicator">
                 <span>⚠</span> {days}d
               </span>
             )}
           </div>
-          <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.company}</p>
+          <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.name}{client.contacts && client.contacts.length > 0 ? ` + ${client.contacts.length}` : ''}</p>
         </div>
 
         {/* Value */}

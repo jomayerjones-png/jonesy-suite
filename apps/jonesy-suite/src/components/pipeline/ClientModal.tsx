@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Client, SavedProposal, MeetingNote, ThreadMessage, NewsArticle, PIPELINE_STAGES, generateId, formatCurrency, formatDate } from '../../types';
+import { Client, ClientContact, SavedProposal, MeetingNote, ThreadMessage, NewsArticle, PIPELINE_STAGES, generateId, formatCurrency, formatDate } from '../../types';
 
 // Lazy-load pdfjs-dist only when needed (PDF upload)
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
@@ -62,6 +62,8 @@ const DEFAULT_FORM: ClientFormData = {
   lostReason: '',
   stageHistory: [],
   documents: [],
+  callNotes: '',
+  contacts: [],
 };
 
 function renderMarkdown(text: string): string {
@@ -606,7 +608,7 @@ export default function ClientModal({
   onUpdateMeetingNotes,
   onUpdateNewsCache,
 }: ClientModalProps) {
-  const [tab, setTab] = useState<'details' | 'proposals' | 'notes' | 'intelligence'>('details');
+  const [tab, setTab] = useState<'details' | 'contacts' | 'proposals' | 'notes' | 'intelligence'>('details');
   const [intelApiKey, setIntelApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
   const [intelInput, setIntelInput] = useState('');
   const [intelThread, setIntelThread] = useState<ThreadMessage[]>(() => client?.thread ?? []);
@@ -646,6 +648,8 @@ export default function ClientModal({
           lostReason: client.lostReason ?? '',
           stageHistory: client.stageHistory ?? [],
           documents: client.documents ?? [],
+          callNotes: client.callNotes ?? '',
+          contacts: client.contacts ?? [],
         }
       : DEFAULT_FORM
   );
@@ -951,6 +955,21 @@ Return ONLY a JSON object (no markdown fences, no prose outside it):
                 Details
               </button>
               <button
+                onClick={() => setTab('contacts')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  tab === 'contacts'
+                    ? 'text-brand-gold border-b-2 border-brand-gold'
+                    : 'text-brand-dark/50 hover:text-brand-dark'
+                }`}
+              >
+                Contacts
+                {(form.contacts?.length ?? 0) > 0 && (
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-dark/10 text-brand-dark/60 text-xs font-bold">
+                    {form.contacts!.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setTab('proposals')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'proposals'
@@ -1078,6 +1097,20 @@ Return ONLY a JSON object (no markdown fences, no prose outside it):
                 </div>
 
                 <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label mb-0">Call Notes</label>
+                    <span className="text-[10px] text-brand-dark/40 font-medium">Granola / meeting notes</span>
+                  </div>
+                  <textarea
+                    className="input-field resize-none font-mono text-xs"
+                    rows={4}
+                    value={form.callNotes ?? ''}
+                    onChange={e => set('callNotes', e.target.value)}
+                    placeholder="Paste call notes from Granola or any meeting notes tool..."
+                  />
+                </div>
+
+                <div>
                   <label className="label">Tags</label>
                   <div className="flex gap-2">
                     <input
@@ -1143,6 +1176,124 @@ Return ONLY a JSON object (no markdown fences, no prose outside it):
                 </div>
               </div>
             </form>
+          )}
+
+          {/* Contacts tab */}
+          {tab === 'contacts' && (
+            <div className="overflow-y-auto flex-1 flex flex-col">
+              <div className="px-4 pt-4 pb-3 border-b border-brand-cream flex items-center justify-between">
+                <p className="text-xs text-brand-dark/50">
+                  {(form.contacts?.length ?? 0) === 0 ? 'No additional contacts' : `${form.contacts!.length} contact${form.contacts!.length > 1 ? 's' : ''}`}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newContact: ClientContact = { id: generateId(), name: '', title: '', email: '', phone: '', callNotes: '' };
+                    set('contacts', [...(form.contacts ?? []), newContact]);
+                  }}
+                  className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5"
+                >
+                  + Add Contact
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {(form.contacts ?? []).length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-sm text-brand-dark/50 mb-1">No additional contacts yet</p>
+                    <p className="text-xs text-brand-dark/35">Add contacts from this company — decision makers, champions, influencers.</p>
+                  </div>
+                )}
+                {(form.contacts ?? []).map((contact, ci) => (
+                  <div key={contact.id} className="card p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">Contact {ci + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => set('contacts', (form.contacts ?? []).filter(c => c.id !== contact.id))}
+                        className="text-xs text-red-400 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">Name</label>
+                        <input
+                          className="input-field text-sm"
+                          value={contact.name}
+                          onChange={e => {
+                            const updated = (form.contacts ?? []).map(c => c.id === contact.id ? { ...c, name: e.target.value } : c);
+                            set('contacts', updated);
+                          }}
+                          placeholder="Name"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Title</label>
+                        <input
+                          className="input-field text-sm"
+                          value={contact.title}
+                          onChange={e => {
+                            const updated = (form.contacts ?? []).map(c => c.id === contact.id ? { ...c, title: e.target.value } : c);
+                            set('contacts', updated);
+                          }}
+                          placeholder="CMO, VP Marketing…"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">Email</label>
+                        <input
+                          type="email"
+                          className="input-field text-sm"
+                          value={contact.email}
+                          onChange={e => {
+                            const updated = (form.contacts ?? []).map(c => c.id === contact.id ? { ...c, email: e.target.value } : c);
+                            set('contacts', updated);
+                          }}
+                          placeholder="Email"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Phone</label>
+                        <input
+                          className="input-field text-sm"
+                          value={contact.phone}
+                          onChange={e => {
+                            const updated = (form.contacts ?? []).map(c => c.id === contact.id ? { ...c, phone: e.target.value } : c);
+                            set('contacts', updated);
+                          }}
+                          placeholder="Phone"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="label mb-0">Call Notes</label>
+                        <span className="text-[10px] text-brand-dark/40 font-medium">Granola / meeting notes</span>
+                      </div>
+                      <textarea
+                        className="input-field resize-none font-mono text-xs"
+                        rows={3}
+                        value={contact.callNotes}
+                        onChange={e => {
+                          const updated = (form.contacts ?? []).map(c => c.id === contact.id ? { ...c, callNotes: e.target.value } : c);
+                          set('contacts', updated);
+                        }}
+                        placeholder="Paste call notes from Granola or type meeting notes…"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 pb-4 pt-2 border-t border-brand-cream flex items-center justify-end gap-3">
+                <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                <button type="button" onClick={() => { if (validate()) onSave(form); }} className="btn-primary">Save Changes</button>
+              </div>
+            </div>
           )}
 
           {/* Proposals tab */}

@@ -98,6 +98,15 @@ export interface NewsCache {
   articles: NewsArticle[];
 }
 
+export interface ClientContact {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  callNotes: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -121,6 +130,8 @@ export interface Client {
   newsCache?: NewsCache;
   gmailSynced?: boolean;
   emailCount?: number;
+  callNotes?: string;
+  contacts?: ClientContact[];
 }
 
 export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
