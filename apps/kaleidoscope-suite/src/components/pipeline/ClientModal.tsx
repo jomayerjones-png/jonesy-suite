@@ -675,7 +675,10 @@ Be concise, strategic, and focused on helping close this partnership. When asked
 
   const sendIntelMessage = async () => {
     if (!intelInput.trim() || intelStreaming) return;
-    if (!intelApiKey.trim()) { setIntelError('Enter your Anthropic API key above to use Intelligence.'); return; }
+    if (!intelApiKey.trim()) {
+      const stored = localStorage.getItem(INTEL_API_KEY)?.trim();
+      if (stored) { setIntelApiKey(stored); } else { setIntelError('Enter your Anthropic API key above to use Intelligence.'); return; }
+    }
     setIntelError('');
 
     const userMsg: ThreadMessage = {
@@ -704,7 +707,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': intelApiKey.trim(),
+          'x-api-key': (intelApiKey.trim() || localStorage.getItem(INTEL_API_KEY) || '').trim(),
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true',
         },
@@ -1270,15 +1273,22 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                     </button>
                   )}
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    type="password"
-                    className="input-field flex-1 py-1.5 text-xs font-mono"
-                    placeholder="sk-ant-… Anthropic API key"
-                    value={intelApiKey}
-                    onChange={e => saveIntelApiKey(e.target.value)}
-                  />
-                </div>
+                {intelApiKey.trim() || localStorage.getItem(INTEL_API_KEY)?.trim() ? (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-xs text-emerald-600">✓ API key set</span>
+                    <button onClick={() => saveIntelApiKey('')} className="text-xs text-brand-dark/30 hover:text-brand-dark/60 transition-colors">Change</button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="password"
+                      className="input-field flex-1 py-1.5 text-xs font-mono"
+                      placeholder="sk-ant-… Anthropic API key"
+                      value={intelApiKey}
+                      onChange={e => saveIntelApiKey(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Context summary */}
