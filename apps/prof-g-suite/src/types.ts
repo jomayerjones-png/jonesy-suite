@@ -70,6 +70,15 @@ export interface StageEvent {
   date: string; // YYYY-MM-DD
 }
 
+export interface ClientContact {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  callNotes: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -87,6 +96,8 @@ export interface Client {
   outcome: 'active' | 'won' | 'lost';
   lostReason: string;
   stageHistory: StageEvent[];
+  callNotes?: string;
+  contacts?: ClientContact[];
 }
 
 export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
