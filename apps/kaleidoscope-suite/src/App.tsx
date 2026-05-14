@@ -258,18 +258,29 @@ function App() {
       const headers = { Authorization: `Bearer ${token}` };
       const log: string[] = [];
 
-      // Step 1: try metadata API to discover tables
+      // Step 1: try metadata API to discover tables — find the DEALS table
       let tableId = '';
       let tableName = '';
       try {
         const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
         log.push(`Meta API: ${metaResp.status}`);
         if (metaResp.ok) {
-          const metaData = await metaResp.json() as { tables: { id: string; name: string }[] };
-          log.push(`Tables found: ${metaData.tables.map(t => t.name).join(', ')}`);
-          if (metaData.tables.length > 0) {
+          const metaData = await metaResp.json() as { tables: { id: string; name: string; fields?: { name: string }[] }[] };
+          log.push(`Tables: ${metaData.tables.map(t => t.name).join(', ')}`);
+          const dealFields = ['$ Amount', 'Probability', 'Last touchpoint'];
+          for (const t of metaData.tables) {
+            const fieldNames = (t.fields ?? []).map(f => f.name);
+            if (dealFields.some(df => fieldNames.includes(df))) {
+              tableId = t.id;
+              tableName = t.name;
+              log.push(`Matched deals table: "${t.name}" (has ${dealFields.filter(df => fieldNames.includes(df)).join(', ')})`);
+              break;
+            }
+          }
+          if (!tableId && metaData.tables.length > 0) {
             tableId = metaData.tables[0].id;
             tableName = metaData.tables[0].name;
+            log.push(`No deals table found, falling back to first: "${tableName}"`);
           }
         } else {
           const errText = await metaResp.text();
@@ -476,6 +487,18 @@ function App() {
                     {airtableImporting ? 'Importing…' : 'Import Deals'}
                   </button>
                   {airtableResult && <span className="text-xs text-emerald-600 font-medium">{airtableResult}</span>}
+                  {clients.some(c => c.tags?.includes('airtable-import')) && (
+                    <button
+                      onClick={() => {
+                        const toRemove = clients.filter(c => c.tags?.includes('airtable-import'));
+                        toRemove.forEach(c => deleteClient(c.id));
+                        setAirtableResult(`Cleared ${toRemove.length} imported records.`);
+                      }}
+                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all"
+                    >
+                      Clear imported ({clients.filter(c => c.tags?.includes('airtable-import')).length})
+                    </button>
+                  )}
                 </div>
                 {airtableError && (
                   <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
