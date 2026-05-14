@@ -666,9 +666,6 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                       </div>
                       <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
                     </div>
-                    <p className="text-white text-sm leading-relaxed">
-                      3 senior contacts — one from tech/AI, one from pharma/biotech, one from finance/media. Specific show alignment, draft email ready to send.
-                    </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
                     {generating > 0 && (
