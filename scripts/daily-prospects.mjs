@@ -101,8 +101,6 @@ async function loadNewsletterContext() {
   if (!data || data.length === 0) return null;
   return data.map(r => `--- ${r.subject} (${r.sent_date}) ---\n${r.content.slice(0, 2000)}`).join('\n\n');
 }
-  return all;
-}
 
 function buildSystemPrompt(category, companyPool, newsletterContext) {
   const newsletterSection = newsletterContext ? `
