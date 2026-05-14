@@ -86,6 +86,7 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
       Engaged: { count: 0, value: 0 },
       'Meeting Set': { count: 0, value: 0 },
       'Proposal Sent': { count: 0, value: 0 },
+      'Revised Proposal Sent': { count: 0, value: 0 },
       Feedback: { count: 0, value: 0 },
       Close: { count: 0, value: 0 },
     };
@@ -97,7 +98,7 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
 
     // Stage velocity (avg days in each stage across all clients with history)
     const stageVelocity: Record<PipelineStage, number[]> = {
-      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
+      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], 'Revised Proposal Sent': [], Feedback: [], Close: [],
     };
     clients.forEach(c => {
       PIPELINE_STAGES.forEach(stage => {
