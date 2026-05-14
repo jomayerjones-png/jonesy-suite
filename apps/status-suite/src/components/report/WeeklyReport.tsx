@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
+import { fetchReportArchives, saveReportArchive, deleteReportArchive } from '../../lib/supabase';
 import {
   Client,
   PIPELINE_STAGES,
@@ -341,6 +342,24 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     return [];
   });
 
+  // Load archives from Supabase on mount, merge with any localStorage-only ones
+  useEffect(() => {
+    fetchReportArchives()
+      .then(remote => {
+        if (remote.length > 0) {
+          const remoteTyped = remote as ArchivedReport[];
+          setArchives(prev => {
+            const remoteIds = new Set(remoteTyped.map(r => r.id));
+            const localOnly = prev.filter(a => !remoteIds.has(a.id));
+            localOnly.forEach(a => saveReportArchive(a as unknown as { id: string }).catch(console.warn));
+            return [...remoteTyped, ...localOnly];
+          });
+        }
+      })
+      .catch(console.warn);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [showArchives, setShowArchives] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedReport | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy Text');
@@ -461,12 +480,14 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
       },
     };
     setArchives(prev => [archive, ...prev]);
+    saveReportArchive(archive as unknown as { id: string }).catch(console.warn);
     setSaveLabel('✓ Saved!');
     setTimeout(() => setSaveLabel('Save Report'), 2500);
   };
 
   const deleteArchive = (id: string) => {
     setArchives(prev => prev.filter(a => a.id !== id));
+    deleteReportArchive(id).catch(console.warn);
   };
 
   const generateDraft = async () => {

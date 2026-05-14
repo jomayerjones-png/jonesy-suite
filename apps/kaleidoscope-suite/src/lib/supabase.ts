@@ -6,8 +6,24 @@ const SUPABASE_ANON = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// ── Auth ──────────────────────────────────────────────────
+export async function signIn(email: string, password: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+export async function resetPassword(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw error;
+}
+
+// ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
-  const { data, error } = await supabase.from('kaleidoscope_clients').select('data');
+  const { data, error } = await supabase.from('kaleidoscope_clients').select('data').order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
@@ -21,6 +37,33 @@ export async function upsertClient(client: Client): Promise<void> {
 
 export async function removeClient(id: string): Promise<void> {
   const { error } = await supabase.from('kaleidoscope_clients').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ── Settings ──────────────────────────────────────────────
+export async function fetchCompanyName(): Promise<string | null> {
+  const { data } = await supabase.from('kaleidoscope_settings').select('value').eq('key', 'company_name').single();
+  return data?.value ?? null;
+}
+
+export async function saveCompanyName(name: string): Promise<void> {
+  await supabase.from('kaleidoscope_settings').upsert({ key: 'company_name', value: name }, { onConflict: 'key' });
+}
+
+// ── Report Archives ───────────────────────────────────────
+export async function fetchReportArchives(): Promise<unknown[]> {
+  const { data, error } = await supabase.from('kaleidoscope_report_archives').select('data').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: { data: unknown }) => row.data);
+}
+
+export async function saveReportArchive(archive: { id: string; [key: string]: unknown }): Promise<void> {
+  const { error } = await supabase.from('kaleidoscope_report_archives').upsert({ id: archive.id, data: archive }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+export async function deleteReportArchive(id: string): Promise<void> {
+  const { error } = await supabase.from('kaleidoscope_report_archives').delete().eq('id', id);
   if (error) throw error;
 }
 
