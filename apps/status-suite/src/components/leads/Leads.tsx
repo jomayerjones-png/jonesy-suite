@@ -514,7 +514,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
 
   const handleGenerateNew = async () => {
     const key = apiKey.trim() || localStorage.getItem(API_KEY_STORAGE)?.trim();
-    if (!key) { setGenerateError('Enter your Anthropic API key in the Upload Contacts tab first.'); return; }
+    if (!key) { setGenerateError('Enter your Anthropic API key below, then hit Generate.'); return; }
     setGenerateError('');
     const existing = await fetchTodayStatusProspects().catch(() => prospects);
     const excluded = existing.map(p => p.company);
@@ -686,6 +686,36 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                 </div>
               </div>
 
+              {/* API Key — compact inline */}
+              {!apiKey.trim() && !localStorage.getItem(API_KEY_STORAGE)?.trim() ? (
+                <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
+                  <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Anthropic API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      className="w-full px-3 py-2 bg-white border border-brand-cream rounded-lg text-xs font-mono text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-[#E8471C]/20 focus:border-[#E8471C]"
+                      value={apiKey}
+                      onChange={e => setApiKey(e.target.value)}
+                      placeholder="sk-ant-api03-…"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(v => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-brand-dark/40 hover:text-brand-dark px-1.5 py-0.5 rounded"
+                    >
+                      {showKey ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-brand-dark/40">Enter once — saved locally, works across all tabs.</p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-end">
+                  <button onClick={() => { setApiKey(''); localStorage.removeItem(API_KEY_STORAGE); }} className="text-xs text-brand-dark/30 hover:text-brand-dark/60 transition-colors">
+                    Change API key
+                  </button>
+                </div>
+              )}
+
               {generateError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
                   <p className="text-xs text-red-700">{generateError}</p>
@@ -711,7 +741,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                   {prospects.length === 0 && generating === 0 && !error && (
                     <div className="text-center py-12">
                       <p className="text-brand-dark/50 font-medium mb-1">No prospects yet today</p>
-                      <p className="text-sm text-brand-dark/35 mb-4">Enter your API key in the Upload tab, then hit Generate.</p>
+                      <p className="text-sm text-brand-dark/35 mb-4">Enter your API key above, then hit Generate.</p>
                       <button
                         onClick={handleGenerateNew}
                         className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#E8471C] text-white hover:bg-[#d43d16] transition-all"

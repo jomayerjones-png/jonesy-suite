@@ -18,6 +18,7 @@ interface WeeklyReportProps {
 const STORAGE_KEY_REPORT = 'profg_suite_weekly_report';
 const STORAGE_KEY_ARCHIVES = 'profg_suite_report_archives';
 const STORAGE_KEY_PREV_SNAPSHOT = 'profg_suite_prev_snapshot';
+const REPORT_API_KEY_STORAGE = 'profg_suite_intel_api_key';
 
 const STALE_DAYS = 15;
 
@@ -410,6 +411,93 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const setNote = (key: keyof ReportNotes) => (value: string) =>
     setNotes(prev => ({ ...prev, [key]: value }));
 
+  // ── AI Report Generation ────────────────────────────────────────
+  const [reportApiKey, setReportApiKey] = useState(() => localStorage.getItem(REPORT_API_KEY_STORAGE) ?? '');
+  const [showReportKey, setShowReportKey] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  useEffect(() => {
+    if (reportApiKey) localStorage.setItem(REPORT_API_KEY_STORAGE, reportApiKey);
+  }, [reportApiKey]);
+
+  const handleGenerateReport = async () => {
+    const key = reportApiKey.trim() || localStorage.getItem(REPORT_API_KEY_STORAGE)?.trim();
+    if (!key) { setAiError('Enter your Anthropic API key to generate a report.'); return; }
+    if (clients.length === 0) { setAiError('No deals in pipeline — add some first.'); return; }
+    setAiError('');
+    setAiGenerating(true);
+
+    const dealSummary = clients.map(c =>
+      `• ${c.company} (${c.name}) — ${c.stage}, ${formatCurrency(c.value)}, last contact ${daysSince(c.lastContact)}d ago${c.notes ? `, notes: ${c.notes}` : ''}`
+    ).join('\n');
+
+    const stageBreakdown = PIPELINE_STAGES.map(s => {
+      const sc = clients.filter(c => c.stage === s);
+      return sc.length > 0 ? `${s}: ${sc.length} deal${sc.length > 1 ? 's' : ''} (${formatCurrency(sc.reduce((sum, c) => sum + c.value, 0))})` : null;
+    }).filter(Boolean).join(', ');
+
+    const prompt = `You are writing a weekly partnership update report for ${companyName || 'our company'}. Prof G is a media brand built around business strategy, tech, and culture commentary by Scott Galloway.
+
+Current pipeline: ${clients.length} deals, total value ${formatCurrency(clients.reduce((s, c) => s + c.value, 0))}.
+Stage breakdown: ${stageBreakdown}
+
+All deals:
+${dealSummary}
+
+Write 4 sections for the weekly report. Each section should be bullet points (one per line, no bullet characters — just plain text lines).
+
+1. STAGE CHANGES — Note any deals that appear to be moving stages or stalling. Mention specific companies and where they are. If a deal hasn't been contacted in 15+ days, flag it.
+2. ACTIVITY THIS WEEK — Write plausible partnership activity for this week based on the current stage of each active deal (meetings, follow-ups, proposals, etc.). Be specific with company names.
+3. NEW MATERIALS — Suggest any decks, proposals, or materials that should be prepared based on current deal stages.
+4. FOCUS FOR WEEKS AHEAD — Key priorities and next steps based on where deals currently sit.
+
+Return ONLY valid JSON (no markdown, no prose):
+{"stageChanges":"line1\\nline2","activity":"line1\\nline2","materials":"line1\\nline2","focusAhead":"line1\\nline2"}`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(err?.error?.message ?? `API error ${response.status}`);
+      }
+
+      const data = await response.json() as { content: { type: string; text?: string }[] };
+      const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+
+      const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      const obj = text.match(/\{[\s\S]*?"stageChanges"[\s\S]*?\}/);
+      const jsonStr = fence?.[1] ?? obj?.[0];
+      if (!jsonStr) throw new Error('Could not parse AI response — try again.');
+
+      const parsed = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as ReportNotes;
+      setNotes({
+        stageChanges: parsed.stageChanges || '',
+        activity: parsed.activity || '',
+        materials: parsed.materials || '',
+        focusAhead: parsed.focusAhead || '',
+      });
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Generation failed — try again.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const staleClients = clients.filter(c => isStale(c.lastContact, STALE_DAYS));
     const byStage: Record<PipelineStage, Client[]> = {
@@ -521,6 +609,13 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
           <div className="flex items-center gap-2">
             {!showArchives && (
               <>
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={aiGenerating}
+                  className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-gold text-white hover:bg-brand-gold-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                >
+                  {aiGenerating ? 'Generating…' : '✦ Generate Report'}
+                </button>
                 <button onClick={handleCopy} className="btn-secondary text-sm">
                   {copyLabel}
                 </button>
@@ -624,6 +719,37 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
                 </div>
                 <div className="h-0.5 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold-dark print-accent" />
               </div>
+
+              {/* AI Key + error — no-print */}
+              {!reportApiKey.trim() && !localStorage.getItem(REPORT_API_KEY_STORAGE)?.trim() && (
+                <div className="no-print bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
+                  <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Anthropic API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showReportKey ? 'text' : 'password'}
+                      className="w-full px-3 py-2 bg-white border border-brand-cream rounded-lg text-xs font-mono text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold"
+                      value={reportApiKey}
+                      onChange={e => setReportApiKey(e.target.value)}
+                      placeholder="sk-ant-api03-…"
+                    />
+                    <button type="button" onClick={() => setShowReportKey(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-brand-dark/40 hover:text-brand-dark px-1.5 py-0.5 rounded">
+                      {showReportKey ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-brand-dark/40">Required for AI report generation. Saved locally.</p>
+                </div>
+              )}
+              {aiError && (
+                <div className="no-print bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+                  <p className="text-xs text-red-700">{aiError}</p>
+                  <button onClick={() => setAiError('')} className="text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+                </div>
+              )}
+              {aiGenerating && (
+                <div className="no-print bg-brand-gold/5 border border-brand-gold/20 rounded-xl px-4 py-3">
+                  <p className="text-xs text-brand-gold font-medium animate-pulse">Analyzing pipeline and generating report…</p>
+                </div>
+              )}
 
               {/* Pipeline Summary with WoW deltas */}
               <SectionWrapper title="Pipeline Summary" hidden={!!hiddenSections.metrics} onToggle={() => toggleSection('metrics')}>
