@@ -413,7 +413,7 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const stats = useMemo(() => {
     const staleClients = clients.filter(c => isStale(c.lastContact, STALE_DAYS));
     const byStage: Record<PipelineStage, Client[]> = {
-      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
+      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], 'Revised Proposal Sent': [], Close: [],
     };
     clients.forEach(c => byStage[c.stage]?.push(c));
     const totalValue = clients.reduce((s, c) => s + c.value, 0);
@@ -429,7 +429,8 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
   const currentSnapshot: PipelineSnapshot = useMemo(() => {
     const byStage: Record<PipelineStage, { count: number; value: number }> = {
       Prospect: { count: 0, value: 0 }, Engaged: { count: 0, value: 0 }, 'Meeting Set': { count: 0, value: 0 },
-      'Proposal Sent': { count: 0, value: 0 }, Feedback: { count: 0, value: 0 }, Close: { count: 0, value: 0 },
+      'Proposal Sent': { count: 0, value: 0 }, Feedback: { count: 0, value: 0 },
+      'Revised Proposal Sent': { count: 0, value: 0 }, Close: { count: 0, value: 0 },
     };
     PIPELINE_STAGES.forEach(s => {
       byStage[s] = {

@@ -1,11 +1,12 @@
-export type PipelineStage = 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Revised Proposal Sent' | 'Feedback' | 'Close';
+export type PipelineStage = 'Prospect' | 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Feedback' | 'Revised Proposal Sent' | 'Close';
 
 export const PIPELINE_STAGES: PipelineStage[] = [
+  'Prospect',
   'Engaged',
   'Meeting Set',
   'Proposal Sent',
-  'Revised Proposal Sent',
   'Feedback',
+  'Revised Proposal Sent',
   'Close',
 ];
 
@@ -13,6 +14,13 @@ export const STAGE_CONFIG: Record<
   PipelineStage,
   { color: string; bg: string; border: string; dot: string; icon: string }
 > = {
+  Prospect: {
+    color: 'text-slate-600',
+    bg: 'bg-slate-50',
+    border: 'border-slate-200',
+    dot: 'bg-slate-400',
+    icon: '◌',
+  },
   Engaged: {
     color: 'text-blue-700',
     bg: 'bg-blue-50',
@@ -34,19 +42,19 @@ export const STAGE_CONFIG: Record<
     dot: 'bg-amber-500',
     icon: '📄',
   },
-  'Revised Proposal Sent': {
-    color: 'text-indigo-700',
-    bg: 'bg-indigo-50',
-    border: 'border-indigo-200',
-    dot: 'bg-indigo-500',
-    icon: '📝',
-  },
   Feedback: {
     color: 'text-orange-700',
     bg: 'bg-orange-50',
     border: 'border-orange-200',
     dot: 'bg-orange-500',
     icon: '💭',
+  },
+  'Revised Proposal Sent': {
+    color: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    dot: 'bg-rose-500',
+    icon: '📝',
   },
   Close: {
     color: 'text-emerald-700',
