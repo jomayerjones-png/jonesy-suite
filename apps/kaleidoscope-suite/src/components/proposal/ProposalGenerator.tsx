@@ -211,7 +211,7 @@ ${form.timeline ? `TIMELINE: ${form.timeline}\n` : ''}
 ${form.additionalContext ? `ADDITIONAL NOTES:\n${form.additionalContext}\n` : ''}
 ${clientContext ? `\nPIPELINE DATA:\n${clientContext}\n` : ''}
 
-Write the complete briefing for the Status partnerships team.`;
+Write the complete briefing for the Kaleidoscope partnerships team.`;
 }
 
 function buildSponsorProposalSystemPrompt(
@@ -284,7 +284,7 @@ ${form.budget ? `INVESTMENT LEVEL: ${form.budget}\n` : ''}
 ${form.timeline ? `TIMELINE: ${form.timeline}\n` : ''}
 ${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : ''}
 
-Write the complete proposal as Status Partnerships presenting this to ${form.clientName} at ${form.company}. This goes directly to the sponsor.`;
+Write the complete proposal as Kaleidoscope Partnerships presenting this to ${form.clientName} at ${form.company}. This goes directly to the sponsor.`;
 }
 
 function buildClientContext(client: Client): string {
@@ -767,7 +767,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 rows={3}
                 value={form.challenge}
                 onChange={e => set('challenge', e.target.value)}
-                placeholder="Why does this brand need to be in front of Status readers? What's the specific angle — product launch, recruitment, brand awareness in the media industry?"
+                placeholder="Why does this brand belong in the Kaleidoscope world? What's the specific angle — show alignment, audience fit, product launch, cultural moment?"
               />
             </div>
             <div>
@@ -1128,8 +1128,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         <div className="flex-1 overflow-y-auto">
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
-              <div className="bg-[#E8471C] px-5 py-2 mb-6">
-                <span className="font-mono font-bold text-white text-3xl tracking-tight leading-none">status_</span>
+              <div className="bg-[#7C3AED] px-5 py-2 mb-6">
+                <span className="font-mono font-bold text-white text-3xl tracking-tight leading-none">K⟡</span>
               </div>
               {format === 'briefing' ? (
                 <>
@@ -1140,14 +1140,14 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   <div className="grid grid-cols-2 gap-3 w-full max-w-md">
                     {[
                       { label: 'Account Overview', desc: 'Who we\'re meeting and why' },
-                      { label: 'Why Status is a Fit', desc: 'The strategic case' },
+                      { label: 'Why Kaleidoscope', desc: 'The strategic case' },
                       { label: 'Meeting Objective', desc: 'What we\'re trying to achieve' },
                       { label: 'Talking Points', desc: '5 tailored arguments' },
                       { label: 'Proposed Package', desc: 'Product + investment level' },
                       { label: 'Objections + Responses', desc: 'How to handle pushback' },
                     ].map((item, i) => (
                       <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                        <span className="w-5 h-5 rounded-full bg-[#7C3AED]/15 text-[#7C3AED] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
                         <div>
                           <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                           <p className="text-xs text-brand-dark/40">{item.desc}</p>
@@ -1160,18 +1160,18 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <>
                   <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">Sponsor Proposal</h3>
                   <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                    A client-facing sponsorship proposal written in the Status voice — direct, specific, and built around why this brand needs to be in front of Status readers.
+                    A client-facing sponsorship proposal — direct, specific, and built around why this brand belongs in the Kaleidoscope world.
                   </p>
                   <div className="grid grid-cols-2 gap-3 w-full max-w-md">
                     {[
-                      { label: 'Status', desc: '110K+, 40% open rate, media power brokers' },
+                      { label: 'Kaleidoscope', desc: '1M listeners, Apple\'s Best Podcast' },
                       { label: 'Why [Company]', desc: 'Specific, researched brand fit' },
                       { label: 'The Opportunity', desc: 'What sponsorship looks like' },
                       { label: 'The Numbers', desc: 'Audience data that matters' },
                       { label: 'Next Steps', desc: 'Confident CTA' },
                     ].map((item, i) => (
                       <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                        <span className="w-5 h-5 rounded-full bg-[#7C3AED]/15 text-[#7C3AED] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
                         <div>
                           <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                           <p className="text-xs text-brand-dark/40">{item.desc}</p>
@@ -1189,8 +1189,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               {/* Brief header */}
               <div className="mb-8 pb-6 border-b border-brand-cream">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-[#E8471C] px-2 py-0.5">
-                    <span className="font-mono font-bold text-white text-sm tracking-tight leading-none">status_</span>
+                  <div className="bg-[#7C3AED] px-2 py-0.5">
+                    <span className="font-mono font-bold text-white text-sm tracking-tight leading-none">K⟡</span>
                   </div>
                   <span className="text-brand-dark/20">·</span>
                   <span className="text-xs text-brand-dark/40 uppercase tracking-widest">{format === 'briefing' ? 'Internal Briefing · Confidential' : 'Sponsor Proposal'}</span>
@@ -1227,8 +1227,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   <p className="text-xs text-brand-dark/40">
                     {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
-                  <div className="bg-[#E8471C] px-3 py-1">
-                    <span className="font-display font-bold text-white text-lg tracking-tighter leading-none">STATUS</span>
+                  <div className="bg-[#7C3AED] px-3 py-1">
+                    <span className="font-mono font-bold text-white text-lg tracking-tight leading-none">K⟡</span>
                   </div>
                 </div>
               )}

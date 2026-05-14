@@ -52,6 +52,7 @@ const DEFAULT_FORM: ClientFormData = {
   outcome: 'active',
   lostReason: '',
   stageHistory: [],
+  callNotes: '',
 };
 
 function renderMarkdown(text: string): string {
@@ -502,7 +503,7 @@ function ProposalViewer({
                   ✎ Edit
                 </button>
               )}
-              <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'STATUS', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
+              <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'Kaleidoscope', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
                 ↓ Download PDF
               </button>
               <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
@@ -581,7 +582,7 @@ function ProposalViewer({
 }
 
 // ── Main ClientModal ──────────────────────────────────────────────────────────
-const INTEL_API_KEY = 'status_suite_intel_api_key';
+const INTEL_API_KEY = 'kaleidoscope_suite_intel_api_key';
 
 export default function ClientModal({
   client,
@@ -626,6 +627,7 @@ export default function ClientModal({
           outcome: client.outcome ?? 'active',
           lostReason: client.lostReason ?? '',
           stageHistory: client.stageHistory ?? [],
+          callNotes: client.callNotes ?? '',
         }
       : { ...DEFAULT_FORM, stage: defaultStage }
   );
@@ -651,7 +653,7 @@ export default function ClientModal({
     const proposalSummary = (client.proposals ?? []).length > 0
       ? (client.proposals ?? []).map(p => `  - "${p.title}" (${formatDate(p.createdAt)})`).join('\n')
       : '  None yet';
-    return `You are an intelligence assistant embedded in the LIFE Partnership Suite, helping the LIFE team manage their relationship with a specific partner contact. Your role is to provide strategic insights, draft communications, analyse deal status, and help prepare for meetings.
+    return `You are an intelligence assistant embedded in the Kaleidoscope Partnership Suite, helping the Kaleidoscope team manage their relationship with a specific partner contact. Your role is to provide strategic insights, draft communications, analyse deal status, and help prepare for meetings.
 
 PARTNER CONTEXT:
 - Name: ${client.name}
@@ -843,7 +845,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('details')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all ${
                   tab === 'details'
-                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
+                    ? 'text-[#7C3AED] border-b-2 border-[#7C3AED]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
@@ -853,13 +855,13 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('proposals')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'proposals'
-                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
+                    ? 'text-[#7C3AED] border-b-2 border-[#7C3AED]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
                 Proposals
                 {hasProposals && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#E8471C] text-white text-xs font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#7C3AED] text-white text-xs font-bold">
                     {proposals.length}
                   </span>
                 )}
@@ -868,7 +870,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 onClick={() => setTab('intelligence')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'intelligence'
-                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
+                    ? 'text-[#7C3AED] border-b-2 border-[#7C3AED]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
@@ -959,6 +961,21 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 <div>
                   <label className="label">Notes</label>
                   <textarea className="input-field resize-none" rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Key details, next steps, context..." />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label mb-0">Call Notes</label>
+                    <span className="text-[10px] text-[#7C3AED]/60 font-medium">Granola / meeting notes</span>
+                  </div>
+                  <textarea
+                    className="input-field resize-none font-mono text-xs"
+                    rows={4}
+                    value={form.callNotes ?? ''}
+                    onChange={e => set('callNotes', e.target.value)}
+                    placeholder="Paste call notes from Granola or any meeting notes tool. Key takeaways, action items, commitments made…"
+                  />
+                  <p className="text-xs text-brand-dark/35 mt-1">Paste from Granola (granola.ai) or type meeting notes directly. Persists with the client record.</p>
                 </div>
 
                 <div>
@@ -1073,7 +1090,7 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => setViewingProposal(p)} className="btn-secondary py-1 px-2.5 text-xs">View</button>
-                        <button onClick={() => downloadProposalPdf(p, { suiteName: 'STATUS', clientName: form.name || p.briefing?.clientName, clientCompany: form.company || p.briefing?.company })} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
+                        <button onClick={() => downloadProposalPdf(p, { suiteName: 'Kaleidoscope', clientName: form.name || p.briefing?.clientName, clientCompany: form.company || p.briefing?.company })} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
                         {confirmDeleteId === p.id ? (
                           <button
                             onClick={() => { onDeleteProposal?.(p.id); setConfirmDeleteId(null); }}
@@ -1108,8 +1125,8 @@ Be concise, strategic, and focused on helping close this partnership. When asked
               {/* API key bar */}
               <div className="px-4 pt-3 pb-2.5 border-b border-brand-cream bg-brand-light/50">
                 <div className="flex items-center gap-2">
-                  <div className="bg-[#E8471C] px-1.5 py-0.5 flex-shrink-0">
-                    <span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span>
+                  <div className="bg-[#7C3AED] px-1.5 py-0.5 flex-shrink-0">
+                    <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">K⟡</span>
                   </div>
                   <span className="text-xs text-brand-dark/50 flex-1">Partner Intelligence · Claude</span>
                   {intelThread.length > 0 && (
@@ -1148,9 +1165,9 @@ Be concise, strategic, and focused on helping close this partnership. When asked
                 {intelThread.map(msg => (
                   <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
-                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-[#E8471C] text-white'
+                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-[#7C3AED] text-white'
                     }`}>
-                      {msg.role === 'user' ? 'U' : 'L'}
+                      {msg.role === 'user' ? 'U' : 'K'}
                     </div>
                     <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                       msg.role === 'user'

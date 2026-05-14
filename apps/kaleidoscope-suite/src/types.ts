@@ -95,6 +95,7 @@ export interface Client {
   lostReason: string;
   stageHistory: StageEvent[];
   thread?: ThreadMessage[];
+  callNotes?: string;
 }
 
 export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
