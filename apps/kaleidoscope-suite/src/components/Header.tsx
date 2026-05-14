@@ -1,0 +1,80 @@
+import { View } from '../types';
+
+interface HeaderProps {
+  companyName: string;
+  onCompanyNameChange: (name: string) => void;
+  activeView: View;
+  onViewChange: (view: View) => void;
+  clientCount: number;
+}
+
+const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
+  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'All deals' },
+  { id: 'leads', label: 'Leads', icon: '✦', desc: "Today's prospects" },
+  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Revenue update' },
+  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
+  { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
+];
+
+export default function Header({
+  companyName: _companyName,
+  onCompanyNameChange: _onCompanyNameChange,
+  activeView,
+  onViewChange,
+  clientCount,
+}: HeaderProps) {
+
+  return (
+    <header className="bg-brand-dark border-b border-brand-dark/20 sticky top-0 z-50">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          {/* Kaleidoscope logo mark */}
+          <div className="bg-[#7C3AED] px-3 py-1.5 flex-shrink-0">
+            <span className="font-mono font-bold text-white text-base tracking-tight leading-none select-none">K⟡</span>
+          </div>
+          <div className="hidden sm:block">
+            <span className="text-white/70 text-sm font-semibold tracking-wide">Kaleidoscope</span>
+            <span className="text-white/30 text-xs ml-2">Commercial Suite</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+            <span className="text-white/70 text-xs font-medium">{clientCount} sponsors</span>
+          </div>
+          <div className="text-white/40 text-xs hidden md:block">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 border-l border-white/10 pl-4">
+            <span className="text-white/50 text-xs font-medium tracking-wide">k-scope.com</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex items-end px-6">
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onViewChange(item.id)}
+            className={`group flex items-center gap-2 px-5 py-3.5 text-sm font-medium relative transition-all duration-150 ${
+              activeView === item.id
+                ? 'text-[#A78BFA]'
+                : 'text-white/50 hover:text-white/80'
+            }`}
+          >
+            <span className={`text-base leading-none transition-transform duration-150 ${activeView === item.id ? '' : 'group-hover:scale-110'}`}>
+              {item.icon}
+            </span>
+            <span className="tracking-wide">{item.label}</span>
+            {activeView === item.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7C3AED] rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </div>
+    </header>
+  );
+}
