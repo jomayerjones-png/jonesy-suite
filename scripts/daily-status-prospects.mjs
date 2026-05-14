@@ -80,9 +80,24 @@ async function getExclusionList() {
   return all;
 }
 
+async function loadNewsletterContext() {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const { data } = await supabase
+    .from('newsletter_cache')
+    .select('subject, sent_date, content')
+    .gte('sent_date', cutoff)
+    .order('sent_date', { ascending: false })
+    .limit(5);
+  if (!data || data.length === 0) return null;
+  return data.map(r => `--- ${r.subject} (${r.sent_date}) ---\n${r.content.slice(0, 2000)}`).join('\n\n');
+}
+  return all;
+}
+
 // ── Prompt ────────────────────────────────────────────────────────
 
-function buildSystemPrompt(category, companyPool) {
+function buildSystemPrompt(category, companyPool, newsletterContext) {
+  const newsletterSection = newsletterContext ? `\n\nNEWSLETTER INTELLIGENCE — "Headlines by Abe Burns" (last 14 days):\n${newsletterContext}\n\nUse the above to: 1) prioritise companies/people mentioned, 2) use the specific story as the WHY if from last 90 days.` : '';
   return `You are the Head of Partnerships at Status — the essential daily media intelligence newsletter for America's media, Hollywood, and tech decision-makers. Founded by Oliver Darcy (former CNN senior media reporter). 110,000+ subscribers, 40% daily open rate, growing 10% every month. Widely cited by the NYT, WSJ, CNN, Variety, Bloomberg. The direct line to media's power brokers.
 
 Status sponsorship products:
@@ -112,7 +127,9 @@ EMAIL RULES:
 - If not found → email "" and email_confidence "estimated"
 
 WHY FIELD RULES:
-- One sentence, present tense, specific: name a campaign, launch, product, partnership, or exec quote from 2024–2025
+- One sentence, present tense, specific: name a campaign, launch, product, partnership, or exec quote
+- MUST be from within the last 90 days (February 2025 or later). DO NOT reference 2024 or earlier.
+- If the company appeared in the Headlines newsletter context, use that story as the WHY
 - No generics ("strong values", "great audience fit")
 - Example: "Your 'Open to More' B2B campaign this spring — targeting CFOs and decision-makers — maps directly to the Status audience that reads us every morning."
 
@@ -129,7 +146,7 @@ Johanna
 
 Return ONLY a JSON object (no prose, no markdown fences):
 {"name":"","title":"","company":"","email":"","email_confidence":"verified or estimated","why":"","draft_subject":"","draft_body":""}
-Return exactly 1 object.`;
+Return exactly 1 object.${newsletterSection}`;
 }
 
 // ── API calls ─────────────────────────────────────────────────────
@@ -179,7 +196,7 @@ function extractProspect(response) {
   return JSON.parse(sanitized);
 }
 
-async function generateProspects(exclusionList) {
+async function generateProspects(exclusionList, newsletterContext) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const prospects = [];
 
@@ -191,7 +208,7 @@ async function generateProspects(exclusionList) {
     const lowerExclusions = [...exclusionList, ...prospects.map(p => p.company)].map(c => c.toLowerCase());
     const pool = COMPANY_POOLS[category].filter(c => !lowerExclusions.includes(c.toLowerCase()));
 
-    const systemPrompt = buildSystemPrompt(category, pool.length > 0 ? pool : COMPANY_POOLS[category]);
+    const systemPrompt = buildSystemPrompt(category, pool.length > 0 ? pool : COMPANY_POOLS[category], newsletterContext);
 
     const userMessage = `Today is ${today}. Find 1 real senior contact for Status's sponsorship pipeline.
 Category: ${category}
@@ -242,8 +259,13 @@ async function insertProspects(prospects) {
 
 async function main() {
   try {
-    const exclusionList = await getExclusionList();
-    const prospects = await generateProspects(exclusionList);
+    const [exclusionList, newsletterContext] = await Promise.all([
+      getExclusionList(),
+      loadNewsletterContext(),
+    ]);
+    if (newsletterContext) console.log('Newsletter context loaded ✓');
+    else console.log('No newsletter context (table empty or no recent issues)');
+    const prospects = await generateProspects(exclusionList, newsletterContext);
     await insertProspects(prospects);
     console.log('Done.');
     process.exit(0);

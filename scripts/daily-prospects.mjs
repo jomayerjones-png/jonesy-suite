@@ -90,7 +90,32 @@ async function getExclusionList() {
   return all;
 }
 
-function buildSystemPrompt(category, companyPool) {
+async function loadNewsletterContext() {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const { data } = await supabase
+    .from('newsletter_cache')
+    .select('subject, sent_date, content')
+    .gte('sent_date', cutoff)
+    .order('sent_date', { ascending: false })
+    .limit(5);
+  if (!data || data.length === 0) return null;
+  return data.map(r => `--- ${r.subject} (${r.sent_date}) ---\n${r.content.slice(0, 2000)}`).join('\n\n');
+}
+  return all;
+}
+
+function buildSystemPrompt(category, companyPool, newsletterContext) {
+  const newsletterSection = newsletterContext ? `
+NEWSLETTER INTELLIGENCE — "Headlines by Abe Burns" (last 14 days):
+${newsletterContext}
+
+Use the above newsletter content to:
+1. Identify companies, campaigns, leadership moves, or brand moments mentioned — these are PRIORITY picks
+2. Find the specific person named in connection with a company story — pitch them directly
+3. Use the headline/story as the WHY if it's from the last 90 days
+
+` : '';
+
   return `You are a chief revenue officer advising Jo Mayer Jones at LIFE magazine — relaunching September 2026 as a quarterly large-format magazine with Karlie Kloss and Josh Kushner as Publishers. First issue: "Where Are We Now?" — America under construction. Founding partners contribute $500K for a year-long creative partnership (not an ad buy — a cultural co-authorship).
 
 LIFE's editorial pillars: American progress, culture, science, technology, people at the frontier. The brand's power is prestige + longevity + cultural legitimacy at a moment when most media has none.
@@ -116,7 +141,9 @@ EMAIL RULES:
 - If you cannot find it in a public source → return email as "" (empty string) and email_confidence as "estimated". DO NOT guess or infer. Blank is correct.
 
 WHY FIELD RULES:
-- Must reference a SPECIFIC, NAMED thing: a campaign name, launch date, product name, exec quote, award, partnership, or cultural moment from 2024–2025
+- Must reference a SPECIFIC, NAMED thing: a campaign name, launch date, product name, exec quote, award, partnership, or cultural moment
+- MUST be from within the last 90 days (February 2025 or later). DO NOT reference campaigns or moments from 2024 or earlier.
+- If the company appeared in the Headlines newsletter context above, use that story as the WHY
 - Generic statements ("known for quality", "strong brand values") are NOT acceptable
 - Format: one sentence, present tense, specific noun. Example: "Your 'Crafted for Life' rebrand this spring — repositioning [Company] from performance to cultural longevity — maps directly to what LIFE is building."
 
@@ -132,7 +159,7 @@ Warm regards, Jo
 
 Return ONLY a JSON object (no prose, no markdown fences):
 {"name":"","title":"","company":"","email":"","email_confidence":"verified or estimated","why":"","draft_subject":"","draft_body":""}
-Return exactly 1 object.`;
+Return exactly 1 object.${newsletterSection}`;
 }
 
 // ── API ───────────────────────────────────────────────────────────
@@ -182,7 +209,7 @@ function extractProspect(response) {
   return JSON.parse(sanitized);
 }
 
-async function generateProspects(exclusionList) {
+async function generateProspects(exclusionList, newsletterContext) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const prospects = [];
 
@@ -195,7 +222,7 @@ async function generateProspects(exclusionList) {
     const lowerExclusions = [...exclusionList, ...prospects.map(p => p.company)].map(c => c.toLowerCase());
     const pool = COMPANY_POOLS[category].filter(c => !lowerExclusions.includes(c.toLowerCase()));
 
-    const systemPrompt = buildSystemPrompt(category, pool.length > 0 ? pool : COMPANY_POOLS[category]);
+    const systemPrompt = buildSystemPrompt(category, pool.length > 0 ? pool : COMPANY_POOLS[category], newsletterContext);
 
     const userMessage = `Today is ${today}. Find 1 real senior contact for LIFE magazine's founding partner pipeline.
 Category: ${category}
@@ -246,8 +273,13 @@ async function insertProspects(prospects) {
 
 async function main() {
   try {
-    const exclusionList = await getExclusionList();
-    const prospects = await generateProspects(exclusionList);
+    const [exclusionList, newsletterContext] = await Promise.all([
+      getExclusionList(),
+      loadNewsletterContext(),
+    ]);
+    if (newsletterContext) console.log('Newsletter context loaded ✓');
+    else console.log('No newsletter context (table empty or no recent issues)');
+    const prospects = await generateProspects(exclusionList, newsletterContext);
     await insertProspects(prospects);
     console.log('Done.');
     process.exit(0);

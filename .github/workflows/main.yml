@@ -1,7 +1,7 @@
 name: Daily Prospect Briefing
 on:
   schedule:
-    - cron: '0 13 * * 1-5'
+    - cron: '0 13 * * 1-5'   # 8am EST Mon–Fri
   workflow_dispatch:
 jobs:
   run:
@@ -13,8 +13,28 @@ jobs:
           node-version: '20'
       - run: npm install
         working-directory: scripts
-      - run: node scripts/daily-prospects.mjs
+
+      - name: Fetch newsletter (Headlines by Abe Burns)
+        run: node scripts/fetch-newsletter.mjs
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+
+      - name: Generate LIFE prospects
+        run: node scripts/daily-prospects.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+      - name: Generate Kaleidoscope prospects
+        run: node scripts/daily-kaleidoscope-prospects.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Generate STATUS prospects
+        run: node scripts/daily-status-prospects.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
