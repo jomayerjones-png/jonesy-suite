@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, formatCurrency, isStale } from '../../types';
+import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, MeetingNote, ThreadMessage, formatCurrency, isStale } from '../../types';
 import KanbanBoard from './KanbanBoard';
 import ListView from './ListView';
 import ClientModal from './ClientModal';
@@ -17,6 +17,9 @@ interface PipelineTrackerProps {
   onDeleteProposal: (clientId: string, proposalId: string) => void;
   onAddProposal: (clientId: string, proposal: SavedProposal) => void;
   onUpdateProposal: (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => void;
+  onUpdateThread: (clientId: string, thread: ThreadMessage[]) => void;
+  onUpdateMeetingNotes: (clientId: string, notes: MeetingNote[]) => void;
+  onUpdateNewsCache: (clientId: string, cache: Client['newsCache']) => void;
 }
 
 export default function PipelineTracker({
@@ -30,6 +33,9 @@ export default function PipelineTracker({
   onDeleteProposal,
   onAddProposal,
   onUpdateProposal,
+  onUpdateThread,
+  onUpdateMeetingNotes,
+  onUpdateNewsCache,
 }: PipelineTrackerProps) {
   const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [modalOpen, setModalOpen] = useState(false);
@@ -266,6 +272,9 @@ export default function PipelineTracker({
           onDeleteProposal={editingClient ? (proposalId) => onDeleteProposal(editingClient.id, proposalId) : undefined}
           onAddProposal={editingClient ? (proposal) => onAddProposal(editingClient.id, proposal) : undefined}
           onUpdateProposal={editingClient ? (proposalId, updates) => onUpdateProposal(editingClient.id, proposalId, updates) : undefined}
+          onUpdateThread={editingClient ? (thread) => onUpdateThread(editingClient.id, thread) : undefined}
+          onUpdateMeetingNotes={editingClient ? (notes) => onUpdateMeetingNotes(editingClient.id, notes) : undefined}
+          onUpdateNewsCache={editingClient ? (cache) => onUpdateNewsCache(editingClient.id, cache) : undefined}
         />
       )}
     </div>

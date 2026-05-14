@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   onDelete: (id: string) => void;
   onMove: (id: string, stage: PipelineStage) => void;
   onDrop: (clientId: string, stage: PipelineStage) => void;
+  readOnly?: boolean;
 }
 
 export default function KanbanColumn({
@@ -18,10 +19,11 @@ export default function KanbanColumn({
   onDelete,
   onMove,
   onDrop,
+  readOnly = false,
 }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const cfg = STAGE_CONFIG[stage];
-  const staleCount = clients.filter(c => isStale(c.lastContact)).length;
+  const staleCount = clients.filter(c => isStale(c.lastContact, c.stage)).length;
   const totalValue = clients.reduce((sum, c) => sum + c.value, 0);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -41,10 +43,10 @@ export default function KanbanColumn({
 
   return (
     <div
-      className={`kanban-column transition-all duration-150 ${isDragOver ? 'border-brand-gold bg-brand-gold/5 shadow-gold' : ''}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      className={`kanban-column transition-all duration-150 ${!readOnly && isDragOver ? 'border-brand-gold bg-brand-gold/5 shadow-gold' : ''}`}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDragLeave={readOnly ? undefined : handleDragLeave}
+      onDrop={readOnly ? undefined : handleDrop}
     >
       {/* Column header */}
       <div className="p-3.5 border-b border-brand-cream">
@@ -81,7 +83,8 @@ export default function KanbanColumn({
               onEdit={onEdit}
               onDelete={onDelete}
               onMove={onMove}
-              draggable
+              draggable={!readOnly}
+              readOnly={readOnly}
             />
           ))
         )}

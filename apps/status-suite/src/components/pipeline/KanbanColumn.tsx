@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Client, PipelineStage, STAGE_CONFIG, formatCurrency, isStale } from '../../types';
+import { Client, PipelineStage, STAGE_CONFIG, formatCurrency } from '../../types';
 import ClientCard from './ClientCard';
 
 interface KanbanColumnProps {
@@ -21,7 +21,6 @@ export default function KanbanColumn({
 }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const cfg = STAGE_CONFIG[stage];
-  const staleCount = clients.filter(c => isStale(c.lastContact)).length;
   const totalValue = clients.reduce((sum, c) => sum + c.value, 0);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -56,9 +55,6 @@ export default function KanbanColumn({
               {clients.length}
             </span>
           </div>
-          {staleCount > 0 && (
-            <span className="stale-indicator">⚠ {staleCount}</span>
-          )}
         </div>
         <div className="text-xs text-brand-dark/40 font-medium">
           {formatCurrency(totalValue)} total

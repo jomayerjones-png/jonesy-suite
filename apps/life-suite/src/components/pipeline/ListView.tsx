@@ -9,9 +9,10 @@ interface ListViewProps {
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, stage: PipelineStage) => void;
+  readOnly?: boolean;
 }
 
-export default function ListView({ clients, onEdit, onDelete, onMove }: ListViewProps) {
+export default function ListView({ clients, onEdit, onDelete, onMove, readOnly = false }: ListViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('lastContact');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -60,15 +61,17 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
               <ThBtn col="stage" label="Stage" />
               <ThBtn col="value" label="Value" />
               <ThBtn col="lastContact" label="Last Contact" />
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-brand-dark/60">
-                Actions
-              </th>
+              {!readOnly && (
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-brand-dark/60">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {sorted.map((client, i) => {
               const cfg = STAGE_CONFIG[client.stage];
-              const stale = isStale(client.lastContact);
+              const stale = isStale(client.lastContact, client.stage);
               const days = daysSince(client.lastContact);
               const isExpanded = expandedId === client.id;
 
@@ -106,36 +109,38 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={e => { e.stopPropagation(); onEdit(client); }}
-                          className="btn-ghost py-1 px-2 text-xs"
-                        >
-                          Edit
-                        </button>
-                        {confirmDelete === client.id ? (
+                    {!readOnly && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={e => { e.stopPropagation(); onDelete(client.id); setConfirmDelete(null); }}
-                            className="btn-danger py-1 px-2 text-xs"
+                            onClick={e => { e.stopPropagation(); onEdit(client); }}
+                            className="btn-ghost py-1 px-2 text-xs"
                           >
-                            Confirm
+                            Edit
                           </button>
-                        ) : (
-                          <button
-                            onClick={e => { e.stopPropagation(); setConfirmDelete(client.id); }}
-                            className="btn-ghost py-1 px-2 text-xs text-red-400 hover:text-red-600"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                          {confirmDelete === client.id ? (
+                            <button
+                              onClick={e => { e.stopPropagation(); onDelete(client.id); setConfirmDelete(null); }}
+                              className="btn-danger py-1 px-2 text-xs"
+                            >
+                              Confirm
+                            </button>
+                          ) : (
+                            <button
+                              onClick={e => { e.stopPropagation(); setConfirmDelete(client.id); }}
+                              className="btn-ghost py-1 px-2 text-xs text-red-400 hover:text-red-600"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                   {isExpanded && (
                     <tr key={`${client.id}-detail`} className="bg-brand-light/40 border-b border-brand-cream">
-                      <td colSpan={6} className="px-6 py-4">
-                        <div className="grid grid-cols-3 gap-6">
+                      <td colSpan={readOnly ? 5 : 6} className="px-6 py-4">
+                        <div className={`grid gap-6 ${readOnly ? 'grid-cols-2' : 'grid-cols-3'}`}>
                           <div>
                             <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-1">Contact</p>
                             {client.email && <p className="text-sm text-brand-dark/80">{client.email}</p>}
@@ -145,7 +150,7 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                             <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-1">Notes</p>
                             <p className="text-sm text-brand-dark/70 leading-relaxed">{client.notes || 'No notes'}</p>
                           </div>
-                          <div>
+                          {!readOnly && <div>
                             <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider mb-1">Move to Stage</p>
                             <div className="flex flex-wrap gap-1.5">
                               {PIPELINE_STAGES.filter(s => s !== client.stage).map(s => (
@@ -158,7 +163,7 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                                 </button>
                               ))}
                             </div>
-                          </div>
+                          </div>}
                         </div>
                         {client.tags.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1.5">

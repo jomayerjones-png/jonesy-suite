@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Client, SavedProposal, PIPELINE_STAGES, generateId } from '../../types';
+import { Client, SavedProposal, ThreadMessage, PIPELINE_STAGES, generateId, formatCurrency, formatDate } from '../../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -26,6 +26,7 @@ type ClientFormData = Omit<Client, 'id' | 'createdAt'>;
 
 interface ClientModalProps {
   client?: Client | null;
+  defaultStage?: Client['stage'];
   onSave: (data: ClientFormData) => void;
   onClose: () => void;
   onMarkLost?: (reason: string) => void;
@@ -33,6 +34,7 @@ interface ClientModalProps {
   onDeleteProposal?: (proposalId: string) => void;
   onAddProposal?: (proposal: SavedProposal) => void;
   onUpdateProposal?: (proposalId: string, updates: Partial<SavedProposal>) => void;
+  onUpdateThread?: (thread: ThreadMessage[]) => void;
 }
 
 const DEFAULT_FORM: ClientFormData = {
@@ -453,7 +455,7 @@ function ProposalViewer({
       <div className="bg-brand-dark px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-xs">L</span>
+            <span className="font-display text-white font-bold text-xs">L</span>
           </div>
           <div>
             {editing ? (
@@ -500,7 +502,7 @@ function ProposalViewer({
                   ✎ Edit
                 </button>
               )}
-              <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'Prof G', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
+              <button onClick={() => downloadProposalPdf(proposal, { suiteName: 'STATUS', clientName: proposal.briefing?.clientName, clientCompany: proposal.briefing?.company })} className="btn-secondary text-xs py-1.5">
                 ↓ Download PDF
               </button>
               <button onClick={() => navigator.clipboard.writeText(proposal.content)} className="btn-secondary text-xs py-1.5">
@@ -579,8 +581,11 @@ function ProposalViewer({
 }
 
 // ── Main ClientModal ──────────────────────────────────────────────────────────
+const INTEL_API_KEY = 'status_suite_intel_api_key';
+
 export default function ClientModal({
   client,
+  defaultStage = 'Engaged',
   onSave,
   onClose,
   onMarkLost,
@@ -588,8 +593,16 @@ export default function ClientModal({
   onDeleteProposal,
   onAddProposal,
   onUpdateProposal,
+  onUpdateThread,
 }: ClientModalProps) {
-  const [tab, setTab] = useState<'details' | 'proposals'>('details');
+  const [tab, setTab] = useState<'details' | 'proposals' | 'intelligence'>('details');
+  const [intelApiKey, setIntelApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
+  const [intelInput, setIntelInput] = useState('');
+  const [intelThread, setIntelThread] = useState<ThreadMessage[]>(() => client?.thread ?? []);
+  const [intelStreaming, setIntelStreaming] = useState(false);
+  const [intelError, setIntelError] = useState('');
+  const intelEndRef = useRef<HTMLDivElement>(null);
+  const intelTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [viewingProposal, setViewingProposal] = useState<SavedProposal | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -614,7 +627,7 @@ export default function ClientModal({
           lostReason: client.lostReason ?? '',
           stageHistory: client.stageHistory ?? [],
         }
-      : DEFAULT_FORM
+      : { ...DEFAULT_FORM, stage: defaultStage }
   );
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof ClientFormData, string>>>({});
@@ -623,6 +636,128 @@ export default function ClientModal({
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  useEffect(() => {
+    if (tab === 'intelligence') intelEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [intelThread, tab]);
+
+  const saveIntelApiKey = (key: string) => {
+    setIntelApiKey(key);
+    localStorage.setItem(INTEL_API_KEY, key);
+  };
+
+  const buildSystemPrompt = (): string => {
+    if (!client) return '';
+    const proposalSummary = (client.proposals ?? []).length > 0
+      ? (client.proposals ?? []).map(p => `  - "${p.title}" (${formatDate(p.createdAt)})`).join('\n')
+      : '  None yet';
+    return `You are an intelligence assistant embedded in the LIFE Partnership Suite, helping the LIFE team manage their relationship with a specific partner contact. Your role is to provide strategic insights, draft communications, analyse deal status, and help prepare for meetings.
+
+PARTNER CONTEXT:
+- Name: ${client.name}
+- Company: ${client.company}
+- Deal Value: ${formatCurrency(client.value)}
+- Pipeline Stage: ${client.stage}${client.industry ? `\n- Industry: ${client.industry}` : ''}
+- Status: ${client.outcome}
+- Last Contact: ${formatDate(client.lastContact)}
+- Tags: ${client.tags.join(', ') || 'None'}
+- Notes: ${client.notes || 'No notes yet'}
+
+PROPOSALS:
+${proposalSummary}
+
+Be concise, strategic, and focused on helping close this partnership. When asked to draft emails or messages, write them ready to send. When analysing the deal, be direct about risks and next steps.`;
+  };
+
+  const sendIntelMessage = async () => {
+    if (!intelInput.trim() || intelStreaming) return;
+    if (!intelApiKey.trim()) { setIntelError('Enter your Anthropic API key above to use Intelligence.'); return; }
+    setIntelError('');
+
+    const userMsg: ThreadMessage = {
+      id: generateId(),
+      role: 'user',
+      content: intelInput.trim(),
+      timestamp: new Date().toISOString(),
+    };
+    const updatedThread = [...intelThread, userMsg];
+    setIntelThread(updatedThread);
+    setIntelInput('');
+    setIntelStreaming(true);
+
+    const assistantId = generateId();
+    const assistantMsg: ThreadMessage = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+    };
+    const streamingThread = [...updatedThread, assistantMsg];
+    setIntelThread(streamingThread);
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': intelApiKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 1024,
+          stream: true,
+          system: buildSystemPrompt(),
+          messages: updatedThread.map(m => ({ role: m.role, content: m.content })),
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: { message?: string } }).error?.message ?? `API error ${resp.status}`);
+      }
+
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              accumulated += parsed.delta.text;
+              setIntelThread(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, content: accumulated } : m
+              ));
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
+
+      const finalThread = [...updatedThread, { ...assistantMsg, content: accumulated }];
+      setIntelThread(finalThread);
+      onUpdateThread?.(finalThread);
+    } catch (e) {
+      setIntelError(e instanceof Error ? e.message : 'An error occurred.');
+      setIntelThread(updatedThread);
+      onUpdateThread?.(updatedThread);
+    } finally {
+      setIntelStreaming(false);
+    }
+  };
+
+  const clearIntelThread = () => {
+    setIntelThread([]);
+    onUpdateThread?.([]);
+  };
 
   const set = <K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -668,7 +803,7 @@ export default function ClientModal({
           onClose={() => setViewingProposal(null)}
           onUpdate={onUpdateProposal ? (updates) => {
             onUpdateProposal(viewingProposal.id, updates);
-            setViewingProposal(prev => prev ? { ...prev, ...updates } : null);
+            setViewingProposal({ ...viewingProposal, ...updates });
           } : undefined}
         />
       )}
@@ -708,7 +843,7 @@ export default function ClientModal({
                 onClick={() => setTab('details')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all ${
                   tab === 'details'
-                    ? 'text-brand-gold border-b-2 border-brand-gold'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
@@ -718,14 +853,29 @@ export default function ClientModal({
                 onClick={() => setTab('proposals')}
                 className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                   tab === 'proposals'
-                    ? 'text-brand-gold border-b-2 border-brand-gold'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
                     : 'text-brand-dark/50 hover:text-brand-dark'
                 }`}
               >
                 Proposals
                 {hasProposals && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-gold text-brand-dark text-xs font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#E8471C] text-white text-xs font-bold">
                     {proposals.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setTab('intelligence')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  tab === 'intelligence'
+                    ? 'text-[#E8471C] border-b-2 border-[#E8471C]'
+                    : 'text-brand-dark/50 hover:text-brand-dark'
+                }`}
+              >
+                Intelligence
+                {intelThread.length > 0 && (
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-dark/10 text-brand-dark/60 text-xs font-bold">
+                    {intelThread.filter(m => m.role === 'assistant').length}
                   </span>
                 )}
               </button>
@@ -743,7 +893,7 @@ export default function ClientModal({
                       className={`input-field ${errors.name ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                       value={form.name}
                       onChange={e => set('name', e.target.value)}
-                      placeholder="Sarah Chen"
+                      placeholder="Name"
                       autoFocus
                     />
                     {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
@@ -754,7 +904,7 @@ export default function ClientModal({
                       className={`input-field ${errors.company ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                       value={form.company}
                       onChange={e => set('company', e.target.value)}
-                      placeholder="TechFlow Inc."
+                      placeholder="Company"
                     />
                     {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
                   </div>
@@ -763,11 +913,11 @@ export default function ClientModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Email</label>
-                    <input type="email" className="input-field" value={form.email} onChange={e => set('email', e.target.value)} placeholder="sarah@company.com" />
+                    <input type="email" className="input-field" value={form.email} onChange={e => set('email', e.target.value)} placeholder="Email" />
                   </div>
                   <div>
                     <label className="label">Phone</label>
-                    <input className="input-field" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 (415) 555-0192" />
+                    <input className="input-field" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="Phone" />
                   </div>
                 </div>
 
@@ -923,7 +1073,7 @@ export default function ClientModal({
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => setViewingProposal(p)} className="btn-secondary py-1 px-2.5 text-xs">View</button>
-                        <button onClick={() => downloadProposalPdf(p, { suiteName: 'Prof G', clientName: form.name || p.briefing?.clientName, clientCompany: form.company || p.briefing?.company })} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
+                        <button onClick={() => downloadProposalPdf(p, { suiteName: 'STATUS', clientName: form.name || p.briefing?.clientName, clientCompany: form.company || p.briefing?.company })} className="btn-secondary py-1 px-2.5 text-xs">↓ PDF</button>
                         {confirmDeleteId === p.id ? (
                           <button
                             onClick={() => { onDeleteProposal?.(p.id); setConfirmDeleteId(null); }}
@@ -948,6 +1098,98 @@ export default function ClientModal({
 
               <div className="px-4 pb-4">
                 <button onClick={onClose} className="btn-secondary w-full">Close</button>
+              </div>
+            </div>
+          )}
+
+          {/* Intelligence tab */}
+          {tab === 'intelligence' && client && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              {/* API key bar */}
+              <div className="px-4 pt-3 pb-2.5 border-b border-brand-cream bg-brand-light/50">
+                <div className="flex items-center gap-2">
+                  <div className="bg-[#E8471C] px-1.5 py-0.5 flex-shrink-0">
+                    <span className="font-display font-bold text-white text-xs tracking-tighter leading-none">STATUS</span>
+                  </div>
+                  <span className="text-xs text-brand-dark/50 flex-1">Partner Intelligence · Claude</span>
+                  {intelThread.length > 0 && (
+                    <button onClick={clearIntelThread} className="text-xs text-brand-dark/30 hover:text-red-500 transition-colors">
+                      Clear thread
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="password"
+                    className="input-field flex-1 py-1.5 text-xs font-mono"
+                    placeholder="sk-ant-… Anthropic API key"
+                    value={intelApiKey}
+                    onChange={e => saveIntelApiKey(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Context summary */}
+              {intelThread.length === 0 && (
+                <div className="px-4 pt-3 pb-2 border-b border-brand-cream">
+                  <p className="text-xs text-brand-dark/40 font-medium uppercase tracking-wider mb-2">Partner Context</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-brand-dark/60">
+                    <span><span className="font-medium">Company:</span> {client.company}</span>
+                    <span><span className="font-medium">Stage:</span> {client.stage}</span>
+                    <span><span className="font-medium">Value:</span> {formatCurrency(client.value)}</span>
+                    <span><span className="font-medium">Proposals:</span> {(client.proposals ?? []).length}</span>
+                  </div>
+                  <p className="text-xs text-brand-dark/40 mt-2 leading-relaxed">Ask anything about this partner — draft an email, analyse deal status, prepare for a meeting, or get next-step recommendations.</p>
+                </div>
+              )}
+
+              {/* Thread */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                {intelThread.map(msg => (
+                  <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
+                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-[#E8471C] text-white'
+                    }`}>
+                      {msg.role === 'user' ? 'U' : 'L'}
+                    </div>
+                    <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-brand-dark text-white rounded-tr-sm'
+                        : 'bg-brand-cream text-brand-dark rounded-tl-sm'
+                    }`}>
+                      {msg.content || <span className="opacity-50 animate-pulse">Thinking…</span>}
+                    </div>
+                  </div>
+                ))}
+                {intelError && (
+                  <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{intelError}</p>
+                )}
+                <div ref={intelEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="px-4 pb-4 pt-2 border-t border-brand-cream">
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={intelTextareaRef}
+                    className="input-field flex-1 resize-none text-sm py-2"
+                    rows={2}
+                    placeholder="Ask about this partner…"
+                    value={intelInput}
+                    onChange={e => setIntelInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendIntelMessage(); }
+                    }}
+                    disabled={intelStreaming}
+                  />
+                  <button
+                    onClick={sendIntelMessage}
+                    disabled={intelStreaming || !intelInput.trim()}
+                    className="btn-primary py-2 px-4 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {intelStreaming ? '…' : '↑'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

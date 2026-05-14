@@ -1,6 +1,7 @@
-export type PipelineStage = 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Feedback' | 'Close';
+export type PipelineStage = 'Prospect' | 'Engaged' | 'Meeting Set' | 'Proposal Sent' | 'Feedback' | 'Close';
 
 export const PIPELINE_STAGES: PipelineStage[] = [
+  'Prospect',
   'Engaged',
   'Meeting Set',
   'Proposal Sent',
@@ -12,6 +13,13 @@ export const STAGE_CONFIG: Record<
   PipelineStage,
   { color: string; bg: string; border: string; dot: string; icon: string }
 > = {
+  Prospect: {
+    color: 'text-slate-600',
+    bg: 'bg-slate-50',
+    border: 'border-slate-200',
+    dot: 'bg-slate-400',
+    icon: '○',
+  },
   Engaged: {
     color: 'text-blue-700',
     bg: 'bg-blue-50',
@@ -51,7 +59,14 @@ export const STAGE_CONFIG: Record<
 
 export interface StageEvent {
   stage: PipelineStage;
-  date: string;
+  date: string; // YYYY-MM-DD
+}
+
+export interface ThreadMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string; // ISO datetime
 }
 
 export interface Client {
@@ -63,25 +78,26 @@ export interface Client {
   value: number;
   stage: PipelineStage;
   notes: string;
-  lastContact: string;
-  createdAt: string;
+  lastContact: string; // ISO date string (YYYY-MM-DD)
+  createdAt: string;   // ISO date string
   tags: string[];
   proposals: SavedProposal[];
   industry: string;
   outcome: 'active' | 'won' | 'lost';
   lostReason: string;
   stageHistory: StageEvent[];
+  thread?: ThreadMessage[];
 }
 
-export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'engagement' | 'bd';
+export type View = 'pipeline' | 'report' | 'proposal' | 'analytics' | 'leads';
 
 export interface SavedProposal {
   id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  briefing?: ProposalFormData;
-  clientNotes?: string;
+  title: string;    // extracted from first H1 heading
+  content: string;  // full markdown
+  createdAt: string; // ISO datetime
+  briefing?: ProposalFormData;  // the form inputs used to generate
+  clientNotes?: string;         // pipeline notes at time of generation
 }
 
 export interface ProposalFormData {
@@ -97,7 +113,8 @@ export interface ProposalFormData {
   additionalContext: string;
 }
 
-export const isStale = (lastContact: string, days = 15): boolean => {
+// Helpers
+export const isStale = (lastContact: string, days = 7): boolean => {
   const last = new Date(lastContact).getTime();
   const now = Date.now();
   return (now - last) / (1000 * 60 * 60 * 24) > days;
@@ -121,102 +138,7 @@ export const daysSince = (dateStr: string): number => {
 export const generateId = (): string =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-const today = new Date();
-const daysAgo = (n: number) => {
-  const d = new Date(today);
-  d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0];
-};
+// STATUS Business Suite
+export const DATA_VERSION = 'status-suite-v2';
 
-export const SAMPLE_CLIENTS: Client[] = [
-  {
-    id: generateId(),
-    name: 'Maggie Schmerin',
-    company: 'United Airlines',
-    email: '',
-    phone: '',
-    value: 200000,
-    stage: 'Engaged',
-    notes: 'Travel partnership — destination storytelling. Waiting for response.',
-    lastContact: daysAgo(3),
-    createdAt: daysAgo(14),
-    tags: ['travel', 'storytelling'],
-    proposals: [],
-    industry: 'Travel',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Alison Stransky',
-    company: 'Samsung',
-    email: '',
-    phone: '',
-    value: 300000,
-    stage: 'Meeting Set',
-    notes: 'Call set for April 21st. Shoot on phone concept.',
-    lastContact: daysAgo(2),
-    createdAt: daysAgo(10),
-    tags: ['tech', 'creative'],
-    proposals: [],
-    industry: 'Technology',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Alex Schultz',
-    company: 'Meta',
-    email: '',
-    phone: '',
-    value: 500000,
-    stage: 'Proposal Sent',
-    notes: 'Custom proposal sent. Meeting May 1st — still developing proposal.',
-    lastContact: daysAgo(4),
-    createdAt: daysAgo(21),
-    tags: ['tech', 'social'],
-    proposals: [],
-    industry: 'Technology',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Franz Paasche',
-    company: 'Verizon',
-    email: '',
-    phone: '',
-    value: 250000,
-    stage: 'Meeting Set',
-    notes: 'Call set for Wed 25th. Follow up next week — mention live streaming.',
-    lastContact: daysAgo(5),
-    createdAt: daysAgo(12),
-    tags: ['tech', 'telecom'],
-    proposals: [],
-    industry: 'Technology',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-  {
-    id: generateId(),
-    name: 'Kaila Roi',
-    company: 'AT&T',
-    email: '',
-    phone: '',
-    value: 350000,
-    stage: 'Engaged',
-    notes: 'Want storytelling, not brand reach. Live video sponsored by ATT wifi concept.',
-    lastContact: daysAgo(6),
-    createdAt: daysAgo(18),
-    tags: ['tech', 'telecom', 'video'],
-    proposals: [],
-    industry: 'Technology',
-    outcome: 'active',
-    lostReason: '',
-    stageHistory: [],
-  },
-];
+export const SAMPLE_CLIENTS: Client[] = [];

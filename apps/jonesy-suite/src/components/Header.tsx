@@ -8,16 +8,29 @@ interface HeaderProps {
   onViewChange: (view: View) => void;
   clientCount: number;
   wonRevenue: number;
+  gmailEnabled: boolean;
+  gmailConnected: boolean;
+  gmailSyncing: boolean;
+  lastSync: string | null;
+  onGmailConnect: () => void;
 }
 
-const NAV_ITEMS: { id: View; label: string; icon: string; desc: string }[] = [
-  { id: 'pipeline', label: 'Pipeline', icon: '⬡', desc: 'Track deals & clients' },
-  { id: 'report', label: 'Weekly Report', icon: '◎', desc: 'Client summary' },
-  { id: 'proposal', label: 'Proposal AI', icon: '◈', desc: 'Generate proposals' },
-  { id: 'analytics', label: 'Analytics', icon: '◉', desc: 'Performance insights' },
-  { id: 'projects', label: 'Live Projects', icon: '◆', desc: 'Sold project folders' },
-  { id: 'bd', label: 'BD', icon: '◇', desc: 'Business development' },
+const NAV_ITEMS: { id: View; label: string }[] = [
+  { id: 'pipeline',  label: 'Pipeline'      },
+  { id: 'report',    label: 'Weekly Report' },
+  { id: 'proposal',  label: 'Proposal AI'   },
+  { id: 'analytics', label: 'Analytics'     },
+  { id: 'projects',  label: 'Live Projects' },
 ];
+
+function relativeSync(iso: string | null): string {
+  if (!iso) return '';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  return hrs < 24 ? `${hrs}h ago` : `${Math.floor(hrs / 24)}d ago`;
+}
 
 export default function Header({
   companyName,
@@ -26,14 +39,17 @@ export default function Header({
   onViewChange,
   clientCount,
   wonRevenue,
+  gmailEnabled,
+  gmailConnected,
+  gmailSyncing,
+  lastSync,
+  onGmailConnect,
 }: HeaderProps) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(companyName);
+  const [draft, setDraft]     = useState(companyName);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (editing) inputRef.current?.select();
-  }, [editing]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
 
   const commitEdit = () => {
     const trimmed = draft.trim();
@@ -43,14 +59,18 @@ export default function Header({
   };
 
   return (
-    <header className="bg-brand-dark border-b border-brand-dark/20 sticky top-0 z-50">
+    <header className="bg-brand-dark border-b border-white/10 sticky top-0 z-50">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {/* Logo mark */}
-          <div className="w-8 h-8 rounded-lg bg-brand-gold flex items-center justify-center">
-            <span className="font-display text-brand-dark font-bold text-sm">J</span>
+          {/* Logo mark — monochrome */}
+          <div
+            className="flex-shrink-0 select-none px-2.5 py-1"
+            style={{ background: '#fff', fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif" }}
+          >
+            <span className="text-brand-dark leading-none" style={{ fontSize: '1.25rem', letterSpacing: '0.08em' }}>JMJ</span>
           </div>
+
           {/* Editable company name */}
           {editing ? (
             <input
@@ -62,36 +82,59 @@ export default function Header({
                 if (e.key === 'Enter') commitEdit();
                 if (e.key === 'Escape') { setDraft(companyName); setEditing(false); }
               }}
-              className="font-display text-lg font-semibold text-white bg-transparent border-b-2 border-brand-gold outline-none w-48"
+              className="font-sans text-sm font-medium text-white bg-transparent border-b border-white/40 outline-none w-40"
             />
           ) : (
             <button
               onClick={() => { setDraft(companyName); setEditing(true); }}
-              className="font-display text-lg font-semibold text-white hover:text-brand-gold transition-colors group flex items-center gap-1.5"
-              title="Click to edit company name"
+              className="font-sans text-sm font-medium text-white/70 hover:text-white transition-colors group flex items-center gap-1"
+              title="Click to edit"
             >
               {companyName}
-              <span className="opacity-0 group-hover:opacity-60 text-brand-gold text-xs transition-opacity">
-                ✏
-              </span>
+              <span className="opacity-0 group-hover:opacity-40 text-xs transition-opacity">✏</span>
             </button>
           )}
-          <span className="text-white/30 text-sm font-light hidden sm:block">Business Suite</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
+        <div className="flex items-center gap-3">
+          {/* Gmail sync button */}
+          {gmailEnabled && (
+            <button
+              onClick={onGmailConnect}
+              disabled={gmailSyncing}
+              title={gmailConnected ? 'Sync Gmail now' : 'Connect Gmail to auto-sync contacts'}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                gmailSyncing
+                  ? 'bg-white/10 text-white/40 cursor-wait'
+                  : gmailConnected
+                    ? 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                    : 'bg-white text-brand-dark hover:bg-white/90'
+              }`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+                <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 13L4 6H20ZM20 18H4V8L12 15L20 8V18Z" fill="currentColor"/>
+              </svg>
+              {gmailSyncing ? 'Syncing…' : gmailConnected ? 'Gmail' : 'Connect Gmail'}
+              {gmailConnected && lastSync && !gmailSyncing && (
+                <span className="text-white/40">{relativeSync(lastSync)}</span>
+              )}
+            </button>
+          )}
+
+          <div className="hidden sm:flex items-center gap-1.5 bg-white/8 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-white/70 text-xs font-medium">{clientCount} clients</span>
+            <span className="text-white/60 text-xs font-medium">{clientCount} clients</span>
           </div>
+
           {wonRevenue > 0 && (
             <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/15 rounded-full px-3 py-1">
               <span className="text-emerald-400 text-xs font-semibold">{formatCurrency(wonRevenue)}</span>
               <span className="text-emerald-400/60 text-xs">won</span>
             </div>
           )}
-          <div className="text-white/40 text-xs hidden md:block">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+
+          <div className="text-white/30 text-xs hidden md:block">
+            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
         </div>
       </div>
@@ -102,18 +145,15 @@ export default function Header({
           <button
             key={item.id}
             onClick={() => onViewChange(item.id)}
-            className={`group flex items-center gap-2 px-5 py-3.5 text-sm font-medium relative transition-all duration-150 ${
+            className={`px-5 py-3.5 text-sm font-medium relative transition-all duration-150 tracking-wide ${
               activeView === item.id
-                ? 'text-brand-gold'
-                : 'text-white/50 hover:text-white/80'
+                ? 'text-white'
+                : 'text-white/40 hover:text-white/70'
             }`}
           >
-            <span className={`text-base leading-none transition-transform duration-150 ${activeView === item.id ? '' : 'group-hover:scale-110'}`}>
-              {item.icon}
-            </span>
-            <span className="tracking-wide">{item.label}</span>
+            {item.label}
             {activeView === item.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-gold rounded-t-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-full" />
             )}
           </button>
         ))}

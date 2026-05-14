@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Client, SavedProposal, PIPELINE_STAGES, generateId } from '../../types';
+import { Client, SavedProposal, MeetingNote, ThreadMessage, NewsArticle, PIPELINE_STAGES, generateId, formatCurrency, formatDate } from '../../types';
 
 // Lazy-load pdfjs-dist only when needed (PDF upload)
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
@@ -41,6 +41,9 @@ interface ClientModalProps {
   onDeleteProposal?: (proposalId: string) => void;
   onAddProposal?: (proposal: SavedProposal) => void;
   onUpdateProposal?: (proposalId: string, updates: Partial<SavedProposal>) => void;
+  onUpdateThread?: (thread: ThreadMessage[]) => void;
+  onUpdateMeetingNotes?: (notes: MeetingNote[]) => void;
+  onUpdateNewsCache?: (cache: Client['newsCache']) => void;
 }
 
 const DEFAULT_FORM: ClientFormData = {
@@ -588,6 +591,8 @@ function ProposalViewer({
 }
 
 // ── Main ClientModal ──────────────────────────────────────────────────────────
+const INTEL_API_KEY = 'jonesy_suite_intel_api_key';
+
 export default function ClientModal({
   client,
   onSave,
@@ -597,8 +602,26 @@ export default function ClientModal({
   onDeleteProposal,
   onAddProposal,
   onUpdateProposal,
+  onUpdateThread,
+  onUpdateMeetingNotes,
+  onUpdateNewsCache,
 }: ClientModalProps) {
-  const [tab, setTab] = useState<'details' | 'proposals'>('details');
+  const [tab, setTab] = useState<'details' | 'proposals' | 'notes' | 'intelligence'>('details');
+  const [intelApiKey, setIntelApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
+  const [intelInput, setIntelInput] = useState('');
+  const [intelThread, setIntelThread] = useState<ThreadMessage[]>(() => client?.thread ?? []);
+  const [intelStreaming, setIntelStreaming] = useState(false);
+  const [intelError, setIntelError] = useState('');
+  const intelEndRef = useRef<HTMLDivElement>(null);
+  const intelTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [news, setNews] = useState<{ summary: string; articles: NewsArticle[] } | null>(
+    client?.newsCache ? { summary: client.newsCache.summary, articles: client.newsCache.articles } : null
+  );
+  const [newsFetching, setNewsFetching] = useState(false);
+  const [newsError, setNewsError] = useState('');
+  const [meetingNotes, setMeetingNotes] = useState<MeetingNote[]>(() => client?.meetingNotes ?? []);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteForm, setNoteForm] = useState({ date: new Date().toISOString().split('T')[0], attendees: '', notes: '', takeaways: '' });
   const [viewingProposal, setViewingProposal] = useState<SavedProposal | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -633,6 +656,209 @@ export default function ClientModal({
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  useEffect(() => {
+    if (tab === 'intelligence') intelEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [intelThread, tab]);
+
+  useEffect(() => {
+    if (tab === 'intelligence' && intelApiKey.trim() && !news && !newsFetching) {
+      fetchNews();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const saveIntelApiKey = (key: string) => {
+    setIntelApiKey(key);
+    localStorage.setItem(INTEL_API_KEY, key);
+  };
+
+  const buildSystemPrompt = (): string => {
+    if (!client) return '';
+    const proposalSummary = (client.proposals ?? []).length > 0
+      ? (client.proposals ?? []).map(p => `  - "${p.title}" (${formatDate(p.createdAt)})`).join('\n')
+      : '  None yet';
+    return `You are a business intelligence assistant embedded in the Jonesy & Co CRM, helping manage client relationships. Your role is to provide strategic insights, draft communications, analyse deal status, and help prepare for meetings.
+
+CLIENT CONTEXT:
+- Name: ${client.name}
+- Company: ${client.company}
+- Deal Value: ${formatCurrency(client.value)}
+- Pipeline Stage: ${client.stage}${client.industry ? `\n- Industry: ${client.industry}` : ''}
+- Status: ${client.outcome}
+- Last Contact: ${formatDate(client.lastContact)}
+- Tags: ${client.tags.join(', ') || 'None'}
+- Notes: ${client.notes || 'No notes yet'}
+
+PROPOSALS:
+${proposalSummary}
+
+Be concise, strategic, and focused on helping close this deal. When asked to draft emails or messages, write them ready to send. When analysing the deal, be direct about risks and next steps.${
+  meetingNotes.length > 0
+    ? `\n\nMEETING NOTES (most recent first):\n${[...meetingNotes].reverse().slice(0, 3).map(n =>
+        `[${n.date}] Attendees: ${n.attendees || 'Not recorded'}\nNotes: ${n.notes}\nKey Takeaways: ${n.takeaways || 'None recorded'}`
+      ).join('\n\n')}`
+    : ''
+}${
+  news
+    ? `\n\nLATEST NEWS SUMMARY:\n${news.summary}`
+    : ''
+}`;
+  };
+
+  const fetchNews = async () => {
+    if (!client || !intelApiKey.trim()) {
+      setNewsError('Enter your Anthropic API key to fetch news.');
+      return;
+    }
+    setNewsFetching(true);
+    setNewsError('');
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': intelApiKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
+          messages: [{
+            role: 'user',
+            content: `Search for the latest news about ${client.name} at ${client.company}${client.industry ? ` (${client.industry})` : ''}. Find 4-6 recent headlines covering business developments, campaigns, partnerships, executive moves, or major announcements. Then write a "Key Insights" paragraph explaining what this means for a Jonesy & Co consulting engagement.
+
+Return ONLY a JSON object (no markdown fences, no prose outside it):
+{"articles":[{"title":"...","source":"...","url":"..."}],"summary":"2-3 sentences of key insights."}`,
+          }],
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: { message?: string } }).error?.message ?? `API error ${resp.status}`);
+      }
+      const data = await resp.json() as { content: { type: string; text?: string }[] };
+      const textBlocks = data.content.filter(b => b.type === 'text' && b.text);
+      const lastText = textBlocks[textBlocks.length - 1]?.text ?? '';
+      if (!lastText) throw new Error('No text response from API');
+      const fenceMatch = lastText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      const bareMatch = lastText.match(/\{[\s\S]*"articles"[\s\S]*\}/);
+      const jsonStr = fenceMatch?.[1] ?? bareMatch?.[0] ?? null;
+      if (!jsonStr) throw new Error('Could not parse news response — try refreshing');
+      const parsed = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')) as { articles: NewsArticle[]; summary: string };
+      const cache: Client['newsCache'] = {
+        fetchedAt: new Date().toISOString(),
+        summary: parsed.summary,
+        articles: parsed.articles ?? [],
+      };
+      setNews({ summary: parsed.summary, articles: parsed.articles ?? [] });
+      onUpdateNewsCache?.(cache);
+    } catch (e) {
+      setNewsError(e instanceof Error ? e.message : 'Failed to fetch news');
+    } finally {
+      setNewsFetching(false);
+    }
+  };
+
+  const saveMeetingNote = () => {
+    if (!noteForm.notes.trim()) return;
+    const note: MeetingNote = {
+      id: generateId(),
+      date: noteForm.date,
+      attendees: noteForm.attendees,
+      notes: noteForm.notes,
+      takeaways: noteForm.takeaways,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [note, ...meetingNotes];
+    setMeetingNotes(updated);
+    onUpdateMeetingNotes?.(updated);
+    setNoteForm({ date: new Date().toISOString().split('T')[0], attendees: '', notes: '', takeaways: '' });
+    setShowNoteForm(false);
+  };
+
+  const deleteMeetingNote = (id: string) => {
+    const updated = meetingNotes.filter(n => n.id !== id);
+    setMeetingNotes(updated);
+    onUpdateMeetingNotes?.(updated);
+  };
+
+  const sendIntelMessage = async () => {
+    if (!intelInput.trim() || intelStreaming) return;
+    if (!intelApiKey.trim()) { setIntelError('Enter your Anthropic API key above to use Intelligence.'); return; }
+    setIntelError('');
+    const userMsg: ThreadMessage = {
+      id: generateId(),
+      role: 'user',
+      content: intelInput.trim(),
+      timestamp: new Date().toISOString(),
+    };
+    const updatedThread = [...intelThread, userMsg];
+    setIntelThread(updatedThread);
+    setIntelInput('');
+    setIntelStreaming(true);
+    const assistantId = generateId();
+    const assistantMsg: ThreadMessage = { id: assistantId, role: 'assistant', content: '', timestamp: new Date().toISOString() };
+    setIntelThread([...updatedThread, assistantMsg]);
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': intelApiKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 1024,
+          stream: true,
+          system: buildSystemPrompt(),
+          messages: updatedThread.map(m => ({ role: m.role, content: m.content })),
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: { message?: string } }).error?.message ?? `API error ${resp.status}`);
+      }
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              accumulated += parsed.delta.text;
+              setIntelThread(prev => prev.map(m => m.id === assistantId ? { ...m, content: accumulated } : m));
+            }
+          } catch { /* ignore */ }
+        }
+      }
+      const finalThread = [...updatedThread, { ...assistantMsg, content: accumulated }];
+      setIntelThread(finalThread);
+      onUpdateThread?.(finalThread);
+    } catch (e) {
+      setIntelError(e instanceof Error ? e.message : 'An error occurred.');
+      setIntelThread(updatedThread);
+      onUpdateThread?.(updatedThread);
+    } finally {
+      setIntelStreaming(false);
+    }
+  };
+
+  const clearIntelThread = () => {
+    setIntelThread([]);
+    onUpdateThread?.([]);
+  };
 
   const set = <K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -736,6 +962,36 @@ export default function ClientModal({
                 {hasProposals && (
                   <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-gold text-brand-dark text-xs font-bold">
                     {proposals.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setTab('notes')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  tab === 'notes'
+                    ? 'text-brand-gold border-b-2 border-brand-gold'
+                    : 'text-brand-dark/50 hover:text-brand-dark'
+                }`}
+              >
+                Call Notes
+                {meetingNotes.length > 0 && (
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-dark/10 text-brand-dark/60 text-xs font-bold">
+                    {meetingNotes.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setTab('intelligence')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  tab === 'intelligence'
+                    ? 'text-brand-gold border-b-2 border-brand-gold'
+                    : 'text-brand-dark/50 hover:text-brand-dark'
+                }`}
+              >
+                Intel
+                {intelThread.length > 0 && (
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-dark/10 text-brand-dark/60 text-xs font-bold">
+                    {intelThread.filter(m => m.role === 'assistant').length}
                   </span>
                 )}
               </button>
@@ -958,6 +1214,219 @@ export default function ClientModal({
 
               <div className="px-4 pb-4">
                 <button onClick={onClose} className="btn-secondary w-full">Close</button>
+              </div>
+            </div>
+          )}
+
+          {/* Call Notes tab */}
+          {tab === 'notes' && client && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-brand-cream">
+                <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">Meeting Notes</p>
+                <button
+                  onClick={() => setShowNoteForm(v => !v)}
+                  className="text-xs font-medium text-brand-gold hover:text-brand-gold/80 transition-colors"
+                >
+                  {showNoteForm ? 'Cancel' : '+ Add Note'}
+                </button>
+              </div>
+
+              {showNoteForm && (
+                <div className="px-4 py-3 border-b border-brand-cream bg-brand-light/40 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="label">Date</label>
+                      <input type="date" className="input-field text-sm" value={noteForm.date}
+                        onChange={e => setNoteForm(f => ({ ...f, date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">Attendees</label>
+                      <input className="input-field text-sm" placeholder="Jo, Alex, Sarah…" value={noteForm.attendees}
+                        onChange={e => setNoteForm(f => ({ ...f, attendees: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">Notes</label>
+                    <textarea className="input-field text-sm resize-none" rows={3} placeholder="What was discussed…"
+                      value={noteForm.notes} onChange={e => setNoteForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Key Takeaways</label>
+                    <textarea className="input-field text-sm resize-none" rows={2} placeholder="Decisions made, next steps…"
+                      value={noteForm.takeaways} onChange={e => setNoteForm(f => ({ ...f, takeaways: e.target.value }))} />
+                  </div>
+                  <button onClick={saveMeetingNote} disabled={!noteForm.notes.trim()}
+                    className="btn-primary w-full text-sm disabled:opacity-40">
+                    Save Note
+                  </button>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                {meetingNotes.length === 0 ? (
+                  <p className="text-xs text-brand-dark/40 text-center py-6">No meeting notes yet. Click &ldquo;+ Add Note&rdquo; after each call.</p>
+                ) : (
+                  [...meetingNotes].sort((a, b) => b.date.localeCompare(a.date)).map(note => (
+                    <div key={note.id} className="rounded-xl border border-brand-cream bg-white p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-brand-dark">{formatDate(note.date)}</span>
+                        <button onClick={() => deleteMeetingNote(note.id)}
+                          className="text-brand-dark/20 hover:text-red-500 text-xs transition-colors">✕</button>
+                      </div>
+                      {note.attendees && (
+                        <p className="text-xs text-brand-dark/50"><span className="font-medium">Attendees:</span> {note.attendees}</p>
+                      )}
+                      <p className="text-xs text-brand-dark/80 leading-relaxed whitespace-pre-wrap">{note.notes}</p>
+                      {note.takeaways && (
+                        <div className="bg-brand-light rounded-lg px-2.5 py-1.5 mt-1">
+                          <p className="text-xs font-medium text-brand-dark/50 mb-0.5">Key Takeaways</p>
+                          <p className="text-xs text-brand-dark/70 leading-relaxed whitespace-pre-wrap">{note.takeaways}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="px-4 pb-4">
+                <button onClick={onClose} className="btn-secondary w-full">Close</button>
+              </div>
+            </div>
+          )}
+
+          {/* Intelligence tab */}
+          {tab === 'intelligence' && client && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              {/* API key bar */}
+              <div className="px-4 pt-3 pb-2.5 border-b border-brand-cream bg-brand-light/50">
+                <div className="flex items-center gap-2">
+                  <div className="bg-brand-dark px-1.5 py-0.5 flex-shrink-0">
+                    <span className="font-display font-bold text-brand-gold text-xs tracking-tighter leading-none">JMJ</span>
+                  </div>
+                  <span className="text-xs text-brand-dark/50 flex-1">Client Intelligence · Claude</span>
+                  {intelThread.length > 0 && (
+                    <button onClick={clearIntelThread} className="text-xs text-brand-dark/30 hover:text-red-500 transition-colors">
+                      Clear thread
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="password"
+                    className="input-field flex-1 py-1.5 text-xs font-mono"
+                    placeholder="sk-ant-… Anthropic API key"
+                    value={intelApiKey}
+                    onChange={e => saveIntelApiKey(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* News feed */}
+              <div className="px-4 pt-3 pb-2.5 border-b border-brand-cream">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-brand-dark/50 uppercase tracking-wider">Latest News</p>
+                  <button
+                    onClick={fetchNews}
+                    disabled={newsFetching}
+                    className="text-xs font-medium text-brand-gold hover:text-brand-gold/80 disabled:opacity-40 transition-colors"
+                  >
+                    {newsFetching ? 'Fetching…' : news ? '↻ Refresh' : '↓ Fetch News'}
+                  </button>
+                </div>
+                {newsError && <p className="text-xs text-red-500 mb-1">{newsError}</p>}
+                {news ? (
+                  <div className="space-y-2">
+                    <div className="bg-brand-light rounded-lg px-2.5 py-2">
+                      <p className="text-xs font-medium text-brand-dark/50 mb-0.5">Key Insights</p>
+                      <p className="text-xs text-brand-dark/80 leading-relaxed">{news.summary}</p>
+                    </div>
+                    <div className="space-y-1">
+                      {news.articles.map((a, i) => (
+                        <div key={i} className="flex items-start gap-1.5">
+                          <span className="text-[10px] font-bold text-brand-dark/30 mt-0.5 flex-shrink-0">{a.source}</span>
+                          {a.url ? (
+                            <a href={a.url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-brand-dark/70 hover:text-brand-gold leading-snug transition-colors">
+                              {a.title}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-brand-dark/70 leading-snug">{a.title}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {client.newsCache?.fetchedAt && (
+                      <p className="text-[10px] text-brand-dark/30">
+                        Updated {formatDate(client.newsCache.fetchedAt.split('T')[0])}
+                      </p>
+                    )}
+                  </div>
+                ) : !newsFetching && (
+                  <p className="text-xs text-brand-dark/40">Click &ldquo;Fetch News&rdquo; to load latest headlines for {client.company}.</p>
+                )}
+              </div>
+
+              {/* Context summary */}
+              {intelThread.length === 0 && (
+                <div className="px-4 pt-3 pb-2 border-b border-brand-cream">
+                  <p className="text-xs text-brand-dark/40 font-medium uppercase tracking-wider mb-2">Client Context</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-brand-dark/60">
+                    <span><span className="font-medium">Company:</span> {client.company}</span>
+                    <span><span className="font-medium">Stage:</span> {client.stage}</span>
+                    <span><span className="font-medium">Value:</span> {formatCurrency(client.value)}</span>
+                    <span><span className="font-medium">Proposals:</span> {(client.proposals ?? []).length}</span>
+                  </div>
+                  <p className="text-xs text-brand-dark/40 mt-2 leading-relaxed">Ask anything about this client — draft an email, analyse deal status, prepare for a meeting, or get next-step recommendations.</p>
+                </div>
+              )}
+
+              {/* Thread */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                {intelThread.map(msg => (
+                  <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
+                      msg.role === 'user' ? 'bg-brand-dark text-white' : 'bg-brand-gold text-brand-dark'
+                    }`}>
+                      {msg.role === 'user' ? 'U' : 'J'}
+                    </div>
+                    <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-brand-dark text-white rounded-tr-sm'
+                        : 'bg-brand-cream text-brand-dark rounded-tl-sm'
+                    }`}>
+                      {msg.content || <span className="opacity-50 animate-pulse">Thinking…</span>}
+                    </div>
+                  </div>
+                ))}
+                {intelError && (
+                  <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{intelError}</p>
+                )}
+                <div ref={intelEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="px-4 pb-4 pt-2 border-t border-brand-cream">
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={intelTextareaRef}
+                    className="input-field flex-1 resize-none text-sm py-2"
+                    rows={2}
+                    placeholder="Ask about this client…"
+                    value={intelInput}
+                    onChange={e => setIntelInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendIntelMessage(); }
+                    }}
+                    disabled={intelStreaming}
+                  />
+                  <button
+                    onClick={sendIntelMessage}
+                    disabled={intelStreaming || !intelInput.trim()}
+                    className="btn-primary py-2 px-4 text-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {intelStreaming ? '…' : '↑'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

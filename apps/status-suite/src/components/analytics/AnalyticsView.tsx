@@ -82,6 +82,7 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
 
     // Funnel snapshot (active + won in stage)
     const funnelCounts: Record<PipelineStage, { count: number; value: number }> = {
+      Prospect: { count: 0, value: 0 },
       Engaged: { count: 0, value: 0 },
       'Meeting Set': { count: 0, value: 0 },
       'Proposal Sent': { count: 0, value: 0 },
@@ -96,7 +97,7 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
 
     // Stage velocity (avg days in each stage across all clients with history)
     const stageVelocity: Record<PipelineStage, number[]> = {
-      Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
+      Prospect: [], Engaged: [], 'Meeting Set': [], 'Proposal Sent': [], Feedback: [], Close: [],
     };
     clients.forEach(c => {
       PIPELINE_STAGES.forEach(stage => {
@@ -169,15 +170,44 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
 
   return (
     <div className="flex flex-col h-full overflow-auto">
+      <style>{`
+        @media print {
+          @page { margin: 1.5cm; size: A4; }
+          body { background: white !important; font-size: 10pt; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; }
+          .metric-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+          h1, h2 { page-break-after: avoid; }
+          print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="bg-white border-b border-brand-cream px-6 py-4 flex-shrink-0">
-        <h1 className="font-display text-xl font-semibold text-brand-dark">Performance Analytics</h1>
-        <p className="text-sm text-brand-dark/50 mt-0.5">
-          {companyName} · {clients.length} total deals tracked
-          {!hasOutcomeData && (
-            <span className="ml-2 text-brand-gold/80">· Data builds as deals are won or lost</span>
-          )}
-        </p>
+      <div className="bg-white border-b border-brand-cream px-6 py-4 flex-shrink-0 flex items-center justify-between no-print">
+        <div>
+          <h1 className="font-display text-xl font-semibold text-brand-dark">Performance Analytics</h1>
+          <p className="text-sm text-brand-dark/50 mt-0.5">
+            {companyName} · {clients.length} total deals tracked
+            {!hasOutcomeData && (
+              <span className="ml-2 text-brand-gold/80">· Data builds as deals are won or lost</span>
+            )}
+          </p>
+        </div>
+        <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 flex-shrink-0">
+          <span>⎙</span> Download PDF
+        </button>
+      </div>
+
+      {/* Print-only LIFE header */}
+      <div className="print-only hidden" style={{ padding: '0 0 24px 0', borderBottom: '2px solid #e5e7eb', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ backgroundColor: '#E8471C', padding: '6px 14px' }}>
+          <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: '#0A0A0A', fontSize: '28px', letterSpacing: '-1px', lineHeight: 1 }}>STATUS</span>
+        </div>
+        <div style={{ textAlign: 'right', fontSize: '9pt', color: '#666' }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>Performance Analytics</p>
+          <p style={{ margin: 0 }}>{clients.length} deals · {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-6">

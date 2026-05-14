@@ -5,24 +5,24 @@ export default {
     extend: {
       colors: {
         brand: {
-          dark: '#1A1A1A',
-          gold: '#DC2626',
-          'gold-light': '#EF4444',
-          'gold-dark': '#B91C1C',
-          'gold-muted': '#FCA5A5',
+          dark: '#0A0A0A',
+          gold: '#E8471C',
+          'gold-light': '#F06030',
+          'gold-dark': '#C73A18',
+          'gold-muted': '#FEF0EB',
           light: '#FAFAFA',
           cream: '#F0F0F0',
           'cream-dark': '#E0E0E0',
         },
       },
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"DM Sans"', 'system-ui', 'sans-serif'],
         sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 3px rgba(26,26,26,0.08), 0 1px 2px rgba(26,26,26,0.04)',
-        'card-hover': '0 4px 12px rgba(26,26,26,0.12), 0 2px 4px rgba(26,26,26,0.06)',
-        gold: '0 0 0 2px rgba(220,38,38,0.3)',
+        card: '0 1px 3px rgba(10,10,10,0.08), 0 1px 2px rgba(10,10,10,0.04)',
+        'card-hover': '0 4px 12px rgba(10,10,10,0.12), 0 2px 4px rgba(10,10,10,0.06)',
+        gold: '0 0 0 2px rgba(255,229,0,0.4)',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

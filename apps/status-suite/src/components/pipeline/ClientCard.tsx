@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Client, STAGE_CONFIG, formatCurrency, formatDate, daysSince, isStale } from '../../types';
+import { Client, STAGE_CONFIG, formatCurrency, formatDate, daysSince } from '../../types';
+
 
 interface ClientCardProps {
   client: Client;
@@ -20,7 +21,6 @@ export default function ClientCard({
 }: ClientCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const stale = isStale(client.lastContact);
   const stageCfg = STAGE_CONFIG[client.stage];
   const days = daysSince(client.lastContact);
 
@@ -35,25 +35,15 @@ export default function ClientCard({
       onDragStart={handleDragStart}
       className={`card card-hover animate-fade-in group relative ${
         draggable ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${stale ? 'border-amber-200' : ''} ${compact ? 'p-3' : 'p-4'}`}
+      } ${compact ? 'p-3' : 'p-4'}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setConfirmDelete(false); }}
     >
-      {/* Stale bar */}
-      {stale && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-400 rounded-t-xl" />
-      )}
-
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           {/* Name & company */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-brand-dark text-sm truncate">{client.name}</span>
-            {stale && (
-              <span className="stale-indicator">
-                <span>⚠</span> {days}d
-              </span>
-            )}
           </div>
           <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.company}</p>
         </div>
@@ -149,7 +139,6 @@ export default function ClientCard({
           <span className={`stage-badge ${stageCfg.bg} ${stageCfg.color} ${stageCfg.border} border text-xs`}>
             {client.stage}
           </span>
-          {stale && <span className="stale-indicator">⚠ {days}d stale</span>}
         </div>
       )}
     </div>

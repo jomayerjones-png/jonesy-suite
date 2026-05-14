@@ -15,7 +15,7 @@ interface RefDoc {
   addedAt: string;
 }
 
-const REF_DOCS_STORAGE_KEY = 'prof_g_ref_docs';
+const REF_DOCS_STORAGE_KEY = 'status_ref_docs';
 
 function loadRefDocs(): RefDoc[] {
   try {
@@ -84,361 +84,194 @@ const EMPTY_FORM: ProposalFormData = {
   additionalContext: '',
 };
 
-type ProposalFormat = 'full' | 'onesheet' | 'reversebrief';
-type ProposalLength = 'concise' | 'standard' | 'comprehensive';
+type ProposalFormat = 'briefing' | 'sponsor_proposal' | 'slide_deck';
 type ProposalTone = 'confident' | 'collaborative' | 'formal';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 const FORMAT_OPTIONS: { value: ProposalFormat; label: string; desc: string }[] = [
-  { value: 'full', label: 'Full Brief', desc: 'Partnership Brief' },
-  { value: 'onesheet', label: 'One Sheet', desc: 'Commercial Strategy Brief' },
-  { value: 'reversebrief', label: 'Reverse Brief', desc: 'Qualify & discover' },
-];
-
-const SECTION_DEFS = [
-  { id: 'moment', label: 'The Opportunity', desc: 'Why now for Prof G' },
-  { id: 'storyInOurs', label: 'Strategic Alignment', desc: 'Why this brand fits' },
-  { id: 'structure', label: 'Partnership Structure', desc: 'What\'s included' },
-  { id: 'vision', label: 'Content Vision', desc: 'What we\'ll create together' },
-  { id: 'reach', label: 'Reach & Distribution', desc: 'Audience & channels' },
-  { id: 'investment', label: 'The Investment', desc: 'Partnership value' },
-  { id: 'timeline', label: 'Partnership Timeline', desc: 'Key milestones' },
-  { id: 'nextSteps', label: 'Next Steps', desc: 'How we begin' },
-] as const;
-
-type SectionId = typeof SECTION_DEFS[number]['id'];
-
-const ALL_SECTIONS: Record<SectionId, boolean> = {
-  moment: true, storyInOurs: true, structure: true, vision: true,
-  reach: true, investment: true, timeline: true, nextSteps: true,
-};
-
-const LENGTH_OPTIONS: { value: ProposalLength; label: string; desc: string }[] = [
-  { value: 'concise', label: 'Concise', desc: '~500 words' },
-  { value: 'standard', label: 'Standard', desc: '~900–1300 words' },
-  { value: 'comprehensive', label: 'Comprehensive', desc: '~1500+ words' },
+  { value: 'briefing', label: 'Internal Briefing', desc: 'Team prep doc' },
+  { value: 'sponsor_proposal', label: 'Sponsor Proposal', desc: 'Client-facing pitch' },
+  { value: 'slide_deck', label: 'Slide Deck', desc: 'Full presentation' },
 ];
 
 const TONE_OPTIONS: { value: ProposalTone; label: string; desc: string }[] = [
-  { value: 'confident', label: 'Confident', desc: 'Authoritative & bold' },
+  { value: 'confident', label: 'Confident', desc: 'Direct & authoritative' },
   { value: 'collaborative', label: 'Collaborative', desc: 'Partnership-first' },
   { value: 'formal', label: 'Formal', desc: 'Corporate / institutional' },
 ];
 
-const SECTION_INSTRUCTIONS: Record<SectionId, string> = {
-  moment: `1. THE OPPORTUNITY — "Why Now"
-Open with the strategic and cultural context for why this partnership matters right now. Frame the Prof G media ecosystem — podcasts, education, events, and content — as a unique platform at the intersection of business, technology, and culture. Make the partner feel the urgency and scale.`,
-  storyInOurs: `2. STRATEGIC ALIGNMENT — "Why [Brand]"
-Articulate precisely why this brand belongs in the Prof G ecosystem. What is the alignment between the brand's positioning, audience, and values and Prof G's audience of ambitious professionals, entrepreneurs, and business leaders? Be specific and strategically sharp.`,
-  structure: `3. THE PARTNERSHIP STRUCTURE — "What We're Building Together"
-Describe what the partnership includes. Be concrete about content integrations, sponsorship formats, distribution channels, and brand presence across podcasts, digital content, live events, and education platforms.`,
-  vision: `4. THE CONTENT VISION — "What We'll Create"
-Paint a vivid, specific picture of the content that will live in this partnership. What will the audience experience? How will the brand's narrative integrate into Prof G's content? This should feel like a creative pitch — ambitious, specific, exciting.`,
-  reach: `5. REACH & DISTRIBUTION — "Where Your Brand Lives"
-Describe where the partnership content will appear: Prof G Pod, Pivot, No Mercy / No Malice newsletter, Prof G Education, live events, social channels. Be specific about audience scale, demographics, and engagement.`,
-  investment: `6. THE INVESTMENT — "Partnership Value"
-Frame the financial commitment as a strategic investment. If budget is provided, structure it clearly. Emphasize the value of reaching Prof G's engaged, high-income professional audience. Include what the brand receives in return.`,
-  timeline: `7. PARTNERSHIP TIMELINE — "Key Milestones"
-Describe the key milestones of the partnership — content launches, event integrations, campaign moments, and reporting cadences.`,
-  nextSteps: `8. NEXT STEPS — "How We Begin"
-End with clear, confident next steps. Make it easy to say yes. Reference any existing relationship or prior conversations naturally.`,
-};
+const STATUS_CONTEXT = `
+ABOUT STATUS
+Status is the essential daily media intelligence newsletter for America's media, Hollywood, and tech industry decision-makers. Founded in 2024 by Oliver Darcy (former CNN senior media reporter), Status has become the must-read source for industry-defining scoops, sharp analysis, and exclusive reporting.
 
-function buildSystemPrompt(
+THE NUMBERS
+- 110,000+ subscribers, growing 10% every month
+- 40% daily open rate across all subscribers
+- National reach concentrated in New York, Los Angeles, Washington, and Silicon Valley
+- ~25% of surveyed readers report personal income above $200K
+- 2,900 of 30,000 surveyed readers are members of media and entertainment guilds
+- Regularly cited by: The New York Times, CNN, Reuters, AP, Variety, The Wall Street Journal, Puck, Vanity Fair, The Hollywood Reporter, MSNBC, The New Yorker, Bloomberg
+
+THE AUDIENCE
+Top decision-makers nationwide: studio chiefs, Hollywood producers, newsroom leaders, tech executives, and Washington power players turn to Status every day.
+
+THE TEAM
+- Oliver Darcy — Founder and lead author. Former CNN senior media reporter, award-winning journalist, 10+ years covering media. Widely read by media executives.
+- Jon Passantino — Executive editor. Veteran news editor with nearly two decades at CNN, BuzzFeed News, AOL, and Fox News. Oversees all editorial and publishes a Saturday column.
+- Brian Lowry — Hollywood correspondent and editor. Prominent media columnist, film and TV critic. Previously at CNN, Variety, and the LA Times. Publishes new analysis and reviews on Fridays.
+- Natalie Korach — Media correspondent. Covers the intersection of journalism and business. Previously at Vanity Fair and The Wrap. Anchors Wednesday and Sunday editions.
+
+THE VOICE
+"The direct line to media's power brokers."
+"Insiders Tell Status." — Status's signature editorial line.
+Punk energy meets insider journalism: deeply sourced, feared, respected. These publications cover industries for the people who aren't in them. Status serves the people who live and thrive on the inside.
+
+SPONSORSHIP PRODUCTS
+- Solo Newsletter Sponsorship: One brand, one edition. 110K+ readers, 40% open rate. Maximum impact, zero clutter.
+- Branded Content: Native editorial integration written in the Status voice by the Status team.
+- Event Sponsorship: Exclusive access to Status's high-profile live events.
+- Podcast Sponsorship: The flagship Status podcast, reaching the same power-player audience.`;
+
+function buildBriefingSystemPrompt(
   _companyName: string,
-  length: ProposalLength,
-  tone: ProposalTone,
-  sections: Record<SectionId, boolean>,
-  referenceDocs: RefDoc[] = [],
-): string {
-  const activeSections = SECTION_DEFS.filter(s => sections[s.id]);
-  const sectionInstructions = activeSections
-    .map(s => SECTION_INSTRUCTIONS[s.id])
-    .join('\n\n');
-
-  const lengthGuide = {
-    concise: 'Keep the brief concise — approximately 400–600 words of body content. Be direct and economical with language. Every sentence should earn its place.',
-    standard: 'Aim for a comprehensive but readable brief — approximately 900–1300 words of body content.',
-    comprehensive: 'Write a thorough, detailed brief — approximately 1500–2000 words of body content. Expand on each section with deeper analysis, richer creative vision, and more specific deliverables.',
-  }[length];
-
-  const toneGuide = {
-    confident: 'Write with the authority of Prof G\'s brand and track record. Be bold, direct, and assertive. Channel Scott Galloway\'s signature blend of data-driven insight and provocative honesty.',
-    collaborative: 'Write as a collaborative partner. Use "we" and "together" language. Position the partnership as a joint creative venture. Warm, inviting, and energising.',
-    formal: 'Write in a formal, institutional tone. Structured, measured, and precise. Suitable for corporate review processes and brand partnership committees.',
-  }[tone];
-
-  return `You are the Head of Brand Partnerships at Prof G Media, the media and education company founded by Scott Galloway. You write bespoke partnership briefs — compelling, strategically sharp documents that invite brands to partner with the Prof G ecosystem.
-
-ABOUT PROF G MEDIA
-Prof G Media is a leading business media and education company built around NYU Stern professor and bestselling author Scott Galloway. The ecosystem includes the Prof G Pod, Pivot (with Kara Swisher), the No Mercy / No Malice newsletter, Prof G Education (online business courses), and a robust events and speaking business. Prof G reaches millions of ambitious professionals, entrepreneurs, and business leaders who value data-driven analysis, provocative thinking, and actionable business insight.
-
-THE PROF G PARTNERSHIP BRIEF FORMAT
-Include ONLY the following sections, in this order:
-
-${sectionInstructions}
-
-TONE: ${toneGuide}
-
-LENGTH: ${lengthGuide}
-
-STYLE GUIDELINES:
-- Be warm, elevated, and visually-minded — this is a creative partnership, not a media buy
-- Reference real cultural context where relevant (LA28, AI era, the creator economy, human storytelling)
-- Paragraphs over bullet points — this should read like a letter from an editor, not a rate card
-- Use sophisticated vocabulary but never obscure meaning with jargon
-- Each brief should feel bespoke — written specifically for this brand and this moment
-
-Format using markdown with ## for section headings. Begin with a compelling headline title (# heading) that captures the essence of the partnership.`
-
-  + (referenceDocs.length > 0 ? `
-
-REFERENCE MATERIAL WEIGHTING
-You have been provided with reference documents below. These are the primary source of truth for this brief.
-- Draw approximately 60% of your content, frameworks, language, positioning, and specifics from the reference material.
-- Use approximately 40% of your own knowledge to fill gaps, add strategic context, ensure coherence, and enhance the brief.
-- When the reference material contains specific data points, frameworks, case studies, pricing, or positioning language, prefer those over generic content.
-- Mirror the tone, terminology, and strategic framing found in the reference material.
-
-REFERENCE DOCUMENTS:
-${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
-}
-
-function buildUserPrompt(form: ProposalFormData, _companyName: string): string {
-  return `Please write a full Prof G Partnership Brief for the following opportunity:
-
-PARTNER CONTACT: ${form.clientName}
-BRAND / COMPANY: ${form.company}${form.industry ? `\nINDUSTRY / CATEGORY: ${form.industry}` : ''}
-
-PARTNERSHIP OPPORTUNITY / ANGLE:
-${form.challenge}
-
-CURRENT BRAND SITUATION / CONTEXT:
-${form.currentState || 'Not specified — infer from the partnership angle and industry context above.'}
-
-WHAT SUCCESS LOOKS LIKE FOR THIS PARTNER:
-${form.desiredOutcome}
-
-${form.successMetrics ? `KEY METRICS / DELIVERABLES:\n${form.successMetrics}\n` : ''}
-${form.budget ? `PARTNERSHIP INVESTMENT LEVEL: ${form.budget}\n` : ''}
-${form.timeline ? `DESIRED TIMELINE / LAUNCH: ${form.timeline}\n` : ''}
-${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
-
-Write a complete, polished Prof G Partnership Brief as if you are the Head of Brand Partnerships at Prof G Media presenting this opportunity to ${form.clientName} at ${form.company}. This should feel strategically sharp, data-informed, and compelling. Ready to share.`;
-}
-
-function buildOneSheetSystemPrompt(
-  companyName: string,
   tone: ProposalTone,
   referenceDocs: RefDoc[] = [],
 ): string {
   const toneGuide = {
-    confident: 'Write with the confidence of a trusted advisor who has done the listening. Be direct and authoritative.',
-    collaborative: 'Write as a collaborative partner. Warm but professional, positioning the engagement as a joint venture.',
-    formal: 'Write in a formal, institutional tone. Structured, measured, and precise.',
+    confident: 'Direct and assertive. No hedging. Like a well-prepared account executive who knows exactly what they want from this meeting.',
+    collaborative: 'Warm and analytical. First-person plural. Treats this as a joint prep exercise.',
+    formal: 'Precise and measured. Institutional tone, structured sentences.',
   }[tone];
 
-  return `You are a senior strategist at ${companyName}, writing a one-page Commercial Strategy Brief for a prospective client.
+  return `You are the Head of Partnerships at Status, writing an internal briefing before a sponsor meeting. Status is a fast-moving startup — write like one. Short, punchy, no fluff.
 
-IMPORTANT PERSPECTIVE:
-This document is written FROM ${companyName}'s perspective ABOUT the client. You are the expert who has done the listening.
-- "We" always refers to ${companyName}
-- Refer to the client by their company name or "you" / "your"
-- Position ${companyName} as the knowledgeable advisor presenting back what they have understood
+${STATUS_CONTEXT}
 
-DOCUMENT STRUCTURE — follow this exact structure:
+DOCUMENT STRUCTURE — follow this exactly:
 
-# [CLIENT COMPANY] — Commercial Strategy Brief
-**Prepared for [Contact Name] | [Current Month Year]**
+# Internal Briefing: [Company]
+**Status Partnerships | [Current Month Year] | CONFIDENTIAL**
 
-## The Business
-A concise paragraph describing the client's business, key brands/products, and market position. Demonstrate that ${companyName} has done the research and understands their world. End with a single sentence identifying the core strategic tension — product-market fit exists, but what's missing.
+## Account Overview
+2–3 sentences max. Who they are, who we're meeting, why they're in the pipeline.
 
-## The Opportunity
-Describe the specific commercial opportunity ${companyName} has identified. Include concrete numbers from the brief if available (pipeline size, deal velocity issues, new concepts needing validation). Be specific about what's working and where friction exists.
+## Why Status is a Fit
+3–5 tight bullet points. Why this brand needs to be in front of Status readers. Specific audience overlap, campaign timing, strategic rationale. No paragraphs.
 
-## Scope
-Break the engagement into clearly defined workstreams. For each workstream:
-**Workstream [N] — [Name]**
-* Bullet-pointed deliverables and activities
-* Each bullet should be concrete and actionable
-* 3–5 bullets per workstream
+## Meeting Objective
+One sentence. What do we walk out with?
 
-## What Success Looks Like
-* 4–6 bullet points describing measurable or observable outcomes
-* Each bullet should be specific enough to evaluate against
-* Include both immediate deliverables and lasting capability improvements
-* Final bullet should reference the team's ability to operate independently
+## Key Talking Points
+5 bullets. Our strongest arguments, tailored to this brand's known priorities. Specific, not generic.
 
-## Constraints
-* 3–4 bullet points identifying non-negotiable boundaries
-* These show awareness of the client's reality and build trust
-* Include operational, editorial/brand, and timeline constraints
+## Proposed Package
+2–3 sentences. Solo newsletter / branded content / events / podcast — what makes sense, rough investment level, why now.
 
-## Investment
-A single paragraph: "We propose a fixed-fee engagement structured around milestones and outcomes, not hours. The engagement will be phased, with actionable findings from an initial diagnostic stage delivered within the first 30 days."
+## Objections + Responses
+4 pairs. Short and sharp:
+**Objection:** [one sentence]
+**Response:** [one sentence]
 
-Then sign off with:
-**${companyName}** | Johanna Mayer-Jones | jomayerjones@gmail.com
+## Next Steps
+3 bullets with timelines.
 
 TONE: ${toneGuide}
-
-LENGTH: This is a one-sheet brief — keep it tight and scannable. Approximately 400–600 words total. Every sentence must earn its place. No padding.
-
-STYLE:
-- Clean, confident, no jargon
-- Bullet points are appropriate here — this is a brief, not a narrative proposal
-- No emojis, no decorative elements
-- The document should feel like something a senior consultant hands across the table
-- Use markdown formatting throughout`
-
+LENGTH: 400–500 words. Scannable. Bullet-heavy. No long paragraphs — if it's longer than 2 sentences, break it into bullets.
+FORMAT: Markdown with ## headings and bullet points.`
   + (referenceDocs.length > 0 ? `
 
-REFERENCE MATERIAL WEIGHTING
-Draw approximately 60% of content from the reference material below. Use 40% of your own knowledge to fill gaps.
-
-REFERENCE DOCUMENTS:
+REFERENCE MATERIAL (60% weight — draw heavily from these):
 ${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
 }
 
-function buildOneSheetUserPrompt(form: ProposalFormData, companyName: string): string {
-  return `Write a Commercial Strategy Brief (one-sheet) for the following engagement:
+function buildBriefingUserPrompt(form: ProposalFormData, _companyName: string, clientContext: string): string {
+  return `Write an internal briefing for the following sponsor meeting:
 
-CLIENT: ${form.clientName}
+CONTACT: ${form.clientName}
 COMPANY: ${form.company}${form.industry ? `\nINDUSTRY: ${form.industry}` : ''}
 
-CHALLENGE / OPPORTUNITY:
-${form.challenge}
+WHAT WE KNOW / SPONSORSHIP ANGLE:
+${form.challenge || 'Use reference documents and public knowledge to build the picture.'}
 
-CURRENT STATE:
-${form.currentState || 'Not specified — infer from the challenge described above.'}
+${form.currentState ? `BRAND CONTEXT:\n${form.currentState}\n` : ''}
+${form.desiredOutcome ? `WHAT THEY\'VE EXPRESSED INTEREST IN:\n${form.desiredOutcome}\n` : ''}
+${form.budget ? `BUDGET DISCUSSED: ${form.budget}\n` : ''}
+${form.timeline ? `TIMELINE: ${form.timeline}\n` : ''}
+${form.additionalContext ? `ADDITIONAL NOTES:\n${form.additionalContext}\n` : ''}
+${clientContext ? `\nPIPELINE DATA:\n${clientContext}\n` : ''}
 
-DESIRED OUTCOME:
-${form.desiredOutcome}
-
-${form.successMetrics ? `SUCCESS METRICS:\n${form.successMetrics}\n` : ''}
-${form.budget ? `BUDGET RANGE: ${form.budget}\n` : ''}
-${form.timeline ? `DESIRED TIMELINE: ${form.timeline}\n` : ''}
-${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : ''}
-
-Write the complete one-sheet as ${companyName} presenting this to ${form.clientName} at ${form.company}. This should be ready to share with the client.`;
+Write the complete briefing for the Status partnerships team.`;
 }
 
-function buildReverseBriefSystemPrompt(
+function buildSponsorProposalSystemPrompt(
   _companyName: string,
   tone: ProposalTone,
   referenceDocs: RefDoc[] = [],
 ): string {
   const toneGuide = {
-    confident: 'Write with the confidence of someone who has done their homework. Be direct about what you see and what you still need to learn.',
-    collaborative: 'Write as a collaborative partner exploring the opportunity together. Warm but analytically rigorous.',
-    formal: 'Write in a formal, structured tone. Precise and measured.',
+    confident: 'Direct and authoritative. Status knows its value — this document reflects that. Not a pitch, a statement of opportunity.',
+    collaborative: 'Warm and partnership-minded. Frame this as a shared editorial vision, not a transaction.',
+    formal: 'Polished and precise. Suitable for brand committee review.',
   }[tone];
 
-  return `You are the Head of Brand Partnerships at Prof G Media, preparing an internal Reverse Brief — a pre-proposal qualifying document that captures your understanding of a prospective partner BEFORE writing a formal partnership brief.
+  return `You are the Head of Partnerships at Status, writing a client-facing sponsorship proposal. Status is a startup — keep this tight, specific, and confident. This goes directly to the sponsor.
 
-ABOUT PROF G MEDIA:
-Prof G Media is a leading business media and education company built around NYU Stern professor and bestselling author Scott Galloway. The ecosystem includes the Prof G Pod, Pivot (with Kara Swisher), the No Mercy / No Malice newsletter, Prof G Education, and a robust events and speaking business. The audience is ambitious professionals, entrepreneurs, and business leaders.
+${STATUS_CONTEXT}
 
-Partnership channels include:
-- Podcast sponsorship & integration (Prof G Pod, Pivot)
-- Newsletter sponsorship (No Mercy / No Malice)
-- Education partnerships (Prof G Education)
-- Event sponsorship & speaking integrations
-- Custom content & co-branded series
+DOCUMENT STRUCTURE — follow this exactly:
 
-PURPOSE:
-The Reverse Brief is NOT a proposal. It is an internal document that:
-1. Forces structured thinking about whether this brand is the right partner
-2. Surfaces what we know vs. what we're assuming
-3. Identifies specific questions we need answered before committing to a partnership brief
-4. Assesses brand fit, audience fit, and commercial fit
-5. Sketches what the partnership would look like IF we proceed
+# Status × [Company]: Sponsorship Partnership
 
-IMPORTANT PERSPECTIVE:
-- "We" = Prof G Media / the partnerships team
-- This is written FOR the Prof G team, not for the partner
-- Be candid — this is where honest assessment happens
-- Flag assumptions explicitly
+---
 
-DOCUMENT STRUCTURE — follow this exact structure:
+## Status
+2 sentences. What Status is, who reads it, why it matters. Direct.
 
-# Reverse Brief — [Brand/Company]
-**Prepared by Prof G Media Partnerships | [Current Month Year]**
-*Internal document — not for partner distribution*
+## Why [Company]
+2–3 short paragraphs (2–3 sentences each). Make the brand feel specifically chosen. Reference a real campaign, product launch, or audience goal from 2024–2025. Why is the Status audience the right room for this brand right now?
 
-## What We Know
-Summary of the brand's business, target audience, market position, and any conversations so far. Distinguish between conversation intel and public info. Note any overlap between their audience and Prof G's audience of ambitious professionals. End with what the brand has expressed interest in.
+## The Opportunity
+2 short paragraphs. What this sponsorship looks like — which product(s), what the brand's message looks like in context, what they're buying. Specific. No vague language.
 
-## What We Think We See
-Prof G's hypothesis — the partnership story we believe exists. Why does this brand resonate with the Prof G audience? Which channels (podcast, newsletter, education, events) are the natural fit? What's the angle Scott could authentically engage with? Be bold but flag it as a hypothesis.
+## The Numbers
+- 110,000+ subscribers, growing 10% monthly
+- 40% daily open rate
+- Key markets: New York, Los Angeles, Washington, Silicon Valley
+- ~25% of readers above $200K personal income
+- Cited by NYT, WSJ, CNN, Variety, Bloomberg
 
-## Open Questions
-A numbered list of 6–8 specific questions that must be answered before a partnership brief:
-1. Budget & investment level — what range is realistic, annual vs. campaign
-2. Channel preferences — podcast, newsletter, education, events, or integrated
-3. Decision-making — brand team vs. agency, procurement process
-4. Content integration depth — host-read ads vs. deep editorial integration
-5. Timeline — campaign calendar, launch moments, fiscal year
-6. Audience goals — are they targeting Prof G's exact demo or using it for reach
-7. Measurement — what do they track (brand lift, leads, downloads, awareness)
-8. Competitive landscape — who else they're talking to, category exclusivity needs
+## Next Steps
+2 sentences. Direct CTA. Name the next step.
 
-Each question should include a brief note on WHY we need this answer.
-
-## Fit Assessment
-**Audience Fit** — Does this brand's target audience overlap with Prof G's audience of ambitious professionals? Rate: Strong / Moderate / Weak, with reasoning.
-
-**Brand Fit** — Can Scott authentically engage with this brand? Does it align with Prof G's editorial voice? Rate: Strong / Moderate / Weak, with reasoning.
-
-**Commercial Fit** — Is the likely investment proportional to the value? Which channels are realistic? Rate: Strong / Moderate / Weak / Unknown, with reasoning.
-
-**Timing Fit** — Are they ready to commit? Rate: Ready / Warming / Early, with evidence.
-
-**Overall Assessment** — One sentence: proceed, proceed with caution, or pass — and why.
-
-## If We Proceed
-A sketch of the likely partnership:
-- Recommended channels and format
-- Content integration approach
-- Estimated investment range
-- Key activation moments (podcast episodes, newsletter features, events)
-- Risks or dependencies
-
-Sign off with:
-**Prof G Media Partnerships** | Internal Use Only
+---
+Status Partnerships | partnerships@statusworld.com
 
 TONE: ${toneGuide}
-
-LENGTH: Thorough but efficient — approximately 600–900 words.
-
-STYLE:
-- Analytical and candid — no sales language
-- Bold headers and bullets for scannability
-- Flag assumptions with [ASSUMPTION] tags
-- Use markdown formatting throughout`
-
+LENGTH: 350–450 words. Punchy. Short paragraphs — 2–3 sentences max each. No filler, no long narrative blocks.
+FORMAT: Markdown with ## headings and horizontal rules (---) as shown.`
   + (referenceDocs.length > 0 ? `
 
-REFERENCE MATERIAL:
+REFERENCE MATERIAL (60% weight — draw heavily from these):
 ${referenceDocs.map(d => `--- ${d.name} ---\n${d.content}\n--- END ${d.name} ---`).join('\n\n')}` : '');
 }
 
-function buildReverseBriefUserPrompt(form: ProposalFormData, _companyName: string, clientContext: string): string {
-  return `Prepare a Reverse Brief for the following prospective partner:
+function buildSponsorProposalUserPrompt(form: ProposalFormData, _companyName: string): string {
+  return `Write a sponsor proposal for the following prospect:
 
-PARTNER CONTACT: ${form.clientName}
-BRAND / COMPANY: ${form.company}${form.industry ? `\nINDUSTRY / CATEGORY: ${form.industry}` : ''}
+CONTACT: ${form.clientName}
+COMPANY: ${form.company}${form.industry ? `\nINDUSTRY: ${form.industry}` : ''}
 
-WHAT WE KNOW SO FAR:
-${form.challenge || 'Limited information — use reference documents and public knowledge to build the picture.'}
+SPONSORSHIP ANGLE:
+${form.challenge}
 
-${form.currentState ? `CURRENT BRAND SITUATION / CONTEXT:\n${form.currentState}\n` : ''}
-${form.desiredOutcome ? `WHAT THEY'VE EXPRESSED INTEREST IN:\n${form.desiredOutcome}\n` : ''}
-${form.additionalContext ? `ADDITIONAL CONTEXT & NOTES:\n${form.additionalContext}\n` : ''}
-${clientContext ? `\nPIPELINE DATA:\n${clientContext}\n` : ''}
+${form.currentState ? `BRAND CONTEXT:\n${form.currentState}\n` : ''}
+${form.desiredOutcome ? `WHAT SUCCESS LOOKS LIKE FOR THEM:\n${form.desiredOutcome}\n` : ''}
+${form.successMetrics ? `KEY DELIVERABLES:\n${form.successMetrics}\n` : ''}
+${form.budget ? `INVESTMENT LEVEL: ${form.budget}\n` : ''}
+${form.timeline ? `TIMELINE: ${form.timeline}\n` : ''}
+${form.additionalContext ? `ADDITIONAL CONTEXT:\n${form.additionalContext}\n` : ''}
 
-Write the complete Reverse Brief as Prof G Media's internal qualifying document. Be candid and analytical — this is for our partnerships team, not the brand.`;
+Write the complete proposal as Status Partnerships presenting this to ${form.clientName} at ${form.company}. This goes directly to the sponsor.`;
 }
 
 function buildClientContext(client: Client): string {
@@ -449,7 +282,7 @@ function buildClientContext(client: Client): string {
   if (client.tags.length > 0) parts.push(`Tags: ${client.tags.join(', ')}`);
   parts.push(`Days in Pipeline: ${daysSince(client.createdAt)}`);
   if (client.proposals.length > 0) {
-    parts.push(`Previous Briefs: ${client.proposals.length} (latest: "${client.proposals[client.proposals.length - 1].title}", ${new Date(client.proposals[client.proposals.length - 1].createdAt).toLocaleDateString()})`);
+    parts.push(`Previous Proposals: ${client.proposals.length} (latest: "${client.proposals[client.proposals.length - 1].title}", ${new Date(client.proposals[client.proposals.length - 1].createdAt).toLocaleDateString()})`);
   }
   if (client.notes) parts.push(`Pipeline Notes: ${client.notes}`);
   if (client.outcome !== 'active') parts.push(`Outcome: ${client.outcome}${client.lostReason ? ` — ${client.lostReason}` : ''}`);
@@ -484,9 +317,15 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+const INTEL_API_KEY = 'status_suite_intel_api_key';
+
 export default function ProposalGenerator({ companyName, clients, onSaveToClient }: ProposalGeneratorProps) {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(INTEL_API_KEY) ?? '');
   const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    if (apiKey) localStorage.setItem(INTEL_API_KEY, apiKey);
+  }, [apiKey]);
   const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
   const [proposal, setProposal] = useState('');
   const [loading, setLoading] = useState(false);
@@ -501,10 +340,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
   const [editing, setEditing] = useState(false);
   const [refinementInput, setRefinementInput] = useState('');
   const [history, setHistory] = useState<ChatMessage[]>([]);
-  const [format, setFormat] = useState<ProposalFormat>('full');
-  const [length, setLength] = useState<ProposalLength>('standard');
+  const [format, setFormat] = useState<ProposalFormat>('briefing');
   const [tone, setTone] = useState<ProposalTone>('confident');
-  const [sections, setSections] = useState<Record<SectionId, boolean>>({ ...ALL_SECTIONS });
   const refinementRef = useRef<HTMLInputElement>(null);
 
   // Reference documents
@@ -548,20 +385,15 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setRefDocs(prev => prev.filter(d => d.id !== id));
   };
 
-  const toggleSection = (id: SectionId) => {
-    setSections(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
   const set = <K extends keyof ProposalFormData>(key: K, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
 
   const validateForm = (): string | null => {
     if (!apiKey.trim()) return 'Please enter your Anthropic API key.';
-    if (!form.clientName.trim()) return 'Partner contact name is required.';
-    if (!form.company.trim()) return 'Brand / company name is required.';
-    if (format === 'reversebrief') return null;
-    if (!form.challenge.trim()) return 'The partnership opportunity / angle is required.';
+    if (!form.clientName.trim()) return 'Contact name is required.';
+    if (!form.company.trim()) return 'Company name is required.';
+    if (!form.challenge.trim()) return 'Sponsorship angle / opportunity is required.';
     if (!form.desiredOutcome.trim()) return 'What success looks like is required.';
     return null;
   };
@@ -581,11 +413,9 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         stream: true,
-        system: format === 'reversebrief'
-          ? buildReverseBriefSystemPrompt(companyName, tone, refDocs)
-          : format === 'onesheet'
-            ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
-            : buildSystemPrompt(companyName, length, tone, sections, refDocs),
+        system: format === 'sponsor_proposal'
+          ? buildSponsorProposalSystemPrompt(companyName, tone, refDocs)
+          : buildBriefingSystemPrompt(companyName, tone, refDocs),
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
@@ -636,7 +466,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     }
 
     return fullText;
-  }, [apiKey, companyName, format, length, tone, sections, refDocs]);
+  }, [apiKey, companyName, format, tone, refDocs]);
 
   const generate = useCallback(async () => {
     const validationError = validateForm();
@@ -650,22 +480,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     const selectedClient = clients.find(c => c.id === selectedClientId);
     const clientCtx = selectedClient ? buildClientContext(selectedClient) : '';
 
-    let enrichedForm = form;
-    if (format !== 'reversebrief' && selectedClient) {
-      const existingReverseBrief = selectedClient.proposals.find(p => p.title.startsWith('Reverse Brief'));
-      if (existingReverseBrief) {
-        const reverseBriefContext = `\n\n--- REVERSE BRIEF (internal qualifying document) ---\n${existingReverseBrief.content}\n--- END REVERSE BRIEF ---`;
-        enrichedForm = { ...form, additionalContext: (form.additionalContext || '') + reverseBriefContext };
-      }
-    }
-
     const userMessage: ChatMessage = {
       role: 'user',
-      content: format === 'reversebrief'
-        ? buildReverseBriefUserPrompt(form, companyName, clientCtx)
-        : format === 'onesheet'
-          ? buildOneSheetUserPrompt(enrichedForm, companyName)
-          : buildUserPrompt(enrichedForm, companyName),
+      content: format === 'sponsor_proposal'
+        ? buildSponsorProposalUserPrompt(form, companyName)
+        : buildBriefingUserPrompt(form, companyName, clientCtx),
     };
     const messages = [userMessage];
 
@@ -759,8 +578,6 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setRefinementInput('');
   };
 
-  const enabledCount = Object.values(sections).filter(Boolean).length;
-
   const shareProposal = () => {
     const title = proposal ? extractTitle(proposal) : 'Brief';
     const subject = encodeURIComponent(title);
@@ -798,8 +615,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         {/* Form panel */}
         <div className="w-96 flex-shrink-0 bg-white border-r border-brand-cream flex flex-col overflow-hidden proposal-form-panel">
           <div className="px-5 py-4 border-b border-brand-cream">
-            <h2 className="font-display text-xl font-semibold text-brand-dark">Partner Brief Generator</h2>
-            <p className="text-xs text-brand-dark/50 mt-0.5">Prof G Partnership Framework · Powered by Claude</p>
+            <h2 className="font-display text-xl font-semibold text-brand-dark">Proposal Generator</h2>
+            <p className="text-xs text-brand-dark/50 mt-0.5">Status Sponsorship Suite · Powered by Claude</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -913,153 +730,87 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             </p>
           </div>
 
-          {/* Partner info */}
-          <FormSection title="Partner Information">
+          {/* Sponsor info */}
+          <FormSection title="Sponsor Information">
             <div>
               <label className="label">Contact Name *</label>
-              <input className="input-field" value={form.clientName} onChange={e => set('clientName', e.target.value)} placeholder="Antoine Arnault" />
+              <input className="input-field" value={form.clientName} onChange={e => set('clientName', e.target.value)} placeholder="Sarah Chen" />
             </div>
             <div>
-              <label className="label">Brand / Company *</label>
-              <input className="input-field" value={form.company} onChange={e => set('company', e.target.value)} placeholder="LVMH" />
+              <label className="label">Company *</label>
+              <input className="input-field" value={form.company} onChange={e => set('company', e.target.value)} placeholder="Netflix" />
             </div>
             <div>
               <label className="label">Industry / Category</label>
-              <input className="input-field" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="Luxury, Technology, Automotive…" />
+              <input className="input-field" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="Streaming, Tech, Finance, Entertainment…" />
             </div>
           </FormSection>
 
-          {/* Partnership angle */}
-          {/* Reverse brief context badge */}
-          {format !== 'reversebrief' && selectedClientId && (() => {
-            const cl = clients.find(c => c.id === selectedClientId);
-            const rb = cl?.proposals.find(p => p.title.startsWith('Reverse Brief'));
-            return rb ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
-                <span className="text-emerald-500 text-sm mt-0.5">◈</span>
-                <div>
-                  <p className="text-xs font-semibold text-emerald-700">Reverse Brief available — context loaded</p>
-                  <p className="text-xs text-emerald-600/60 mt-0.5">"{rb.title}" will be injected as qualifying context into your brief.</p>
-                </div>
-              </div>
-            ) : null;
-          })()}
+          <FormSection title="The Opportunity">
+            <div>
+              <label className="label">Sponsorship Angle *</label>
+              <textarea
+                className="input-field resize-none"
+                rows={3}
+                value={form.challenge}
+                onChange={e => set('challenge', e.target.value)}
+                placeholder="Why does this brand need to be in front of Status readers? What's the specific angle — product launch, recruitment, brand awareness in the media industry?"
+              />
+            </div>
+            <div>
+              <label className="label">Brand Context</label>
+              <textarea
+                className="input-field resize-none"
+                rows={3}
+                value={form.currentState}
+                onChange={e => set('currentState', e.target.value)}
+                placeholder="Their current marketing focus, known campaigns, audience they're trying to reach…"
+              />
+            </div>
+          </FormSection>
 
-          {format === 'reversebrief' ? (
-            <FormSection title="What We Know">
+          <FormSection title="Details">
+            <div>
+              <label className="label">What Success Looks Like</label>
+              <textarea
+                className="input-field resize-none"
+                rows={2}
+                value={form.desiredOutcome}
+                onChange={e => set('desiredOutcome', e.target.value)}
+                placeholder="Brand awareness with media execs, leads, event presence…"
+              />
+            </div>
+            <div>
+              <label className="label">Proposed Package</label>
+              <textarea
+                className="input-field resize-none"
+                rows={2}
+                value={form.successMetrics}
+                onChange={e => set('successMetrics', e.target.value)}
+                placeholder="Solo newsletter, branded content, events, podcast…"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">What we know so far</label>
-                <textarea
-                  className="input-field resize-none"
-                  rows={5}
-                  value={form.challenge}
-                  onChange={e => set('challenge', e.target.value)}
-                  placeholder="Everything we know about this brand — conversations, public info, mutual connections, what they've expressed interest in…"
-                />
+                <label className="label">Budget Range</label>
+                <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$25K–$50K" />
               </div>
               <div>
-                <label className="label">Current brand situation</label>
-                <textarea
-                  className="input-field resize-none"
-                  rows={3}
-                  value={form.currentState}
-                  onChange={e => set('currentState', e.target.value)}
-                  placeholder="Their positioning, audience, campaigns, media partnerships, marketing goals…"
-                />
+                <label className="label">Timeline</label>
+                <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="Q3 2025" />
               </div>
-              <div>
-                <label className="label">What they've expressed interest in</label>
-                <textarea
-                  className="input-field resize-none"
-                  rows={2}
-                  value={form.desiredOutcome}
-                  onChange={e => set('desiredOutcome', e.target.value)}
-                  placeholder="Specific channels (podcast, newsletter, events), content formats, or topics…"
-                />
-              </div>
-              <div>
-                <label className="label">Additional notes</label>
-                <textarea
-                  className="input-field resize-none"
-                  rows={2}
-                  value={form.additionalContext}
-                  onChange={e => set('additionalContext', e.target.value)}
-                  placeholder="Internal context, who introduced them, sensitivities, anything relevant…"
-                />
-              </div>
-            </FormSection>
-          ) : (
-            <>
-              <FormSection title="The Partnership Opportunity">
-                <div>
-                  <label className="label">Partnership Angle / Opportunity *</label>
-                  <textarea
-                    className="input-field resize-none"
-                    rows={3}
-                    value={form.challenge}
-                    onChange={e => set('challenge', e.target.value)}
-                    placeholder="What is the core narrative of this partnership? What makes this brand a natural fit for Prof G? What content opportunity exists?"
-                  />
-                </div>
-                <div>
-                  <label className="label">Brand's Current Context</label>
-                  <textarea
-                    className="input-field resize-none"
-                    rows={3}
-                    value={form.currentState}
-                    onChange={e => set('currentState', e.target.value)}
-                    placeholder="Where is this brand today? Their positioning, campaigns, cultural moment, marketing goals…"
-                  />
-                </div>
-              </FormSection>
-
-              <FormSection title="Partnership Goals">
-                <div>
-                  <label className="label">What Success Looks Like *</label>
-                  <textarea
-                    className="input-field resize-none"
-                    rows={3}
-                    value={form.desiredOutcome}
-                    onChange={e => set('desiredOutcome', e.target.value)}
-                    placeholder="What does the brand get from this partnership? Brand equity, audience access, content assets, cultural association…"
-                  />
-                </div>
-                <div>
-                  <label className="label">Key Deliverables / Inclusions</label>
-                  <textarea
-                    className="input-field resize-none"
-                    rows={2}
-                    value={form.successMetrics}
-                    onChange={e => set('successMetrics', e.target.value)}
-                    placeholder="Cover placement, editorial series, event access, social content, co-branded assets…"
-                  />
-                </div>
-              </FormSection>
-
-              <FormSection title="Partnership Details">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Investment Level</label>
-                    <input className="input-field" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="$750K–$1.5M" />
-                  </div>
-                  <div>
-                    <label className="label">Launch / Timeline</label>
-                    <input className="input-field" value={form.timeline} onChange={e => set('timeline', e.target.value)} placeholder="Q3 2025 launch" />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Additional Context</label>
-                  <textarea
-                    className="input-field resize-none"
-                    rows={3}
-                    value={form.additionalContext}
-                    onChange={e => set('additionalContext', e.target.value)}
-                    placeholder="Prior conversations, key stakeholders, competitive considerations, tone notes, pipeline history…"
-                  />
-                </div>
-              </FormSection>
-            </>
-          )}
+            </div>
+            <div>
+              <label className="label">Additional Notes</label>
+              <textarea
+                className="input-field resize-none"
+                rows={2}
+                value={form.additionalContext}
+                onChange={e => set('additionalContext', e.target.value)}
+                placeholder="Prior conversations, intro source, sensitivities, internal context…"
+              />
+            </div>
+          </FormSection>
 
           {/* Brief Options */}
           <FormSection title="Brief Options">
@@ -1085,30 +836,6 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               </div>
             </div>
 
-            {/* Length — full brief only */}
-            {format !== 'onesheet' && format !== 'reversebrief' && (
-              <div>
-                <label className="label">Length</label>
-                <div className="flex gap-1.5">
-                  {LENGTH_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setLength(opt.value)}
-                      className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
-                        length === opt.value
-                          ? 'bg-brand-gold text-brand-dark border-brand-gold-dark'
-                          : 'bg-white text-brand-dark/60 border-brand-cream hover:border-brand-cream-dark'
-                      }`}
-                    >
-                      <span className="block font-semibold">{opt.label}</span>
-                      <span className={`block mt-0.5 ${length === opt.value ? 'text-brand-dark/60' : 'text-brand-dark/35'}`}>{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Tone */}
             <div>
               <label className="label">Tone</label>
@@ -1131,47 +858,6 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               </div>
             </div>
 
-            {/* Sections — full brief only */}
-            {format !== 'onesheet' && format !== 'reversebrief' && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="label mb-0">Sections to Include</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allOn = enabledCount === SECTION_DEFS.length;
-                      const next = {} as Record<SectionId, boolean>;
-                      SECTION_DEFS.forEach(s => { next[s.id] = !allOn; });
-                      setSections(next);
-                    }}
-                    className="text-xs text-brand-gold hover:text-brand-gold-dark"
-                  >
-                    {enabledCount === SECTION_DEFS.length ? 'Deselect all' : 'Select all'}
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  {SECTION_DEFS.map(s => (
-                    <label
-                      key={s.id}
-                      className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${
-                        sections[s.id] ? 'bg-brand-gold/10 border border-brand-gold/25' : 'bg-brand-light border border-brand-cream hover:border-brand-cream-dark'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={sections[s.id]}
-                        onChange={() => toggleSection(s.id)}
-                        className="accent-brand-gold w-3.5 h-3.5 rounded"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-semibold text-brand-dark">{s.label}</span>
-                        <span className="text-xs text-brand-dark/40 ml-1.5">{s.desc}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
           </FormSection>
         </div>
 
@@ -1195,7 +881,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 disabled={loading}
               >
                 <span>◈</span>
-                {proposal ? 'Regenerate' : 'Generate'} {format === 'reversebrief' ? 'Reverse Brief' : format === 'onesheet' ? 'One Sheet' : 'Partner Brief'}
+                {proposal ? 'Regenerate' : 'Generate'} {format === 'briefing' ? 'Briefing' : 'Proposal'}
               </button>
             )}
             {proposal && !loading && (
@@ -1429,59 +1115,26 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         <div className="flex-1 overflow-y-auto">
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
-              <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
-                <span className="font-display text-4xl font-bold text-brand-gold/60">G</span>
+              <div className="bg-[#E8471C] px-5 py-2 mb-6">
+                <span className="font-mono font-bold text-white text-3xl tracking-tight leading-none">status_</span>
               </div>
-              {format === 'reversebrief' ? (
+              {format === 'briefing' ? (
                 <>
-                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                    Reverse Brief
-                  </h3>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">Internal Briefing</h3>
                   <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                    An internal qualifying document — captures what the Prof G partnerships team knows, what we think we see, and what we need to learn before writing a partnership brief.
+                    A confidential team prep doc — account overview, strategic fit, talking points, objection handling, and next steps before a sponsor meeting.
                   </p>
                   <div className="grid grid-cols-2 gap-3 w-full max-w-md">
                     {[
-                      { label: 'What We Know', desc: 'Facts from conversations & research' },
-                      { label: 'What We Think We See', desc: 'Audience & channel hypothesis' },
-                      { label: 'Open Questions', desc: 'What must be answered first' },
-                      { label: 'Fit Assessment', desc: 'Audience, brand & commercial fit' },
-                      { label: 'If We Proceed', desc: 'Likely channels & partnership shape' },
+                      { label: 'Account Overview', desc: 'Who we\'re meeting and why' },
+                      { label: 'Why Status is a Fit', desc: 'The strategic case' },
+                      { label: 'Meeting Objective', desc: 'What we\'re trying to achieve' },
+                      { label: 'Talking Points', desc: '5 tailored arguments' },
+                      { label: 'Proposed Package', desc: 'Product + investment level' },
+                      { label: 'Objections + Responses', desc: 'How to handle pushback' },
                     ].map((item, i) => (
                       <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
-                          <p className="text-xs text-brand-dark/40">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : format === 'onesheet' ? (
-                <>
-                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                    Commercial Strategy Brief
-                  </h3>
-                  <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                    A one-page brief written from{' '}
-                    <span className="text-brand-dark font-medium">{companyName}</span>'s perspective — positioning you as the expert who has done the listening.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                    {[
-                      { label: 'The Business', desc: 'Your understanding of their world' },
-                      { label: 'The Opportunity', desc: 'What you see they\'re missing' },
-                      { label: 'Scope', desc: 'Defined workstreams & deliverables' },
-                      { label: 'What Success Looks Like', desc: 'Measurable outcomes' },
-                      { label: 'Constraints', desc: 'Non-negotiable boundaries' },
-                      { label: 'Investment', desc: 'Fixed-fee, milestone-based' },
-                    ].map((item, i) => (
-                      <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
                         <div>
                           <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                           <p className="text-xs text-brand-dark/40">{item.desc}</p>
@@ -1492,24 +1145,20 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 </>
               ) : (
                 <>
-                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">
-                    Prof G Partnership Framework
-                  </h3>
+                  <h3 className="font-display text-2xl font-semibold text-brand-dark mb-2">Sponsor Proposal</h3>
                   <p className="text-brand-dark/50 max-w-sm text-sm leading-relaxed mb-6">
-                    Fill in the brief on the left and generate a bespoke partnership proposal drafted by Claude using the{' '}
-                    <span className="text-brand-dark font-medium">Prof G Partnership Framework</span>.
-                    {refDocs.length > 0 && (
-                      <span className="block mt-2 text-brand-gold font-medium">
-                        {refDocs.length} reference doc{refDocs.length > 1 ? 's' : ''} loaded — 60/40 weighting active
-                      </span>
-                    )}
+                    A client-facing sponsorship proposal written in the Status voice — direct, specific, and built around why this brand needs to be in front of Status readers.
                   </p>
                   <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                    {SECTION_DEFS.map((item, i) => (
-                      <div key={item.id} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
-                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
+                    {[
+                      { label: 'Status', desc: '110K+, 40% open rate, media power brokers' },
+                      { label: 'Why [Company]', desc: 'Specific, researched brand fit' },
+                      { label: 'The Opportunity', desc: 'What sponsorship looks like' },
+                      { label: 'The Numbers', desc: 'Audience data that matters' },
+                      { label: 'Next Steps', desc: 'Confident CTA' },
+                    ].map((item, i) => (
+                      <div key={item.label} className="flex items-start gap-2.5 bg-white rounded-lg p-3 border border-brand-cream text-left">
+                        <span className="w-5 h-5 rounded-full bg-brand-gold/15 text-brand-gold font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
                         <div>
                           <p className="font-semibold text-xs text-brand-dark">{item.label}</p>
                           <p className="text-xs text-brand-dark/40">{item.desc}</p>
@@ -1526,13 +1175,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             <div ref={proposalRef} className="max-w-3xl mx-auto p-8">
               {/* Brief header */}
               <div className="mb-8 pb-6 border-b border-brand-cream">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-                    <span className="font-display text-brand-dark font-bold text-xs">G</span>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-[#E8471C] px-2 py-0.5">
+                    <span className="font-mono font-bold text-white text-sm tracking-tight leading-none">status_</span>
                   </div>
-                  <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">{format === 'reversebrief' ? 'Reverse Brief · Internal' : format === 'onesheet' ? 'Commercial Strategy Brief' : 'Partnership Brief · Confidential'}</span>
+                  <span className="text-xs text-brand-dark/40 uppercase tracking-widest">{format === 'briefing' ? 'Internal Briefing · Confidential' : 'Sponsor Proposal'}</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
@@ -1563,14 +1211,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               {/* Brief footer */}
               {!loading && proposal && !editing && (
                 <div className="mt-12 pt-6 border-t border-brand-cream flex items-center justify-between">
-                  <div>
-                    <p className="font-display text-sm font-semibold text-brand-dark">{companyName}</p>
-                    <p className="text-xs text-brand-dark/40">
-                      {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <div className="h-8 w-8 rounded bg-brand-gold/20 border border-brand-gold/30 flex items-center justify-center">
-                    <span className="font-display text-brand-gold font-bold text-sm">G</span>
+                  <p className="text-xs text-brand-dark/40">
+                    {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                  <div className="bg-[#E8471C] px-3 py-1">
+                    <span className="font-display font-bold text-white text-lg tracking-tighter leading-none">STATUS</span>
                   </div>
                 </div>
               )}
@@ -1590,7 +1235,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                   value={refinementInput}
                   onChange={e => setRefinementInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && refinementInput.trim()) refine(); }}
-                  placeholder="Refine this brief… e.g. 'Emphasise the LA28 angle' or 'Make the editorial vision more specific'"
+                  placeholder="Refine this… e.g. 'Make the WHY section more specific to their Q3 campaign' or 'Add more on the podcast audience'"
                   className="input-field pr-20 py-2.5 text-sm"
                 />
                 <button

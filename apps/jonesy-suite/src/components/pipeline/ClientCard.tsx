@@ -73,7 +73,7 @@ export default function ClientCard({
             >
               <span>{stageCfg.icon}</span> {client.stage}
             </span>
-            {client.tags.slice(0, 2).map(tag => (
+            {(client.tags ?? []).slice(0, 2).map(tag => (
               <span
                 key={tag}
                 className="inline-flex px-2 py-0.5 rounded-full bg-brand-light text-brand-dark/50 text-xs border border-brand-cream"

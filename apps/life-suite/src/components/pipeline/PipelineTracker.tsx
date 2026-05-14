@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, formatCurrency, isStale } from '../../types';
+import { Client, PipelineStage, PIPELINE_STAGES, STAGE_CONFIG, SavedProposal, ThreadMessage, formatCurrency, isStale } from '../../types';
 import KanbanBoard from './KanbanBoard';
 import ListView from './ListView';
 import ClientModal from './ClientModal';
@@ -8,6 +8,9 @@ type BoardView = 'kanban' | 'list';
 
 interface PipelineTrackerProps {
   clients: Client[];
+  allClients?: Client[];
+  defaultNewStage?: Client['stage'];
+  readOnly?: boolean;
   onAdd: (data: Omit<Client, 'id' | 'createdAt'>) => void;
   onUpdate: (id: string, updates: Partial<Client>) => void;
   onDelete: (id: string) => void;
@@ -17,10 +20,15 @@ interface PipelineTrackerProps {
   onDeleteProposal: (clientId: string, proposalId: string) => void;
   onAddProposal: (clientId: string, proposal: SavedProposal) => void;
   onUpdateProposal: (clientId: string, proposalId: string, updates: Partial<SavedProposal>) => void;
+  onUpdateThread: (clientId: string, thread: ThreadMessage[]) => void;
+  onUpdateMeetingNotes: (clientId: string, notes: import('../../types').MeetingNote[]) => void;
+  onUpdateNewsCache: (clientId: string, cache: import('../../types').Client['newsCache']) => void;
 }
 
 export default function PipelineTracker({
   clients,
+  defaultNewStage = 'Engaged',
+  readOnly = false,
   onAdd,
   onUpdate,
   onDelete,
@@ -30,8 +38,13 @@ export default function PipelineTracker({
   onDeleteProposal,
   onAddProposal,
   onUpdateProposal,
+  onUpdateThread,
+  onUpdateMeetingNotes,
+  onUpdateNewsCache,
 }: PipelineTrackerProps) {
-  const [boardView, setBoardView] = useState<BoardView>('kanban');
+  const [boardView, setBoardView] = useState<BoardView>(
+    () => window.innerWidth < 640 ? 'list' : 'kanban'
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [stageFilter, setStageFilter] = useState<PipelineStage | 'All'>('All');
@@ -42,7 +55,7 @@ export default function PipelineTracker({
   const activeClients = useMemo(() => clients.filter(c => c.outcome !== 'lost'), [clients]);
   const lostClients = useMemo(() => clients.filter(c => c.outcome === 'lost'), [clients]);
 
-  const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact)).length, [activeClients]);
+  const staleCount = useMemo(() => activeClients.filter(c => isStale(c.lastContact, c.stage)).length, [activeClients]);
   const totalValue = useMemo(() => activeClients.reduce((s, c) => s + c.value, 0), [activeClients]);
   const wonValue = useMemo(
     () => activeClients.filter(c => c.outcome === 'won').reduce((s, c) => s + c.value, 0),
@@ -55,7 +68,7 @@ export default function PipelineTracker({
     let list = displayClients;
     if (!showLost) {
       if (stageFilter !== 'All') list = list.filter(c => c.stage === stageFilter);
-      if (showStaleOnly) list = list.filter(c => isStale(c.lastContact));
+      if (showStaleOnly) list = list.filter(c => isStale(c.lastContact, c.stage));
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -84,9 +97,165 @@ export default function PipelineTracker({
 
   return (
     <div className="flex flex-col h-full">
+      <style>{`
+        @media print {
+          @page { margin: 1.2cm 1.5cm; size: A4 landscape; }
+          body { background: white !important; font-size: 9pt; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
+      `}</style>
+
+      {/* Print-only pipeline snapshot */}
+      <div className="print-only hidden">
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '2px solid #1A1A1A', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ backgroundColor: '#E8002D', padding: '5px 12px' }}>
+              <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'white', fontSize: '22px', letterSpacing: '-1px', lineHeight: 1 }}>LIFE</span>
+            </div>
+            <span style={{ fontSize: '11pt', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.02em' }}>Partner Pipeline</span>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#666' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p style={{ margin: '1px 0 0', color: '#999' }}>{activeClients.filter(c => c.outcome !== 'won').length} active · {activeClients.filter(c => c.outcome === 'won').length} won</p>
+          </div>
+        </div>
+
+        {/* Summary stats */}
+        <div style={{ display: 'flex', gap: '0', marginBottom: '16px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+          {[
+            { label: 'Total Pipeline', value: formatCurrency(totalValue), color: '#1A1A1A' },
+            { label: 'Won', value: formatCurrency(wonValue), color: '#059669' },
+            { label: 'Active Deals', value: String(activeClients.filter(c => c.outcome !== 'won').length), color: '#1A1A1A' },
+            ...(staleCount > 0 ? [{ label: 'Needs Attention', value: String(staleCount), color: '#d97706' }] : []),
+          ].map((s, i, arr) => (
+            <div key={s.label} style={{ flex: 1, padding: '10px 14px', borderRight: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', backgroundColor: i === 0 ? '#fafafa' : 'white' }}>
+              <p style={{ margin: '0 0 2px', fontSize: '6.5pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</p>
+              <p style={{ margin: 0, fontSize: '15pt', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Pipeline funnel — stage-by-stage summary */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '18px' }}>
+          {PIPELINE_STAGES.filter(s => s !== 'Prospect').map(stage => {
+            const stageClients = activeClients.filter(c => c.stage === stage && c.outcome !== 'won');
+            const stageValue = stageClients.reduce((s, c) => s + c.value, 0);
+            const stageColors: Record<string, string> = {
+              Engaged: '#3b82f6', 'Meeting Set': '#8b5cf6', 'Proposal Sent': '#f59e0b',
+              Feedback: '#f97316', 'Revised Proposal Sent': '#f43f5e', Close: '#10b981',
+            };
+            const col = stageColors[stage] ?? '#6b7280';
+            return (
+              <div key={stage} style={{ flex: 1, borderTop: `3px solid ${col}`, padding: '6px 8px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}>
+                <p style={{ margin: '0 0 1px', fontSize: '6pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stage}</p>
+                <p style={{ margin: 0, fontSize: '11pt', fontWeight: 700, color: '#1A1A1A', lineHeight: 1 }}>{stageClients.length}</p>
+                {stageValue > 0 && <p style={{ margin: '1px 0 0', fontSize: '7pt', color: '#666' }}>{formatCurrency(stageValue)}</p>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Clients grouped by stage */}
+        {PIPELINE_STAGES.filter(stage => {
+          const stageClients = activeClients.filter(c => c.stage === stage);
+          return stageClients.length > 0;
+        }).map(stage => {
+          const stageClients = activeClients.filter(c => c.stage === stage).sort((a, b) => b.value - a.value);
+          const stageValue = stageClients.reduce((s, c) => s + c.value, 0);
+          const stageColors: Record<string, string> = {
+            Prospect: '#94a3b8', Engaged: '#3b82f6', 'Meeting Set': '#8b5cf6',
+            'Proposal Sent': '#f59e0b', Feedback: '#f97316', 'Revised Proposal Sent': '#f43f5e', Close: '#10b981',
+          };
+          const col = stageColors[stage] ?? '#6b7280';
+          return (
+            <div key={stage} style={{ marginBottom: '14px' }}>
+              {/* Stage header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', padding: '4px 0 4px 8px', borderLeft: `3px solid ${col}`, marginBottom: '4px' }}>
+                <span style={{ fontSize: '8pt', fontWeight: 700, color: '#1A1A1A', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{stage}</span>
+                <span style={{ fontSize: '7pt', color: '#888' }}>{stageClients.length} deal{stageClients.length !== 1 ? 's' : ''}</span>
+                {stageValue > 0 && <span style={{ fontSize: '7pt', fontWeight: 600, color: col, marginLeft: 'auto' }}>{formatCurrency(stageValue)}</span>}
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    {['Contact', 'Company', 'Value', 'Last Contact', 'Notes', 'Tags'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '3px 8px', fontSize: '6.5pt', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stageClients.map((c, i) => {
+                    const stale = isStale(c.lastContact, c.stage);
+                    return (
+                      <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', backgroundColor: stale ? '#fffbeb' : (i % 2 === 0 ? 'white' : '#fafafa') }}>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A', whiteSpace: 'nowrap' }}>
+                          {stale && <span style={{ color: '#d97706', marginRight: '4px' }}>⚠</span>}{c.name}
+                        </td>
+                        <td style={{ padding: '5px 8px', color: '#444', whiteSpace: 'nowrap' }}>{c.company}</td>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: '#C9A84C', whiteSpace: 'nowrap' }}>{c.value > 0 ? formatCurrency(c.value) : '—'}</td>
+                        <td style={{ padding: '5px 8px', color: '#888', whiteSpace: 'nowrap' }}>{c.lastContact}</td>
+                        <td style={{ padding: '5px 8px', color: '#555', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.notes ? c.notes.split('\n')[0].slice(0, 80) : '—'}</td>
+                        <td style={{ padding: '5px 8px', color: '#888', fontSize: '7pt' }}>{c.tags.join(', ') || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+
+        {/* Footer */}
+        <div style={{ marginTop: '20px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', fontSize: '7pt', color: '#999' }}>
+          <span>LIFE Magazine · Confidential</span>
+          <span>Printed {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        </div>
+      </div>
+
       {/* Stats bar */}
-      <div className="bg-white border-b border-brand-cream px-6 py-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-white border-b border-brand-cream px-4 sm:px-6 py-3 sm:py-4 no-print">
+        {/* Mobile: compact single row */}
+        <div className="flex sm:hidden items-center justify-between gap-2">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-[9px] text-brand-dark/40 font-semibold uppercase tracking-wider">Pipeline</p>
+              <p className="font-display text-lg font-bold text-brand-dark leading-none">{formatCurrency(totalValue)}</p>
+            </div>
+            <div className="w-px h-8 bg-brand-cream" />
+            <div>
+              <p className="text-[9px] text-brand-dark/40 font-semibold uppercase tracking-wider">Won</p>
+              <p className="font-display text-lg font-bold text-emerald-600 leading-none">{formatCurrency(wonValue)}</p>
+            </div>
+            {staleCount > 0 && (
+              <>
+                <div className="w-px h-8 bg-brand-cream" />
+                <div>
+                  <p className="text-[9px] text-amber-600 font-semibold uppercase tracking-wider">Stale</p>
+                  <p className="font-display text-lg font-bold text-amber-500 leading-none">{staleCount}</p>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[40%]">
+            {PIPELINE_STAGES.map(stage => {
+              const count = activeClients.filter(c => c.stage === stage).length;
+              if (count === 0) return null;
+              const cfg = STAGE_CONFIG[stage];
+              return (
+                <div key={stage} className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cfg.bg} ${cfg.color}`}>
+                  <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
+                  {count}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop: full row */}
+        <div className="hidden sm:flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6 flex-wrap">
             <div>
               <p className="text-xs text-brand-dark/50 font-medium uppercase tracking-wider">Active Pipeline</p>
@@ -121,7 +290,6 @@ export default function PipelineTracker({
               </>
             )}
           </div>
-
           <div className="flex items-center gap-1.5 flex-wrap">
             {PIPELINE_STAGES.map(stage => {
               const count = activeClients.filter(c => c.stage === stage).length;
@@ -138,8 +306,8 @@ export default function PipelineTracker({
       </div>
 
       {/* Toolbar */}
-      <div className="bg-brand-light border-b border-brand-cream px-6 py-3 flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48 max-w-xs">
+      <div className="no-print bg-brand-light border-b border-brand-cream px-3 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-0 sm:min-w-48 sm:max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/30 text-sm">⌕</span>
           <input
             className="input-field pl-8 py-1.5 text-sm"
@@ -153,7 +321,7 @@ export default function PipelineTracker({
         </div>
 
         {!showLost && (
-          <>
+          <div className="hidden sm:flex items-center gap-2">
             <select
               className="input-field w-auto py-1.5 text-sm"
               value={stageFilter}
@@ -171,7 +339,7 @@ export default function PipelineTracker({
             >
               ⚠ Stale {staleCount > 0 && <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 text-xs">{staleCount}</span>}
             </button>
-          </>
+          </div>
         )}
 
         {lostClients.length > 0 && (
@@ -190,25 +358,37 @@ export default function PipelineTracker({
         <div className="flex items-center bg-white rounded-lg border border-brand-cream p-0.5">
           <button
             onClick={() => setBoardView('kanban')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${boardView === 'kanban' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${boardView === 'kanban' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
           >
-            ⬡ Kanban
+            ⬡ <span className="hidden sm:inline">Kanban</span>
           </button>
           <button
             onClick={() => setBoardView('list')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${boardView === 'list' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${boardView === 'list' ? 'bg-brand-gold text-brand-dark' : 'text-brand-dark/60 hover:text-brand-dark'}`}
           >
-            ☰ List
+            ☰ <span className="hidden sm:inline">List</span>
           </button>
         </div>
 
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <span>+</span> Add Client
+        <button onClick={() => window.print()} className="btn-secondary hidden sm:flex items-center gap-2">
+          <span>⎙</span> Download PDF
         </button>
+        {readOnly ? (
+          <button
+            onClick={() => { localStorage.removeItem('life_guest'); window.location.reload(); }}
+            className="flex items-center gap-1.5 text-xs font-medium border border-brand-cream rounded-lg px-3 py-1.5 text-brand-dark/50 hover:text-brand-dark hover:border-brand-dark/30 transition-all"
+          >
+            Sign in to edit
+          </button>
+        ) : (
+          <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+            <span>+</span> <span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span>
+          </button>
+        )}
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="no-print flex-1 overflow-auto p-3 sm:p-6">
         {showLost ? (
           <div className="max-w-3xl mx-auto space-y-2">
             {filteredClients.length === 0 ? (
@@ -236,10 +416,10 @@ export default function PipelineTracker({
           </div>
         ) : boardView === 'kanban' ? (
           <div className="overflow-x-auto pb-2">
-            <KanbanBoard clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} />
+            <KanbanBoard clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} readOnly={readOnly} />
           </div>
         ) : (
-          <ListView clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} />
+          <ListView clients={filteredClients} onEdit={openEdit} onDelete={onDelete} onMove={onMove} readOnly={readOnly} />
         )}
 
         {filteredClients.length === 0 && displayClients.length > 0 && (
@@ -259,6 +439,7 @@ export default function PipelineTracker({
       {modalOpen && (
         <ClientModal
           client={editingClient}
+          defaultStage={defaultNewStage}
           onSave={handleSave}
           onClose={() => { setModalOpen(false); setEditingClient(null); }}
           onMarkLost={editingClient ? (reason) => { onMarkLost(editingClient.id, reason); setModalOpen(false); setEditingClient(null); } : undefined}
@@ -266,6 +447,9 @@ export default function PipelineTracker({
           onDeleteProposal={editingClient ? (proposalId) => onDeleteProposal(editingClient.id, proposalId) : undefined}
           onAddProposal={editingClient ? (proposal) => onAddProposal(editingClient.id, proposal) : undefined}
           onUpdateProposal={editingClient ? (proposalId, updates) => onUpdateProposal(editingClient.id, proposalId, updates) : undefined}
+          onUpdateThread={editingClient ? (thread) => onUpdateThread(editingClient.id, thread) : undefined}
+          onUpdateMeetingNotes={editingClient ? (notes) => onUpdateMeetingNotes(editingClient.id, notes) : undefined}
+          onUpdateNewsCache={editingClient ? (cache) => onUpdateNewsCache(editingClient.id, cache) : undefined}
         />
       )}
     </div>

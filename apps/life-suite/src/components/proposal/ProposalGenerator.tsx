@@ -481,8 +481,11 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+const LIFE_API_KEY = 'life_suite_intel_api_key';
+
 export default function ProposalGenerator({ companyName, clients, onSaveToClient }: ProposalGeneratorProps) {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(LIFE_API_KEY) ?? '');
+  const saveApiKey = (key: string) => { setApiKey(key); localStorage.setItem(LIFE_API_KEY, key); };
   const [showKey, setShowKey] = useState(false);
   const [form, setForm] = useState<ProposalFormData>(EMPTY_FORM);
   const [proposal, setProposal] = useState('');
@@ -750,6 +753,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
     setProposal('');
     setForm(EMPTY_FORM);
     setError('');
+    setSelectedClientId('');
     setSavedClientId('');
     setHistory([]);
     setEditing(false);
@@ -832,7 +836,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 type={showKey ? 'text' : 'password'}
                 className="input-field pr-16 font-mono text-xs"
                 value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
+                onChange={e => saveApiKey(e.target.value)}
                 placeholder="sk-ant-api03-..."
               />
               <button
@@ -1426,8 +1430,8 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
         <div className="flex-1 overflow-y-auto">
           {!proposal && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center p-12">
-              <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center mb-6">
-                <span className="font-display text-4xl font-bold text-brand-gold/60">L</span>
+              <div className="bg-[#E8002D] px-6 py-3 mb-6">
+                <span className="font-display font-bold text-white text-4xl tracking-tighter leading-none">LIFE</span>
               </div>
               {format === 'reversebrief' ? (
                 <>
@@ -1518,13 +1522,12 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
             <div ref={proposalRef} className="max-w-3xl mx-auto p-8">
               {/* Brief header */}
               <div className="mb-8 pb-6 border-b border-brand-cream">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded bg-brand-gold flex items-center justify-center">
-                    <span className="font-display text-white font-bold text-xs">L</span>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-[#E8002D] px-2 py-0.5">
+                    <span className="font-display font-bold text-white text-sm tracking-tighter leading-none">LIFE</span>
                   </div>
-                  <span className="font-display text-sm font-semibold text-brand-dark/60">{companyName}</span>
                   <span className="text-brand-dark/20">·</span>
-                  <span className="text-xs text-brand-dark/40">{format === 'reversebrief' ? 'Reverse Brief · Internal' : format === 'onesheet' ? 'Commercial Strategy Brief' : 'Founding Partner Brief · Confidential'}</span>
+                  <span className="text-xs text-brand-dark/40 uppercase tracking-widest">{format === 'reversebrief' ? 'Reverse Brief · Internal' : format === 'onesheet' ? 'Commercial Strategy Brief' : 'Founding Partner Brief · Confidential'}</span>
                 </div>
                 {form.company && (
                   <p className="text-xs text-brand-dark/40 mb-1">Prepared for {form.company}</p>
@@ -1555,14 +1558,11 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               {/* Brief footer */}
               {!loading && proposal && !editing && (
                 <div className="mt-12 pt-6 border-t border-brand-cream flex items-center justify-between">
-                  <div>
-                    <p className="font-display text-sm font-semibold text-brand-dark">{companyName}</p>
-                    <p className="text-xs text-brand-dark/40">
-                      {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <div className="h-8 w-8 rounded bg-brand-gold/20 border border-brand-gold/30 flex items-center justify-center">
-                    <span className="font-display text-brand-gold font-bold text-sm">L</span>
+                  <p className="text-xs text-brand-dark/40">
+                    {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                  <div className="bg-[#E8002D] px-3 py-1">
+                    <span className="font-display font-bold text-white text-lg tracking-tighter leading-none">LIFE</span>
                   </div>
                 </div>
               )}

@@ -1,0 +1,130 @@
+import { useState, FormEvent } from 'react';
+import { signIn, resetPassword } from '../lib/supabase';
+
+export default function Auth({ onSkip }: { onSkip: () => void }) {
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [error,    setError]    = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) { setError('Enter your email address above first.'); return; }
+    setError('');
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="select-none px-4 pt-2 pb-1.5"
+            style={{ background: '#E8002D', fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif" }}
+          >
+            <span className="text-white leading-none" style={{ fontSize: '2.2rem', letterSpacing: '0.06em' }}>
+              LIFE
+            </span>
+          </div>
+          <p className="text-white/40 text-xs uppercase tracking-widest font-medium">
+            Partner Suite
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-white/50 text-xs uppercase tracking-widest font-medium">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full bg-white border border-white/12 text-gray-900
+                           px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-white/50 text-xs uppercase tracking-widest font-medium">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full bg-white border border-white/12 text-gray-900
+                           px-4 py-3 text-sm outline-none focus:border-[#E8002D] transition-colors"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-red-400 text-xs text-center">{error}</p>
+          )}
+          {resetSent && (
+            <p className="text-emerald-400 text-xs text-center">Reset email sent — check your inbox.</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#E8002D] text-white text-sm font-semibold tracking-wide
+                       py-3 transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            className="w-full text-white/30 text-xs hover:text-white/60 transition-colors text-center py-1"
+          >
+            Forgot password?
+          </button>
+        </form>
+
+        <div className="text-center">
+          <button
+            onClick={onSkip}
+            className="text-white/30 text-xs hover:text-white/60 transition-colors underline underline-offset-2"
+          >
+            Continue without signing in
+          </button>
+        </div>
+
+        <p className="text-white/20 text-xs text-center">
+          CONFIDENTIAL — Authorised access only
+        </p>
+      </div>
+    </div>
+  );
+}

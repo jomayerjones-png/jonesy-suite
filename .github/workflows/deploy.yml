@@ -32,9 +32,14 @@ jobs:
             apps/life-suite/package-lock.json
             apps/prof-g-suite/package-lock.json
             apps/status-suite/package-lock.json
+            apps/kaleidoscope-suite/package-lock.json
 
       - name: Build jonesy-suite
         working-directory: apps/jonesy-suite
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.JONESY_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.JONESY_SUPABASE_ANON_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.JONESY_GOOGLE_CLIENT_ID }}
         run: npm ci && npm run build
 
       - name: Build life-suite
@@ -49,15 +54,21 @@ jobs:
         working-directory: apps/status-suite
         run: npm ci && npm run build
 
+      - name: Build kaleidoscope-suite
+        working-directory: apps/kaleidoscope-suite
+        run: npm ci && npm run build
+
       - name: Merge build outputs
         run: |
           mkdir -p deploy/life-suite
           mkdir -p deploy/prof-g-suite
           mkdir -p deploy/status-suite
+          mkdir -p deploy/kaleidoscope-suite
           cp -r apps/jonesy-suite/dist/. deploy/
           cp -r apps/life-suite/dist/. deploy/life-suite/
           cp -r apps/prof-g-suite/dist/. deploy/prof-g-suite/
           cp -r apps/status-suite/dist/. deploy/status-suite/
+          cp -r apps/kaleidoscope-suite/dist/. deploy/kaleidoscope-suite/
 
       - uses: actions/configure-pages@v4
 
