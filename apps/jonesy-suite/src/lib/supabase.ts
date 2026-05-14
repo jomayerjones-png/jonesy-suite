@@ -59,3 +59,37 @@ export async function saveCompanyName(name: string): Promise<void> {
     .from('jonesy_settings')
     .upsert({ key: 'company_name', value: name }, { onConflict: 'key' });
 }
+
+// ── Daily Prospects ───────────────────────────────────────────────
+export interface JonesyDailyProspect {
+  id: string;
+  date: string;              // 'YYYY-MM-DD'
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+  email_confidence: string;  // 'verified' | 'estimated'
+  why: string;
+  draft_subject: string;
+  draft_body: string;
+  status: string;            // 'pending' | 'added' | 'skipped'
+}
+
+export async function fetchTodayJonesyProspects(): Promise<JonesyDailyProspect[]> {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('jonesy_daily_prospects')
+    .select('*')
+    .eq('date', today)
+    .order('created_at');
+  if (error) throw error;
+  return (data ?? []) as JonesyDailyProspect[];
+}
+
+export async function updateJonesyProspectStatus(id: string, status: string): Promise<void> {
+  const { error } = await supabase
+    .from('jonesy_daily_prospects')
+    .update({ status })
+    .eq('id', id);
+  if (error) throw error;
+}
