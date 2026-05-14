@@ -256,94 +256,96 @@ function App() {
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
+      const log: string[] = [];
 
-      let allRecords: Record<string, unknown>[] = [];
-      let foundTable = false;
-      let got401 = false;
-
-      // Strategy 1: try the metadata API to discover the real table name
+      // Step 1: try metadata API to discover tables
+      let tableId = '';
+      let tableName = '';
       try {
         const metaResp = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`, { headers });
-        if (metaResp.status === 401) got401 = true;
+        log.push(`Meta API: ${metaResp.status}`);
         if (metaResp.ok) {
           const metaData = await metaResp.json() as { tables: { id: string; name: string }[] };
-          const table = metaData.tables[0];
-          if (table) {
-            let offset: string | undefined;
-            do {
-              const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${table.id}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
-              const resp = await fetch(url, { headers });
-              if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
-              const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
-              allRecords = [...allRecords, ...data.records.map(r => r.fields)];
-              offset = data.offset;
-            } while (offset);
-            foundTable = true;
+          log.push(`Tables found: ${metaData.tables.map(t => t.name).join(', ')}`);
+          if (metaData.tables.length > 0) {
+            tableId = metaData.tables[0].id;
+            tableName = metaData.tables[0].name;
           }
+        } else {
+          const errText = await metaResp.text();
+          log.push(`Meta error: ${errText.slice(0, 200)}`);
         }
       } catch (e) {
-        if (e instanceof Error && e.message.includes('Failed to fetch records')) throw e;
+        log.push(`Meta exception: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // Strategy 2: try common table names directly
-      if (!foundTable) {
-        const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main', 'Contacts', 'Sponsors', 'Partners'];
-        for (const tableName of TABLE_NAMES) {
+      // Step 2: if no table from metadata, try common names
+      if (!tableId) {
+        const TABLE_NAMES = ['Table 1', 'Deals', 'Pipeline', 'Clients', 'CRM', 'Main', 'Contacts', 'Sponsors'];
+        for (const name of TABLE_NAMES) {
           try {
-            const testUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?maxRecords=1`;
-            const testResp = await fetch(testUrl, { headers });
-            if (testResp.status === 401) { got401 = true; continue; }
-            if (!testResp.ok) continue;
-            const testData = await testResp.json() as { records: unknown[] };
-            if (!testData.records) continue;
-
-            let offset: string | undefined;
-            do {
-              const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
-              const resp = await fetch(url, { headers });
-              if (!resp.ok) throw new Error(`Failed to fetch records: ${resp.status}`);
-              const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
-              allRecords = [...allRecords, ...data.records.map(r => r.fields)];
-              offset = data.offset;
-            } while (offset);
-
-            foundTable = true;
-            break;
-          } catch (e) {
-            if (e instanceof Error && e.message.includes('Failed to fetch records')) throw e;
-          }
+            const resp = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(name)}?maxRecords=1`, { headers });
+            if (resp.ok) {
+              tableName = name;
+              tableId = name;
+              log.push(`Found table by name: "${name}"`);
+              break;
+            }
+          } catch { /* skip */ }
         }
       }
 
-      if (!foundTable || allRecords.length === 0) {
-        if (got401) {
-          throw new Error('Invalid or expired token — check your Airtable Personal Access Token.');
-        }
-        throw new Error('Could not access the base. When creating your token at airtable.com/create/tokens, make sure you add both "data.records:read" AND "schema.bases:read" scopes, and grant access to the K-Scope base.');
+      if (!tableId) {
+        throw new Error(`Could not find any table. Debug: ${log.join(' | ')}`);
       }
 
+      // Step 3: fetch all records
+      let rawRecords: { id: string; fields: Record<string, unknown> }[] = [];
+      let offset: string | undefined;
+      do {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableId)}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+        const resp = await fetch(url, { headers });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(`Fetch records failed (${resp.status}): ${errText.slice(0, 200)}`);
+        }
+        const data = await resp.json() as { records: { id: string; fields: Record<string, unknown> }[]; offset?: string };
+        rawRecords = [...rawRecords, ...data.records];
+        offset = data.offset;
+      } while (offset);
+
+      log.push(`Table "${tableName}": ${rawRecords.length} records`);
+
+      if (rawRecords.length === 0) {
+        throw new Error(`Table "${tableName}" has 0 records. Debug: ${log.join(' | ')}`);
+      }
+
+      // Step 4: detect field names
+      const sampleFields = rawRecords[0].fields;
+      const fieldKeys = Object.keys(sampleFields);
+      log.push(`Fields: ${fieldKeys.join(', ')}`);
+
+      // Find the name/company field
       const nameKey = (() => {
-        if (allRecords.length === 0) return 'Name';
-        const first = allRecords[0];
         const candidates = ['Name', 'name', 'Company', 'company', 'Client', 'client', 'Brand', 'brand', 'Account', 'account', 'Deal', 'deal', 'Title', 'title'];
         for (const c of candidates) {
-          if (c in first && String(first[c]).trim()) return c;
+          if (c in sampleFields) return c;
         }
-        const keys = Object.keys(first);
-        if (keys.length > 0) return keys[0];
-        return 'Name';
+        return fieldKeys[0] || 'Name';
       })();
+      log.push(`Using "${nameKey}" as name field`);
 
+      // Step 5: import records
       const existingCompanies = new Set(clients.map(c => c.company.toLowerCase()));
       let imported = 0;
       let skipped = 0;
 
-      for (const fields of allRecords) {
+      for (const rec of rawRecords) {
+        const fields = rec.fields;
         const rawName = String(fields[nameKey] ?? '').trim();
         if (!rawName) continue;
 
-        const company = rawName;
-        if (existingCompanies.has(company.toLowerCase())) { skipped++; continue; }
+        if (existingCompanies.has(rawName.toLowerCase())) { skipped++; continue; }
 
         const rawAmount = fields['$ Amount'] ?? fields['Amount'] ?? 0;
         const value = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/[$,]/g, '')) || 0;
@@ -358,12 +360,12 @@ function App() {
           if (!isNaN(d.getTime())) lastContact = d.toISOString().split('T')[0];
         }
 
-        const nextScheduled = fields['Next Scheduled'] ?? fields['Next Scheduled Meeting'] ?? fields['Next Scheduled...'] ?? '';
+        const nextScheduled = fields['Next Scheduled'] ?? fields['Next Scheduled Meeting'] ?? '';
         const notes = nextScheduled ? `Next scheduled: ${nextScheduled}` : '';
 
         addClient({
           name: '',
-          company,
+          company: rawName,
           email: '',
           phone: '',
           value,
@@ -378,16 +380,11 @@ function App() {
           stageHistory: [{ stage: probabilityToStage(probNum), date: lastContact }],
         });
 
-        existingCompanies.add(company.toLowerCase());
+        existingCompanies.add(rawName.toLowerCase());
         imported++;
       }
 
-      if (imported === 0 && skipped === 0 && allRecords.length > 0) {
-        const sampleKeys = Object.keys(allRecords[0]).join(', ');
-        setAirtableResult(`Found ${allRecords.length} records but no names matched. Fields: ${sampleKeys}`);
-      } else {
-        setAirtableResult(`Imported ${imported} deal${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? 's' : ''}` : ''}.`);
-      }
+      setAirtableResult(`Imported ${imported}, skipped ${skipped} of ${rawRecords.length} records (table: "${tableName}", name field: "${nameKey}"). ${fieldKeys.length > 0 ? 'Fields: ' + fieldKeys.join(', ') : ''}`);
     } catch (err) {
       setAirtableError(err instanceof Error ? err.message : 'Import failed.');
     } finally {
