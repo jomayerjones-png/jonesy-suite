@@ -728,6 +728,29 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                 </div>
               )}
 
+              {!apiKey.trim() && (
+                <div className="bg-brand-light border border-brand-cream rounded-xl p-4 space-y-2">
+                  <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Anthropic API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      className="w-full px-3 py-2 bg-white border border-brand-cream rounded-lg text-xs font-mono text-brand-dark placeholder-brand-dark/30 focus:outline-none focus:ring-2 focus:ring-[#E8471C]/20 focus:border-[#E8471C]"
+                      value={apiKey}
+                      onChange={e => setApiKey(e.target.value)}
+                      placeholder="sk-ant-api03-..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(v => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-brand-dark/40 hover:text-brand-dark px-1.5 py-0.5 rounded"
+                    >
+                      {showKey ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-brand-dark/40">Enter your key, then hit Generate above.</p>
+                </div>
+              )}
+
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <p className="text-xs font-semibold text-red-700 mb-1">Could not load prospects</p>
