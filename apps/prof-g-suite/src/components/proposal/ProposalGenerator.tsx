@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { Client, ProposalFormData, SavedProposal, generateId, formatCurrency, daysSince } from '../../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -1249,7 +1250,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 </div>
                 <div
                   className="prose-proposal"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(libraryProposal.proposal.content) || '' }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(libraryProposal.proposal.content) || '') }}
                 />
                 <div className="mt-8 pt-4 border-t border-brand-cream flex gap-2">
                   <button
@@ -1550,7 +1551,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 <div
                   className="prose-proposal"
                   dangerouslySetInnerHTML={{
-                    __html: renderMarkdown(proposal) || '',
+                    __html: DOMPurify.sanitize(renderMarkdown(proposal) || ''),
                   }}
                 />
               )}

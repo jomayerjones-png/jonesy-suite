@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { Client, ClientContact, SavedProposal, MeetingNote, ThreadMessage, NewsArticle, PIPELINE_STAGES, generateId, formatCurrency, formatDate } from '../../types';
 
 // Lazy-load pdfjs-dist only when needed (PDF upload)
@@ -583,7 +584,7 @@ function ProposalViewer({
           ) : (
             <div
               className="prose-proposal"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(proposal.content)) }}
             />
           )}
         </div>

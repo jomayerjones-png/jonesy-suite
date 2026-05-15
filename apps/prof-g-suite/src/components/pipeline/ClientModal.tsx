@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { Client, ClientContact, SavedProposal, PIPELINE_STAGES, generateId } from '../../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -571,7 +572,7 @@ function ProposalViewer({
           ) : (
             <div
               className="prose-proposal"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(proposal.content) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(proposal.content)) }}
             />
           )}
         </div>
