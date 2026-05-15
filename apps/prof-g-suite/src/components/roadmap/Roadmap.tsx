@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const ROADMAP_STORAGE_KEY = 'profg_suite_roadmap';
 
 // ── Data ─────────────────────────────────────────────────────────
 const WEEKS_INIT = [
@@ -70,7 +72,17 @@ function Editable({ value, onChange, className = '' }: { value: string; onChange
 type RoadmapView = 'roadmap' | 'close';
 
 export default function Roadmap({ companyName: _companyName }: { companyName: string }) {
-  const [weeks, setWeeks] = useState(WEEKS_INIT);
+  const [weeks, setWeeks] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ROADMAP_STORAGE_KEY);
+      if (stored) return JSON.parse(stored) as typeof WEEKS_INIT;
+    } catch { /* fall through */ }
+    return WEEKS_INIT;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(ROADMAP_STORAGE_KEY, JSON.stringify(weeks));
+  }, [weeks]);
   const [closers, setClosers] = useState(CLOSERS_INIT);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [subView, setSubView] = useState<RoadmapView>('roadmap');

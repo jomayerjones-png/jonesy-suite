@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type Quarter = 'q2' | 'q3' | 'q4';
 
@@ -84,13 +84,21 @@ function Editable({ value, onChange, placeholder, className = '' }: { value: str
   );
 }
 
+const ROADMAP_STORAGE_KEY = 'kaleidoscope_suite_roadmap';
+
 export default function Roadmap({ companyName: _companyName }: { companyName: string }) {
   const [quarter, setQuarter] = useState<Quarter>('q2');
-  const [weekData, setWeekData] = useState<Record<Quarter, Week[]>>({
-    q2: [...Q2_WEEKS],
-    q3: [...Q3_WEEKS],
-    q4: [...Q4_WEEKS],
+  const [weekData, setWeekData] = useState<Record<Quarter, Week[]>>(() => {
+    try {
+      const stored = localStorage.getItem(ROADMAP_STORAGE_KEY);
+      if (stored) return JSON.parse(stored) as Record<Quarter, Week[]>;
+    } catch { /* fall through */ }
+    return { q2: [...Q2_WEEKS], q3: [...Q3_WEEKS], q4: [...Q4_WEEKS] };
   });
+
+  useEffect(() => {
+    localStorage.setItem(ROADMAP_STORAGE_KEY, JSON.stringify(weekData));
+  }, [weekData]);
 
   const weeks = weekData[quarter];
   const qInfo = QUARTER_DATA[quarter];
