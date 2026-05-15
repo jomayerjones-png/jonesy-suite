@@ -456,47 +456,61 @@ Return ONLY valid JSON (no markdown, no prose):
 {"stageChanges":"line1\\nline2","activity":"line1\\nline2","materials":"line1\\nline2","focusAhead":"line1\\nline2"}`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1500,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
+      let parsed: ReportNotes | null = null;
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
-        throw new Error(err?.error?.message ?? `API error ${response.status}`);
-      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
 
-      const data = await response.json() as { content: { type: string; text?: string }[] };
-      const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
 
-      let jsonStr: string | undefined;
-      const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (fence) {
-        jsonStr = fence[1];
-      } else {
-        const braceStart = text.indexOf('{');
-        const braceEnd = text.lastIndexOf('}');
-        if (braceStart !== -1 && braceEnd > braceStart) {
-          jsonStr = text.slice(braceStart, braceEnd + 1);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(err?.error?.message ?? `API error ${response.status}`);
+        }
+
+        const data = await response.json() as { content: { type: string; text?: string }[] };
+        const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim();
+
+        try {
+          let jsonStr: string | undefined;
+          const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          if (fence) {
+            jsonStr = fence[1];
+          } else {
+            const braceStart = text.indexOf('{');
+            const braceEnd = text.lastIndexOf('}');
+            if (braceStart !== -1 && braceEnd > braceStart) {
+              jsonStr = text.slice(braceStart, braceEnd + 1);
+            }
+          }
+          if (!jsonStr) throw new Error('no JSON');
+
+          const cleaned = jsonStr
+            .replace(/,\s*([}\]])/g, '$1')
+            .replace(/[\x00-\x1f]/g, (ch) => ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : '');
+
+          parsed = JSON.parse(cleaned) as ReportNotes;
+          break;
+        } catch {
+          if (attempt === 1) throw new Error('Could not parse AI response — try again.');
         }
       }
-      if (!jsonStr) throw new Error('Could not parse AI response — try again.');
 
-      const cleaned = jsonStr
-        .replace(/,\s*([}\]])/g, '$1')
-        .replace(/[\x00-\x1f]/g, (ch) => ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : '');
+      if (!parsed) throw new Error('Could not parse AI response — try again.');
 
-      const parsed = JSON.parse(cleaned) as ReportNotes;
       setNotes({
         stageChanges: parsed.stageChanges || '',
         activity: parsed.activity || '',
