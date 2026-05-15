@@ -56,11 +56,9 @@ export default function ClientCard({
           </div>
           <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.name}{client.contacts && client.contacts.length > 0 ? ` + ${client.contacts.length}` : ''}</p>
         </div>
-        {client.value > 0 && (
-          <div className="flex-shrink-0 bg-brand-gold/10 border border-brand-gold/20 rounded-md px-2 py-0.5">
-            <span className="text-xs font-bold text-brand-gold">{formatCurrency(client.value)}</span>
-          </div>
-        )}
+        <div className="text-right flex-shrink-0">
+          <span className="text-sm font-bold text-brand-gold">{formatCurrency(client.value)}</span>
+        </div>
       </div>
 
       {!compact && (
