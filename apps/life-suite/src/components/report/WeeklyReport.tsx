@@ -441,15 +441,38 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
       return sc.length > 0 ? `${s}: ${sc.length} deals (${formatCurrency(sc.reduce((sum, c) => sum + c.value, 0))})` : null;
     }).filter(Boolean).join(', ');
 
-    const prompt = `Write a weekly partnership report for LIFE magazine. Pipeline: ${clients.length} deals, ${formatCurrency(clients.reduce((s, c) => s + c.value, 0))} total. Stages: ${stageBreakdown}
+    const systemPrompt = `You are a factual pipeline reporting tool. You produce strictly data-driven report content from the deal data provided. Rules:
+- Do NOT editorialize. Do NOT add opinions or commentary.
+- Do NOT add recommendations, suggestions, or strategic advice.
+- Do NOT use subjective language (e.g. "impressive", "promising", "exciting", "strong", "great opportunity").
+- Report only facts from the data provided. Every statement must be directly traceable to the input data.
+- Use direct, factual language. State numbers, stages, deal names, and days since last contact.
+- Do NOT invent or assume any information not present in the data.
+- For stageChanges: list each deal's current stage and value. Flag any deal with last contact > ${STALE_DAYS} days as stale.
+- For activity: summarize deals by stage and value only. No narrative.
+- For materials: list deals in Proposal Sent or Revised Proposal Sent stages, with their values.
+- For focusAhead: list stale deals (>${STALE_DAYS} days since contact) and deals in late stages (Feedback, Revised Proposal Sent, Close) with their values. No opinions on what to do.`;
 
-Top deals:
+    const prompt = `Generate a factual pipeline report from the following data. Do NOT editorialize. Do NOT add opinions, commentary, or recommendations. Report only what the data shows.
+
+Pipeline summary: ${clients.length} deals, ${formatCurrency(clients.reduce((s, c) => s + c.value, 0))} total value.
+Stage breakdown: ${stageBreakdown}
+
+Deal data:
 ${dealSummary}
 
-Return ONLY this JSON (no markdown fences, no extra text):
+Stale threshold: ${STALE_DAYS} days since last contact.
+
+Return ONLY valid JSON (no markdown fences, no extra text):
 {"stageChanges":"line1\\nline2","activity":"line1\\nline2","materials":"line1\\nline2","focusAhead":"line1\\nline2"}
 
-Each field has bullet points separated by \\n. stageChanges=deals moving/stalling, activity=this week's actions, materials=decks/proposals needed, focusAhead=priorities.`;
+Field definitions (each field contains bullet points separated by \\n):
+- stageChanges: List each deal with its current stage, value, and days since last contact. Mark deals with >${STALE_DAYS} days as "STALE". Format: "CompanyName (ContactName) — Stage, Value, Xd since last contact [STALE if applicable]"
+- activity: Count of deals per stage with total value per stage. Format: "Stage: N deals, TotalValue"
+- materials: List only deals in Proposal Sent or Revised Proposal Sent stages with their values. If none, write "No pending proposals."
+- focusAhead: List deals that are stale (>${STALE_DAYS}d since contact) and deals in Close stage with values. No recommendations — facts only. If none stale, write "No stale deals."
+
+Do NOT add any text outside the JSON object. Do NOT add subjective assessments.`;
 
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -466,6 +489,7 @@ Each field has bullet points separated by \\n. stageChanges=deals moving/stallin
           body: JSON.stringify({
             model: 'claude-sonnet-4-6',
             max_tokens: 4096,
+            system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           }),
         });

@@ -18,7 +18,6 @@ import PipelineTracker  from './components/pipeline/PipelineTracker';
 import WeeklyReport     from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import Roadmap          from './components/roadmap/Roadmap';
-import Leads            from './components/leads/Leads';
 
 const LS_CLIENTS = 'life_suite_clients';
 const LS_COMPANY = 'life_suite_company';
@@ -391,9 +390,6 @@ function App() {
             onUpdateMeetingNotes={updateClientMeetingNotes}
             onUpdateNewsCache={updateClientNewsCache}
           />
-        )}
-        {view === 'bd' && (
-          <Leads onAddToEngaged={addProspectToEngaged} />
         )}
         {view === 'roadmap' && (
           <Roadmap companyName={companyName} onAddToEngaged={addProspectToEngaged} />

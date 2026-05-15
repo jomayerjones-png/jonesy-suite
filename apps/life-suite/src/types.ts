@@ -131,7 +131,7 @@ export interface Client {
   contacts?: ClientContact[];
 }
 
-export type View = 'pipeline' | 'bd' | 'roadmap' | 'report' | 'proposal' | 'analytics';
+export type View = 'pipeline' | 'roadmap' | 'report' | 'proposal' | 'analytics';
 
 export interface SavedProposal {
   id: string;
