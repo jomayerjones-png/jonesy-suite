@@ -10,7 +10,7 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard({ clients, onEdit, onDelete, onMove }: KanbanBoardProps) {
   return (
-    <div className="flex gap-3 pb-4 min-w-max">
+    <div className="flex gap-2 pb-4">
       {PIPELINE_STAGES.map(stage => (
         <KanbanColumn
           key={stage}

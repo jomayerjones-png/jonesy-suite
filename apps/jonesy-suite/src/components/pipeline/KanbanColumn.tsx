@@ -47,12 +47,12 @@ export default function KanbanColumn({
       onDrop={handleDrop}
     >
       {/* Column header */}
-      <div className="p-3.5 border-b border-brand-cream">
+      <div className="p-2.5 border-b border-brand-cream">
         <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-            <span className="font-semibold text-sm text-brand-dark">{stage}</span>
-            <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border text-xs px-2`}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+            <span className="font-semibold text-xs text-brand-dark truncate">{stage}</span>
+            <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border text-[10px] px-1.5 flex-shrink-0`}>
               {clients.length}
             </span>
           </div>
