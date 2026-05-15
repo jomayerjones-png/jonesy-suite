@@ -428,36 +428,30 @@ export default function WeeklyReport({ clients, companyName }: WeeklyReportProps
     setAiError('');
     setAiGenerating(true);
 
-    const dealSummary = clients.map(c =>
-      `• ${c.company} (${c.name}) — ${c.stage}, ${formatCurrency(c.value)}, last contact ${daysSince(c.lastContact)}d ago${c.notes ? `, notes: ${c.notes}` : ''}`
+    const topDeals = [...clients]
+      .sort((a, b) => b.value - a.value || a.stage.localeCompare(b.stage))
+      .slice(0, 30);
+
+    const dealSummary = topDeals.map(c =>
+      `${c.company} (${c.name}) — ${c.stage}, ${formatCurrency(c.value)}, last contact ${daysSince(c.lastContact)}d ago`
     ).join('\n');
 
     const stageBreakdown = PIPELINE_STAGES.map(s => {
       const sc = clients.filter(c => c.stage === s);
-      return sc.length > 0 ? `${s}: ${sc.length} deal${sc.length > 1 ? 's' : ''} (${formatCurrency(sc.reduce((sum, c) => sum + c.value, 0))})` : null;
+      return sc.length > 0 ? `${s}: ${sc.length} deals (${formatCurrency(sc.reduce((sum, c) => sum + c.value, 0))})` : null;
     }).filter(Boolean).join(', ');
 
-    const prompt = `You are writing a weekly partnership update report for ${companyName || 'our company'}. LIFE is an iconic media brand telling the stories that shape our world through powerful photography and journalism.
+    const prompt = `Write a weekly partnership report for LIFE magazine. Pipeline: ${clients.length} deals, ${formatCurrency(clients.reduce((s, c) => s + c.value, 0))} total. Stages: ${stageBreakdown}
 
-Current pipeline: ${clients.length} deals, total value ${formatCurrency(clients.reduce((s, c) => s + c.value, 0))}.
-Stage breakdown: ${stageBreakdown}
-
-All deals:
+Top deals:
 ${dealSummary}
 
-Write 4 sections for the weekly report. Each section should be bullet points (one per line, no bullet characters — just plain text lines).
+Return ONLY this JSON (no markdown fences, no extra text):
+{"stageChanges":"line1\\nline2","activity":"line1\\nline2","materials":"line1\\nline2","focusAhead":"line1\\nline2"}
 
-1. STAGE CHANGES — Note any deals that appear to be moving stages or stalling. Mention specific companies and where they are. If a deal hasn't been contacted in 15+ days, flag it.
-2. ACTIVITY THIS WEEK — Write plausible partnership activity for this week based on the current stage of each active deal (meetings, follow-ups, proposals, etc.). Be specific with company names.
-3. NEW MATERIALS — Suggest any decks, proposals, or materials that should be prepared based on current deal stages.
-4. FOCUS FOR WEEKS AHEAD — Key priorities and next steps based on where deals currently sit.
-
-Return ONLY valid JSON (no markdown, no prose):
-{"stageChanges":"line1\\nline2","activity":"line1\\nline2","materials":"line1\\nline2","focusAhead":"line1\\nline2"}`;
+Each field has bullet points separated by \\n. stageChanges=deals moving/stalling, activity=this week's actions, materials=decks/proposals needed, focusAhead=priorities.`;
 
     try {
-      let parsed: ReportNotes | null = null;
-
       for (let attempt = 0; attempt < 2; attempt++) {
         if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
 
@@ -477,8 +471,8 @@ Return ONLY valid JSON (no markdown, no prose):
         });
 
         if (!response.ok) {
-          const err = await response.json().catch(() => ({})) as { error?: { message?: string } };
-          throw new Error(err?.error?.message ?? `API error ${response.status}`);
+          const errData = await response.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(errData?.error?.message ?? `API error ${response.status}`);
         }
 
         const data = await response.json() as { content: { type: string; text?: string }[] };
@@ -490,33 +484,30 @@ Return ONLY valid JSON (no markdown, no prose):
           if (fence) {
             jsonStr = fence[1];
           } else {
-            const braceStart = text.indexOf('{');
-            const braceEnd = text.lastIndexOf('}');
-            if (braceStart !== -1 && braceEnd > braceStart) {
-              jsonStr = text.slice(braceStart, braceEnd + 1);
-            }
+            const s = text.indexOf('{'), e = text.lastIndexOf('}');
+            if (s !== -1 && e > s) jsonStr = text.slice(s, e + 1);
           }
-          if (!jsonStr) throw new Error('no JSON');
+          if (!jsonStr) throw new Error('no JSON found');
 
           const cleaned = jsonStr
             .replace(/,\s*([}\]])/g, '$1')
             .replace(/[\x00-\x1f]/g, (ch) => ch === '\n' ? '\\n' : ch === '\t' ? '\\t' : '');
 
-          parsed = JSON.parse(cleaned) as ReportNotes;
-          break;
+          const parsed = JSON.parse(cleaned) as ReportNotes;
+          setNotes({
+            stageChanges: parsed.stageChanges || '',
+            activity: parsed.activity || '',
+            materials: parsed.materials || '',
+            focusAhead: parsed.focusAhead || '',
+          });
+          setAiGenerating(false);
+          return;
         } catch {
-          if (attempt === 1) throw new Error('Could not parse AI response — try again.');
+          if (attempt === 1) {
+            setAiError(`Parse failed. Raw response (first 300 chars): ${text.slice(0, 300)}`);
+          }
         }
       }
-
-      if (!parsed) throw new Error('Could not parse AI response — try again.');
-
-      setNotes({
-        stageChanges: parsed.stageChanges || '',
-        activity: parsed.activity || '',
-        materials: parsed.materials || '',
-        focusAhead: parsed.focusAhead || '',
-      });
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Generation failed — try again.');
     } finally {
