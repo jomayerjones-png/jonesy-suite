@@ -8,57 +8,79 @@ interface LeadsProps {
 // ── Prospect generation ───────────────────────────────────────────
 
 const COMPANY_POOLS: Record<string, string[]> = {
-  'tech or AI': [
-    'Google', 'Microsoft', 'Meta', 'Apple', 'Amazon', 'Nvidia', 'Adobe', 'Salesforce',
-    'LinkedIn', 'Stripe', 'Coinbase', 'Palantir', 'Databricks', 'OpenAI', 'Anthropic',
-    'Oracle', 'Cisco', 'IBM', 'Samsung Electronics', 'Uber', 'Airbnb', 'DoorDash',
-    'Pinterest', 'Reddit', 'Substack', 'beehiiv', 'Figma', 'Canva', 'Notion', 'Zoom',
+  'new media companies and digital publishers': [
+    'Morning Brew', 'The Hustle', 'Axios', 'Puck', 'Semafor', 'The Information',
+    'Punchbowl News', 'Industry Dive', 'Bustle Digital Group', '1440 Media',
+    'theSkimm', 'Crooked Media', 'Vox Media', 'Group Nine Media', 'Overtime',
+    'Barstool Sports', 'Wave Sports + Entertainment', 'Dude Perfect',
+    'Betches Media', 'Gallery Media Group', 'Recurrent Ventures', 'Future plc',
+    'Complex Networks', 'Highsnobiety', 'Refinery29', 'Wondery', 'Athletic Greens',
+    'The Arena Group', 'Minute Media', 'LadBible Group',
   ],
-  'finance, consulting, or professional services': [
-    'JPMorgan Chase', 'Goldman Sachs', 'Morgan Stanley', 'BlackRock', 'Blackstone',
-    'Fidelity Investments', 'American Express', 'Mastercard', 'Visa', 'Capital One',
-    'UBS', 'Citi', 'Bank of America', 'McKinsey & Company', 'BCG', 'Bain & Company',
-    'Deloitte', 'Accenture', 'PwC', 'Edelman', 'Weber Shandwick',
+  'founders and knowledge creators building brand businesses': [
+    'Huberman Lab', 'The Prof G Pod (Scott Galloway)', 'My First Million (Sam Parr & Shaan Puri)',
+    'The Diary of a CEO (Steven Bartlett)', 'All-In Podcast', 'Lex Fridman Podcast',
+    'Colin and Samir', 'Ali Abdaal', 'Jay Clouse (Creator Science)', 'Sahil Bloom',
+    'Codie Sanchez (Contrarian Thinking)', 'Nick Huber', 'Alex Hormozi ($100M Leads)',
+    'Pat Flynn (Smart Passive Income)', 'Tim Ferriss', 'Naval Ravikant',
+    'Kara Swisher (Pivot / On with Kara Swisher)', 'Jessica Yellin (News Not Noise)',
+    'Emily Weiss (Into the Gloss / Glossier)', 'Sophia Amoruso',
+    'Gary Vaynerchuk (VaynerMedia)', 'Ryan Holiday (Daily Stoic)', 'James Clear',
+    'Brené Brown', 'Mel Robbins', 'Ed Mylett', 'Lewis Howes', 'Jay Shetty',
+    'Mark Manson', 'Marie Forleo', 'Rachel Hollis',
   ],
-  'media, entertainment, or Hollywood': [
-    'Disney', 'Warner Bros. Discovery', 'Paramount Global', 'Universal Pictures',
-    'Amazon MGM Studios', 'Apple TV+', 'HBO', 'CAA', 'WME', 'UTA', 'Endeavor',
-    'Conde Nast', 'Hearst', 'The Atlantic', 'Axios', 'Puck', 'Vox Media',
-    'iHeartMedia', 'SiriusXM', 'Variety', 'Hollywood Reporter', 'Deadline',
+  'diversified growth and brand-building companies': [
+    'Spotify (Studios/Podcasts)', 'YouTube (Creator Partnerships)', 'Patreon',
+    'Substack', 'beehiiv', 'ConvertKit (Kit)', 'Teachable', 'Kajabi', 'Circle',
+    'Maven', 'Mighty Networks', 'Gumroad', 'Stan Store', 'Fourthwall',
+    'Spring (formerly Teespring)', 'Cameo', 'MasterClass', 'Skillshare',
+    'LinkedIn (Creator Mode / Newsletters)', 'Newsletter platform Rally',
+    'Ghost', 'Lemon8', 'Pinterest Creators', 'TikTok Shop',
+    'Creator Ventures', 'Jellysmack', 'Spotter', 'Creative Juice',
+    'Karat Financial', 'Stir',
   ],
 };
 
 const CATEGORIES = [
-  'tech or AI',
-  'finance, consulting, or professional services',
-  'media, entertainment, or Hollywood',
+  'new media companies and digital publishers',
+  'founders and knowledge creators building brand businesses',
+  'diversified growth and brand-building companies',
 ];
 
 function buildOneProspectPrompt(category: string, pool: string[]): string {
-  return `You are the Head of Partnerships at Jonesy&Co — a fractional CRO and partnerships consultancy that helps media, tech, and entertainment companies build and scale revenue through strategic sponsorship, brand partnerships, and go-to-market strategy. Jonesy&Co works with fast-growing media brands, podcast networks, newsletters, and digital-first publishers.
+  return `You are the Head of Partnerships at Jonesy&Co — a fractional CRO and partnerships consultancy that helps new media companies, founders, and knowledge creators build brand businesses and diversified growth. Jonesy&Co works with fast-growing media brands, podcast networks, newsletters, creator-led businesses, and digital-first publishers.
 
 Jonesy&Co services:
-- Fractional CRO: embedded revenue leadership for media companies scaling from $1M to $20M+
+- Fractional CRO: embedded revenue leadership for media companies and creator businesses scaling from $1M to $20M+
 - Partnership Strategy: identifying, pitching, and closing brand sponsors and strategic partners
+- Brand Business Building: helping founders and creators diversify beyond content into products, events, communities, and licensing
 - Go-to-Market: launch strategy for new media products, events, and content verticals
 - Revenue Operations: sales process, pricing, packaging, and pipeline management
 
-Find 1 senior decision-maker (CMO, VP Marketing, SVP Brand, Head of Partnerships, or equivalent) at a ${category} brand from this pool:
+Sources to inform your research: AdWeek, Digiday, WSJ, LinkedIn. Reference recent coverage or activity from these publications when crafting the WHY.
+
+Find 1 senior decision-maker (Founder, CEO, Head of Revenue, Head of Partnerships, VP Brand, General Manager, or equivalent) at a ${category} brand from this pool:
 ${pool.join(', ')}
 
-Pick the company with the strongest "why Jonesy&Co, why now" rationale. Use your knowledge of recent campaigns, launches, rebrands, or cultural moments from 2024-2025.
+Pick the company/creator with the strongest "why Jonesy&Co, why now" rationale. Use your knowledge of recent news, fundraises, launches, expansions, or brand moments from 2024-2025 (cite specific coverage from AdWeek, Digiday, WSJ, or LinkedIn activity where possible).
 
-WHY: One sentence, present tense, specific -- name a real campaign, launch, or brand moment. No generics.
-Example: "Your recent push into creator partnerships signals a need for the kind of structured revenue strategy Jonesy&Co builds for media companies."
+WHY: One sentence, present tense, specific -- name a real development, launch, funding round, or brand moment. No generics.
+Example: "Your recent expansion into live events and a new membership tier (covered in Digiday) signals exactly the kind of diversified revenue buildout Jonesy&Co specializes in."
 
 Draft email:
-Subject: Jonesy&Co -- [Company]
+Subject: Jonesy&Co -- [Company/Creator Brand]
 Hi [First Name]
-I'm reaching out from Jonesy&Co -- a fractional CRO and partnerships consultancy that helps media and tech companies build scalable revenue engines.
-We work with fast-growing publishers, podcast networks, and digital-first brands to close sponsorships, build partnership pipelines, and operationalize revenue.
-[Company] has been on our radar. [WHY sentence.]
-We'd love to explore how Jonesy&Co could support your partnership and revenue goals -- whether that's fractional leadership, a specific deal pipeline, or go-to-market for a new product.
+
+I'm reaching out from Jonesy&Co -- a fractional CRO and partnerships consultancy that helps new media companies and creator-led brands build diversified, scalable businesses.
+
+We work with founders, digital publishers, and knowledge creators to build brand businesses beyond content -- sponsorship pipelines, product launches, community monetization, and revenue operations.
+
+[Company/Creator] has been on our radar. [WHY sentence.]
+
+We'd love to explore how Jonesy&Co could support your growth -- whether that's fractional revenue leadership, building a partnership pipeline, or a go-to-market strategy for a new product or vertical.
+
 Would you have 20 minutes this week?
+
 Warm regards,
 Johanna
 
@@ -241,33 +263,36 @@ function mapContacts(headers: string[], rows: Record<string, string>[]): CsvCont
 
 // ── Claude call ───────────────────────────────────────────────────
 
-const JONESY_CONTEXT = `Jonesy&Co is a fractional CRO and partnerships consultancy that helps media, tech, and entertainment companies build and scale revenue through strategic sponsorship, brand partnerships, and go-to-market strategy. Jonesy&Co works with fast-growing media brands, podcast networks, newsletters, and digital-first publishers.
+const JONESY_CONTEXT = `Jonesy&Co is a fractional CRO and partnerships consultancy that helps new media companies, founders, and knowledge creators build brand businesses and diversified growth. Jonesy&Co works with fast-growing media brands, podcast networks, newsletters, creator-led businesses, and digital-first publishers.
 
 Services:
-- Fractional CRO: embedded revenue leadership for media companies scaling from $1M to $20M+
+- Fractional CRO: embedded revenue leadership for media companies and creator businesses scaling from $1M to $20M+
 - Partnership Strategy: identifying, pitching, and closing brand sponsors and strategic partners
+- Brand Business Building: helping founders and creators diversify beyond content into products, events, communities, and licensing
 - Go-to-Market: launch strategy for new media products, events, and content verticals
-- Revenue Operations: sales process, pricing, packaging, and pipeline management`;
+- Revenue Operations: sales process, pricing, packaging, and pipeline management
+
+Sources: AdWeek, Digiday, WSJ, LinkedIn -- reference recent coverage when crafting outreach.`;
 
 async function generateForContact(contact: CsvContact, apiKey: string): Promise<{ why: string; draft_subject: string; draft_body: string }> {
-  const systemPrompt = `You are the Head of Partnerships at Jonesy&Co, writing personalized partnership outreach.
+  const systemPrompt = `You are the Head of Partnerships at Jonesy&Co, writing personalized partnership outreach to new media companies, founders, and knowledge creators.
 
 ${JONESY_CONTEXT}
 
 Given a contact's details, write:
-1. A WHY sentence -- one specific, present-tense sentence explaining why this brand is a natural fit for Jonesy&Co's partnership services right now. Name a real campaign, launch, product, or brand moment. No generics.
+1. A WHY sentence -- one specific, present-tense sentence explaining why this brand/creator is a natural fit for Jonesy&Co right now. Reference a real development, launch, fundraise, or brand moment (cite AdWeek, Digiday, WSJ, or LinkedIn activity where possible). No generics.
 2. A draft email using this template:
 
-Subject: Jonesy&Co -- [Company]
+Subject: Jonesy&Co -- [Company/Creator Brand]
 Hi [First Name]
 
-I'm reaching out from Jonesy&Co -- a fractional CRO and partnerships consultancy that helps media and tech companies build scalable revenue engines.
+I'm reaching out from Jonesy&Co -- a fractional CRO and partnerships consultancy that helps new media companies and creator-led brands build diversified, scalable businesses.
 
-We work with fast-growing publishers, podcast networks, and digital-first brands to close sponsorships, build partnership pipelines, and operationalize revenue.
+We work with founders, digital publishers, and knowledge creators to build brand businesses beyond content -- sponsorship pipelines, product launches, community monetization, and revenue operations.
 
-[Company] has been on our radar. [WHY sentence here.]
+[Company/Creator] has been on our radar. [WHY sentence here.]
 
-We'd love to explore how Jonesy&Co could support your partnership and revenue goals -- whether that's fractional leadership, a specific deal pipeline, or go-to-market for a new product.
+We'd love to explore how Jonesy&Co could support your growth -- whether that's fractional revenue leadership, building a partnership pipeline, or a go-to-market strategy for a new product or vertical.
 
 Would you have 20 minutes this week?
 
@@ -666,7 +691,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                       <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
                     </div>
                     <p className="text-white text-sm leading-relaxed">
-                      3 senior contacts -- one from tech, one from finance, one from media. Specific WHY for each company, draft email ready to send.
+                      3 prospects -- new media companies, founders, and knowledge creators building brand businesses. Sourced from AdWeek, Digiday, WSJ, LinkedIn. Draft email ready to send.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
@@ -736,7 +761,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
                   <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Upload &amp; Generate</span>
                 </div>
                 <p className="text-white text-sm leading-relaxed">
-                  Upload a CSV of contacts. Claude writes a personalized Jonesy&Co partnership pitch for each -- specific WHY, draft ready to copy or add to pipeline.
+                  Upload a CSV of contacts (new media founders, creators, publishers). Claude writes a personalized Jonesy&Co pitch for each -- referencing AdWeek, Digiday, WSJ coverage. Draft ready to copy or add to pipeline.
                 </p>
               </div>
 

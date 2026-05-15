@@ -38,7 +38,7 @@ const TIER_COLORS: Record<Tier, string> = {
   'Tier 3': 'bg-brand-cream text-brand-dark/60',
 };
 
-const SECTORS = ['All', 'Travel', 'Tech', 'Retail', 'Luxury', 'Healthcare', 'Financial Services', 'Entertainment / Streaming', 'Beauty', 'Automotive', 'Consumer Tech', 'Beauty + Fashion'];
+const SECTORS = ['All', 'New Media', 'Creator Economy', 'Digital Publishing', 'Podcasts / Audio', 'Newsletters', 'Knowledge / Education', 'Community / Membership', 'Brand Partnerships', 'Tech / SaaS', 'Entertainment / Streaming', 'DTC / Commerce'];
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 

@@ -46,7 +46,6 @@ export default function ClientCard({
 
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          {/* Company & contact */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-brand-dark text-sm truncate">{client.company}</span>
             {stale && (
@@ -57,11 +56,11 @@ export default function ClientCard({
           </div>
           <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.name}{client.contacts && client.contacts.length > 0 ? ` + ${client.contacts.length}` : ''}</p>
         </div>
-
-        {/* Value */}
-        <div className="text-right flex-shrink-0">
-          <span className="text-sm font-bold text-brand-gold">{formatCurrency(client.value)}</span>
-        </div>
+        {client.value > 0 && (
+          <div className="flex-shrink-0 bg-brand-gold/10 border border-brand-gold/20 rounded-md px-2 py-0.5">
+            <span className="text-xs font-bold text-brand-gold">{formatCurrency(client.value)}</span>
+          </div>
+        )}
       </div>
 
       {!compact && (
@@ -90,10 +89,19 @@ export default function ClientCard({
             </p>
           )}
 
+          {/* Proposal preview */}
+          {(client.proposals?.length ?? 0) > 0 && (
+            <div className="mt-2 bg-brand-gold/5 border border-brand-gold/15 rounded-md px-2 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-brand-gold text-[10px]">◈</span>
+                <span className="text-[11px] font-medium text-brand-dark/70 truncate">{client.proposals![client.proposals!.length - 1].title}</span>
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1 text-xs text-brand-dark/40">
-              <span>🕐</span>
               <span>
                 {days === 0
                   ? 'Today'
@@ -104,12 +112,6 @@ export default function ClientCard({
               <span className="text-brand-dark/20">·</span>
               <span>{formatDate(client.lastContact)}</span>
             </div>
-            {(client.proposals?.length ?? 0) > 0 && (
-              <div className="flex items-center gap-1 text-xs text-brand-gold/80 bg-brand-gold/10 border border-brand-gold/20 rounded-full px-2 py-0.5">
-                <span>◈</span>
-                <span>{client.proposals!.length}</span>
-              </div>
-            )}
           </div>
         </>
       )}
