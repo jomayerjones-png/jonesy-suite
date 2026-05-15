@@ -18,8 +18,8 @@ import PipelineTracker from './components/pipeline/PipelineTracker';
 import WeeklyReport from './components/report/WeeklyReport';
 import ProposalGenerator from './components/proposal/ProposalGenerator';
 import Leads from './components/leads/Leads';
+import type { JonesyDailyProspect } from './components/leads/Leads';
 import Roadmap from './components/roadmap/Roadmap';
-import { JonesyDailyProspect } from './lib/supabase';
 
 const STORAGE_KEY_CLIENTS = 'jonesy_suite_clients';
 const STORAGE_KEY_COMPANY  = 'jonesy_suite_company';

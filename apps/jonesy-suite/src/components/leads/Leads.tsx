@@ -1,5 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchTodayJonesyProspects, updateJonesyProspectStatus, JonesyDailyProspect, supabase } from '../../lib/supabase';
+
+export interface JonesyDailyProspect {
+  id: string;
+  date: string;
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+  email_confidence: string;
+  why: string;
+  draft_subject: string;
+  draft_body: string;
+  status: string;
+}
+
+const PROSPECTS_STORAGE_KEY = 'jonesy_suite_daily_prospects';
+
+function loadStoredProspects(): JonesyDailyProspect[] {
+  try {
+    const stored = localStorage.getItem(PROSPECTS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as JonesyDailyProspect[];
+  } catch { /* fall through */ }
+  return [];
+}
+
+function saveProspects(prospects: JonesyDailyProspect[]) {
+  localStorage.setItem(PROSPECTS_STORAGE_KEY, JSON.stringify(prospects));
+}
 
 interface LeadsProps {
   onAddToEngaged: (prospect: JonesyDailyProspect) => void;
@@ -165,10 +192,6 @@ async function fetchOneJonesyProspect(
     draft_body: p.draft_body ?? '',
     status: 'pending',
   };
-
-  supabase.from('jonesy_daily_prospects').insert(row).then(({ error }) => {
-    if (error) console.warn('[Leads] Supabase save failed (showing anyway):', error.message);
-  });
 
   return row;
 }
@@ -506,10 +529,10 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   const [tab, setTab] = useState<'daily' | 'upload'>('daily');
 
   // Daily prospects state
-  const [prospects, setProspects] = useState<JonesyDailyProspect[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [generating, setGenerating] = useState(0); // 0 = idle, 1/2/3 = which slot
+  const [prospects, setProspects] = useState<JonesyDailyProspect[]>(loadStoredProspects);
+  const [loading] = useState(false);
+  const [error] = useState('');
+  const [generating, setGenerating] = useState(0);
   const [generateError, setGenerateError] = useState('');
 
   // Upload state
@@ -528,21 +551,14 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   }, [apiKey]);
 
   useEffect(() => {
-    fetchTodayJonesyProspects()
-      .then(data => setProspects(data))
-      .catch(e => {
-        const msg = e instanceof Error ? e.message : (e as { message?: string })?.message ?? 'Failed to load prospects';
-        setError(msg);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    saveProspects(prospects);
+  }, [prospects]);
 
   const handleGenerateNew = async () => {
     const key = apiKey.trim() || localStorage.getItem(API_KEY_STORAGE)?.trim();
     if (!key) { setGenerateError('Enter your Anthropic API key in the Upload Contacts tab first.'); return; }
     setGenerateError('');
-    const existing = await fetchTodayJonesyProspects().catch(() => prospects);
-    const excluded = existing.map(p => p.company);
+    const excluded = prospects.map(p => p.company);
     for (let i = 1; i <= 3; i++) {
       if (i > 1) await new Promise(r => setTimeout(r, 1500));
       setGenerating(i);
@@ -558,10 +574,9 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
     setGenerating(0);
   };
 
-  const handleAdd = async (prospect: JonesyDailyProspect) => {
+  const handleAdd = (prospect: JonesyDailyProspect) => {
     onAddToEngaged(prospect);
     setProspects(prev => prev.map(p => p.id === prospect.id ? { ...p, status: 'added' } : p));
-    updateJonesyProspectStatus(prospect.id, 'added').catch(() => {});
   };
 
   // CSV handling
@@ -682,17 +697,12 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
           {tab === 'daily' && (
             <>
               <div className="bg-brand-dark rounded-xl px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="bg-[#E8471C] px-2 py-0.5 flex-shrink-0">
-                        <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">J&Co</span>
-                      </div>
-                      <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-[#E8471C] px-2 py-0.5 flex-shrink-0">
+                      <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">J&Co</span>
                     </div>
-                    <p className="text-white text-sm leading-relaxed">
-                      3 prospects -- new media companies, founders, and knowledge creators building brand businesses. Sourced from AdWeek, Digiday, WSJ, LinkedIn. Draft email ready to send.
-                    </p>
+                    <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Daily Prospect Briefing</span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
                     {generating > 0 && (
@@ -754,15 +764,12 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
           {tab === 'upload' && (
             <>
               <div className="bg-brand-dark rounded-xl px-5 py-4">
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2">
                   <div className="bg-[#E8471C] px-2 py-0.5 flex-shrink-0">
                     <span className="font-mono font-bold text-white text-xs tracking-tight leading-none">J&Co</span>
                   </div>
                   <span className="text-white/40 text-xs font-medium uppercase tracking-widest">Upload &amp; Generate</span>
                 </div>
-                <p className="text-white text-sm leading-relaxed">
-                  Upload a CSV of contacts (new media founders, creators, publishers). Claude writes a personalized Jonesy&Co pitch for each -- referencing AdWeek, Digiday, WSJ coverage. Draft ready to copy or add to pipeline.
-                </p>
               </div>
 
               {/* API Key */}
