@@ -30,8 +30,7 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
-  const userId = await getCurrentUserId();
-  const { data, error } = await supabase.from('kaleidoscope_clients').select('data').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('kaleidoscope_clients').select('data').order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
@@ -51,8 +50,7 @@ export async function removeClient(id: string): Promise<void> {
 
 // ── Settings ──────────────────────────────────────────────
 export async function fetchCompanyName(): Promise<string | null> {
-  const userId = await getCurrentUserId();
-  const { data } = await supabase.from('kaleidoscope_settings').select('value').eq('key', 'company_name').eq('user_id', userId).single();
+  const { data } = await supabase.from('kaleidoscope_settings').select('value').eq('key', 'company_name').single();
   return data?.value ?? null;
 }
 
@@ -63,8 +61,7 @@ export async function saveCompanyName(name: string): Promise<void> {
 
 // ── Report Archives ───────────────────────────────────────
 export async function fetchReportArchives(): Promise<unknown[]> {
-  const userId = await getCurrentUserId();
-  const { data, error } = await supabase.from('kaleidoscope_report_archives').select('data').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('kaleidoscope_report_archives').select('data').order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: unknown }) => row.data);
 }
@@ -97,13 +94,11 @@ export interface KaleidoscopeDailyProspect {
 }
 
 export async function fetchTodayKaleidoscopeProspects(): Promise<KaleidoscopeDailyProspect[]> {
-  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('kaleidoscope_daily_prospects')
     .select('*')
     .eq('date', today)
-    .eq('user_id', userId)
     .order('created_at' as string);
   if (error) throw error;
   return (data ?? []) as KaleidoscopeDailyProspect[];

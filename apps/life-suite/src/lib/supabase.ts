@@ -32,11 +32,9 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('clients')
-    .select('data')
-    .eq('user_id', userId);
+    .select('data');
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
@@ -55,12 +53,10 @@ export async function removeClient(id: string): Promise<void> {
 }
 
 export async function fetchCompanyName(): Promise<string | null> {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', 'companyName')
-    .eq('user_id', userId)
     .single();
   if (error) return null;
   return (data as { value: string }).value ?? null;
@@ -90,13 +86,11 @@ export interface DailyProspect {
 }
 
 export async function fetchTodayProspects(): Promise<DailyProspect[]> {
-  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('daily_prospects')
     .select('*')
     .eq('date', today)
-    .eq('user_id', userId)
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as DailyProspect[];
@@ -112,11 +106,9 @@ export async function updateProspectStatus(id: string, status: string): Promise<
 
 // ── Report Archives ───────────────────────────────────────────────
 export async function fetchReportArchives(): Promise<unknown[]> {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('report_archives')
     .select('data')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: unknown }) => row.data);

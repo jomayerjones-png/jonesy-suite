@@ -31,11 +31,9 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('jonesy_clients')
     .select('data')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
@@ -56,12 +54,10 @@ export async function removeClient(id: string): Promise<void> {
 
 // ── Settings ──────────────────────────────────────────────
 export async function fetchCompanyName(): Promise<string | null> {
-  const userId = await getCurrentUserId();
   const { data } = await supabase
     .from('jonesy_settings')
     .select('value')
     .eq('key', 'company_name')
-    .eq('user_id', userId)
     .single();
   return data?.value ?? null;
 }
@@ -89,13 +85,11 @@ export interface JonesyDailyProspect {
 }
 
 export async function fetchTodayJonesyProspects(): Promise<JonesyDailyProspect[]> {
-  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('jonesy_daily_prospects')
     .select('*')
     .eq('date', today)
-    .eq('user_id', userId)
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as JonesyDailyProspect[];
