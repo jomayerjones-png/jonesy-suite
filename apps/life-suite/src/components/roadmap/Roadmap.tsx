@@ -204,8 +204,11 @@ async function fetchOneProspect(apiKey: string, excludeCompanies: string[], cate
     status: 'pending',
   };
 
-  supabase.from('daily_prospects').insert(row).then(({ error }) => {
-    if (error) console.warn('[Roadmap] Supabase save failed (showing anyway):', error.message);
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    const insertRow = user ? { ...row, user_id: user.id } : row;
+    supabase.from('daily_prospects').insert(insertRow).then(({ error }) => {
+      if (error) console.warn('[Roadmap] Supabase save failed (showing anyway):', error.message);
+    });
   });
   return row;
 }
@@ -550,15 +553,20 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
     // Clear today's existing prospects and replace with fresh ones
     setProspects([]);
     const today = new Date().toISOString().split('T')[0];
-    supabase.from('daily_prospects').delete().eq('date', today).then(() => {});
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const uid = currentUser?.id;
+    if (uid) {
+      supabase.from('daily_prospects').delete().eq('date', today).eq('user_id', uid).then(() => {});
+    }
 
     // Exclude pipeline + last 14 days of already-seen companies
+    const recentQuery = supabase.from('daily_prospects')
+      .select('company')
+      .gte('date', new Date(Date.now() - 14 * 86400_000).toISOString().split('T')[0]);
+    if (uid) recentQuery.eq('user_id', uid);
     const [pipelineClients, recentProspects] = await Promise.all([
       fetchAllClients().catch(() => []),
-      supabase.from('daily_prospects')
-        .select('company')
-        .gte('date', new Date(Date.now() - 14 * 86400_000).toISOString().split('T')[0])
-        .then(({ data }) => (data ?? []).map((r: { company: string }) => r.company)),
+      recentQuery.then(({ data }) => (data ?? []).map((r: { company: string }) => r.company)),
     ]);
     const excluded = [
       ...pipelineClients.map(c => c.company).filter(Boolean),

@@ -23,6 +23,9 @@ ALTER TABLE IF EXISTS jonesy_clients
 ALTER TABLE IF EXISTS jonesy_settings
   ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) DEFAULT auth.uid();
 
+ALTER TABLE IF EXISTS jonesy_daily_prospects
+  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) DEFAULT auth.uid();
+
 ALTER TABLE IF EXISTS clients
   ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) DEFAULT auth.uid();
 
@@ -70,6 +73,9 @@ CREATE INDEX IF NOT EXISTS idx_jonesy_clients_user_id
 CREATE INDEX IF NOT EXISTS idx_jonesy_settings_user_id
   ON jonesy_settings (user_id);
 
+CREATE INDEX IF NOT EXISTS idx_jonesy_daily_prospects_user_id
+  ON jonesy_daily_prospects (user_id);
+
 CREATE INDEX IF NOT EXISTS idx_clients_user_id
   ON clients (user_id);
 
@@ -114,6 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_kaleidoscope_daily_prospects_user_id
 
 ALTER TABLE jonesy_clients              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jonesy_settings             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE jonesy_daily_prospects      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients                     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings                    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_prospects             ENABLE ROW LEVEL SECURITY;
@@ -166,6 +173,24 @@ CREATE POLICY "Users can update own jonesy_settings" ON jonesy_settings
 
 DROP POLICY IF EXISTS "Users can delete own jonesy_settings" ON jonesy_settings;
 CREATE POLICY "Users can delete own jonesy_settings" ON jonesy_settings
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- ── jonesy_daily_prospects ───────────────────────────────────
+
+DROP POLICY IF EXISTS "Users can select own jonesy_daily_prospects" ON jonesy_daily_prospects;
+CREATE POLICY "Users can select own jonesy_daily_prospects" ON jonesy_daily_prospects
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own jonesy_daily_prospects" ON jonesy_daily_prospects;
+CREATE POLICY "Users can insert own jonesy_daily_prospects" ON jonesy_daily_prospects
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own jonesy_daily_prospects" ON jonesy_daily_prospects;
+CREATE POLICY "Users can update own jonesy_daily_prospects" ON jonesy_daily_prospects
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own jonesy_daily_prospects" ON jonesy_daily_prospects;
+CREATE POLICY "Users can delete own jonesy_daily_prospects" ON jonesy_daily_prospects
   FOR DELETE USING (auth.uid() = user_id);
 
 -- ── clients (life-suite) ────────────────────────────────────
@@ -392,6 +417,7 @@ CREATE POLICY "Users can delete own kaleidoscope_daily_prospects" ON kaleidoscop
 -- ============================================================
 -- UPDATE jonesy_clients            SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
 -- UPDATE jonesy_settings           SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
+-- UPDATE jonesy_daily_prospects    SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
 -- UPDATE clients                   SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
 -- UPDATE settings                  SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
 -- UPDATE daily_prospects           SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;

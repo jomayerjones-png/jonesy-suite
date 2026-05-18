@@ -8,6 +8,13 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   realtime: { params: { eventsPerSecond: 10 } },
 });
 
+// ── Helpers ──────────────────────────────────────────────
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
+}
+
 // ── Auth ──────────────────────────────────────────────────
 export async function signIn(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -25,17 +32,20 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('clients')
-    .select('data');
+    .select('data')
+    .eq('user_id', userId);
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
 
 export async function upsertClient(client: Client): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from('clients')
-    .upsert({ id: client.id, data: client }, { onConflict: 'id' });
+    .upsert({ id: client.id, data: client, user_id: userId }, { onConflict: 'id' });
   if (error) throw error;
 }
 
@@ -45,19 +55,22 @@ export async function removeClient(id: string): Promise<void> {
 }
 
 export async function fetchCompanyName(): Promise<string | null> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', 'companyName')
+    .eq('user_id', userId)
     .single();
   if (error) return null;
   return (data as { value: string }).value ?? null;
 }
 
 export async function saveCompanyName(name: string): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from('settings')
-    .upsert({ key: 'companyName', value: name }, { onConflict: 'key' });
+    .upsert({ key: 'companyName', value: name, user_id: userId }, { onConflict: 'key' });
   if (error) throw error;
 }
 
@@ -77,11 +90,13 @@ export interface DailyProspect {
 }
 
 export async function fetchTodayProspects(): Promise<DailyProspect[]> {
+  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('daily_prospects')
     .select('*')
     .eq('date', today)
+    .eq('user_id', userId)
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as DailyProspect[];
@@ -97,18 +112,21 @@ export async function updateProspectStatus(id: string, status: string): Promise<
 
 // ── Report Archives ───────────────────────────────────────────────
 export async function fetchReportArchives(): Promise<unknown[]> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('report_archives')
     .select('data')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: unknown }) => row.data);
 }
 
 export async function saveReportArchive(archive: Record<string, unknown>): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from('report_archives')
-    .upsert({ id: archive.id as string, data: archive }, { onConflict: 'id' });
+    .upsert({ id: archive.id as string, data: archive, user_id: userId }, { onConflict: 'id' });
   if (error) throw error;
 }
 

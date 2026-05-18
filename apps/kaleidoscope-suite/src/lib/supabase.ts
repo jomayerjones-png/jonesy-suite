@@ -6,6 +6,13 @@ const SUPABASE_ANON = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// ── Helpers ──────────────────────────────────────────────
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
+}
+
 // ── Auth ──────────────────────────────────────────────────
 export async function signIn(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -23,15 +30,17 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
-  const { data, error } = await supabase.from('kaleidoscope_clients').select('data').order('created_at', { ascending: false });
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.from('kaleidoscope_clients').select('data').eq('user_id', userId).order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
 
 export async function upsertClient(client: Client): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from('kaleidoscope_clients')
-    .upsert({ id: client.id, data: client }, { onConflict: 'id' });
+    .upsert({ id: client.id, data: client, user_id: userId }, { onConflict: 'id' });
   if (error) throw error;
 }
 
@@ -42,23 +51,27 @@ export async function removeClient(id: string): Promise<void> {
 
 // ── Settings ──────────────────────────────────────────────
 export async function fetchCompanyName(): Promise<string | null> {
-  const { data } = await supabase.from('kaleidoscope_settings').select('value').eq('key', 'company_name').single();
+  const userId = await getCurrentUserId();
+  const { data } = await supabase.from('kaleidoscope_settings').select('value').eq('key', 'company_name').eq('user_id', userId).single();
   return data?.value ?? null;
 }
 
 export async function saveCompanyName(name: string): Promise<void> {
-  await supabase.from('kaleidoscope_settings').upsert({ key: 'company_name', value: name }, { onConflict: 'key' });
+  const userId = await getCurrentUserId();
+  await supabase.from('kaleidoscope_settings').upsert({ key: 'company_name', value: name, user_id: userId }, { onConflict: 'key' });
 }
 
 // ── Report Archives ───────────────────────────────────────
 export async function fetchReportArchives(): Promise<unknown[]> {
-  const { data, error } = await supabase.from('kaleidoscope_report_archives').select('data').order('created_at', { ascending: false });
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.from('kaleidoscope_report_archives').select('data').eq('user_id', userId).order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: unknown }) => row.data);
 }
 
 export async function saveReportArchive(archive: { id: string; [key: string]: unknown }): Promise<void> {
-  const { error } = await supabase.from('kaleidoscope_report_archives').upsert({ id: archive.id, data: archive }, { onConflict: 'id' });
+  const userId = await getCurrentUserId();
+  const { error } = await supabase.from('kaleidoscope_report_archives').upsert({ id: archive.id, data: archive, user_id: userId }, { onConflict: 'id' });
   if (error) throw error;
 }
 
@@ -84,11 +97,13 @@ export interface KaleidoscopeDailyProspect {
 }
 
 export async function fetchTodayKaleidoscopeProspects(): Promise<KaleidoscopeDailyProspect[]> {
+  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('kaleidoscope_daily_prospects')
     .select('*')
     .eq('date', today)
+    .eq('user_id', userId)
     .order('created_at' as string);
   if (error) throw error;
   return (data ?? []) as KaleidoscopeDailyProspect[];

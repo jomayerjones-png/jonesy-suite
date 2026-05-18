@@ -7,6 +7,13 @@ const SUPABASE_ANON = 'sb_publishable_pTeNDh39W3EjsJSkate0Kg_hbt1eq_4';
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 export const supabaseEnabled = true;
 
+// ── Helpers ──────────────────────────────────────────────
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
+}
+
 // ── Auth ──────────────────────────────────────────────────
 export async function signIn(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -24,18 +31,21 @@ export async function resetPassword(email: string): Promise<void> {
 
 // ── Clients ───────────────────────────────────────────────
 export async function fetchAllClients(): Promise<Client[]> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('jonesy_clients')
     .select('data')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row: { data: Client }) => row.data);
 }
 
 export async function upsertClient(client: Client): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase
     .from('jonesy_clients')
-    .upsert({ id: client.id, data: client }, { onConflict: 'id' });
+    .upsert({ id: client.id, data: client, user_id: userId }, { onConflict: 'id' });
   if (error) throw error;
 }
 
@@ -46,18 +56,21 @@ export async function removeClient(id: string): Promise<void> {
 
 // ── Settings ──────────────────────────────────────────────
 export async function fetchCompanyName(): Promise<string | null> {
+  const userId = await getCurrentUserId();
   const { data } = await supabase
     .from('jonesy_settings')
     .select('value')
     .eq('key', 'company_name')
+    .eq('user_id', userId)
     .single();
   return data?.value ?? null;
 }
 
 export async function saveCompanyName(name: string): Promise<void> {
+  const userId = await getCurrentUserId();
   await supabase
     .from('jonesy_settings')
-    .upsert({ key: 'company_name', value: name }, { onConflict: 'key' });
+    .upsert({ key: 'company_name', value: name, user_id: userId }, { onConflict: 'key' });
 }
 
 // ── Daily Prospects ───────────────────────────────────────────────
@@ -76,11 +89,13 @@ export interface JonesyDailyProspect {
 }
 
 export async function fetchTodayJonesyProspects(): Promise<JonesyDailyProspect[]> {
+  const userId = await getCurrentUserId();
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
     .from('jonesy_daily_prospects')
     .select('*')
     .eq('date', today)
+    .eq('user_id', userId)
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as JonesyDailyProspect[];

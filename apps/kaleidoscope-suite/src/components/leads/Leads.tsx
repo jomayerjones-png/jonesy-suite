@@ -146,8 +146,11 @@ async function fetchOneKaleidoscopeProspect(
     status: 'pending',
   };
 
-  supabase.from('kaleidoscope_daily_prospects').insert(row).then(({ error }) => {
-    if (error) console.warn('[Leads] Supabase save failed (showing anyway):', error.message);
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    const insertRow = user ? { ...row, user_id: user.id } : row;
+    supabase.from('kaleidoscope_daily_prospects').insert(insertRow).then(({ error }) => {
+      if (error) console.warn('[Leads] Supabase save failed (showing anyway):', error.message);
+    });
   });
 
   return row;
