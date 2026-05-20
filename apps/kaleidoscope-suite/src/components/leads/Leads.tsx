@@ -361,7 +361,7 @@ export default function Leads({ onAddToEngaged }: LeadsProps) {
   useEffect(() => {
     fetchTodayKaleidoscopeProspects()
       .then(data => setProspects(data))
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load prospects'))
+      .catch(e => setError(e instanceof Error ? e.message : (e as { message?: string })?.message ?? 'Failed to load prospects'))
       .finally(() => setLoading(false));
   }, []);
 
