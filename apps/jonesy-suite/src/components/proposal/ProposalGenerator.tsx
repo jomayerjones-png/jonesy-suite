@@ -609,7 +609,9 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
           : format === 'onesheet'
             ? buildOneSheetSystemPrompt(companyName, tone, refDocs)
             : buildSystemPrompt(companyName, length, tone, sections, refDocs),
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        messages: messages
+          .filter(m => m.content.trim().length > 0)
+          .map(m => ({ role: m.role, content: m.content })),
       }),
       signal: abortRef.current.signal,
     });
@@ -695,6 +697,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
     try {
       const fullText = await streamResponse(messages);
+      if (!fullText.trim()) throw new Error('Claude returned an empty response. Please try again.');
       setHistory([userMessage, { role: 'assistant', content: fullText }]);
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === 'AbortError') return;
@@ -723,6 +726,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
 
     try {
       const fullText = await streamResponse(messages);
+      if (!fullText.trim()) throw new Error('Claude returned an empty response. Please try again.');
       setHistory(prev => [...prev, refinementMessage, { role: 'assistant', content: fullText }]);
       setRefinementInput('');
     } catch (err: unknown) {

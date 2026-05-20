@@ -709,7 +709,9 @@ Be concise, strategic, and focused on helping close this partnership. When asked
           max_tokens: 1024,
           stream: true,
           system: buildSystemPrompt(),
-          messages: updatedThread.map(m => ({ role: m.role, content: m.content })),
+          messages: updatedThread
+            .filter(m => m.content.trim().length > 0)
+            .map(m => ({ role: m.role, content: m.content })),
         }),
       });
 
@@ -742,6 +744,9 @@ Be concise, strategic, and focused on helping close this partnership. When asked
         }
       }
 
+      if (!accumulated.trim()) {
+        throw new Error('Claude returned an empty response. Please try again.');
+      }
       const finalThread = [...updatedThread, { ...assistantMsg, content: accumulated }];
       setIntelThread(finalThread);
       onUpdateThread?.(finalThread);
