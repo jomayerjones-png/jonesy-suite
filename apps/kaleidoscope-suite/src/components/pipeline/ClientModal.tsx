@@ -822,10 +822,10 @@ Be concise, strategic, and focused on helping close this partnership. When asked
           <div className="px-6 py-5 border-b border-brand-cream flex items-center justify-between">
             <div>
               <h2 className="font-display text-xl font-semibold text-brand-dark">
-                {client ? client.name : 'New Client'}
+                {client ? client.company : 'New Client'}
               </h2>
               <p className="text-xs text-brand-dark/50 mt-0.5">
-                {client ? client.company : 'Add a new client to your pipeline'}
+                {client ? client.name : 'Add a new client to your pipeline'}
               </p>
             </div>
             <button
