@@ -215,11 +215,11 @@ const WEEKS_INIT = [
   { id: 1, label: 'W/C 4 May', theme: 'Close Sprint', phase: 'now' as const, milestones: ['Meta (Alex Schultz) — follow-up on proposal, push for decision', 'Google (Chris Waller) — follow-up on proposal, push for decision', 'Apple, Nike — convert Meeting Set to Proposal this week'] },
   { id: 2, label: 'W/C 11 May', theme: 'Proposals Out', phase: 'now' as const, milestones: ['AT&T, Samsung, Verizon — proposal or decision meeting', 'Fidelity, NYSE — advance to proposal', 'Airbnb, Delta, Spotify — push engaged accounts to meetings'] },
   { id: 3, label: 'W/C 18 May', theme: 'Decision Week', phase: 'april' as const, milestones: ['Target: first signed deal by end of week', 'Shopify (KK lead), AmEx (KK+GBV) — activate talent relationships', 'LVMH (Delphine Arnault), JPMorgan (Carla Hassan) — proposal meetings'] },
-  { id: 4, label: 'W/C 25 May', theme: 'Production Lock', phase: 'dinner' as const, milestones: ['Brief signed partners, kick off creative', 'Netflix (Marian Lee), Adobe (Stacy Sharpe) — close or advance', 'Cannes meeting schedule confirmed'] },
-  { id: 5, label: 'W/C 1 Jun', theme: 'Cannes Prep', phase: 'may' as const, milestones: ['LVMH, luxury, auto — confirm Cannes meetings', 'Pre-Cannes outreach to global brand targets', 'Dinner and event schedule locked'] },
-  { id: 6, label: 'W/C 8 Jun', theme: 'Pre-Cannes Push', phase: 'may' as const, milestones: ['Final in-person meetings before Cannes', 'AmEx, JPMorgan — KK+GBV available for meetings', 'All Cannes appointments confirmed'] },
-  { id: 7, label: 'W/C 15 Jun', theme: 'Cannes Lions', phase: 'june' as const, milestones: ['Relationship meetings and pitches on the ground', 'LVMH, luxury, media accounts priority', 'Exit with 2 deals in active close'] },
-  { id: 8, label: 'W/C 22 Jun', theme: 'Post-Cannes Close', phase: 'june' as const, milestones: ['Hot follow-ups within 48 hours', 'Target: 4 deals signed by 27 June', 'Brief new signed partners, production begins'] },
+  { id: 4, label: 'W/C 25 May', theme: 'Production Lock', phase: 'dinner' as const, milestones: ['Long-list 20 target brands across luxury, auto, tech, financial with custom "why" to increase engagement', 'Re-engage cold pipeline with updates from Editorial and Planning', 'Cannes Planning'] },
+  { id: 5, label: 'W/C 1 Jun', theme: 'Cannes Prep', phase: 'may' as const, milestones: ['Outreach to new targets — bespoke notes, focus on increasing response rate', 'Confirmed meetings in Cannes', 'Identify clear next steps with active proposals to close — engage KK and JK if needed'] },
+  { id: 6, label: 'W/C 8 Jun', theme: 'Pre-Cannes Push', phase: 'may' as const, milestones: ['Get to proposal stage with 1–2 new clients', 'Finalize Cannes meetings', 'Contract / LOI development with 1–2 clients'] },
+  { id: 7, label: 'W/C 15 Jun', theme: 'Cannes Lions', phase: 'june' as const, milestones: ['Finalize Cannes plans with Jonesy&Co and UTA', 'New clients engaged for post-Cannes momentum'] },
+  { id: 8, label: 'W/C 22 Jun', theme: 'Post-Cannes Close', phase: 'june' as const, milestones: ['Fast follow-ups within 48 hours', 'Target: 1–2 deals signed by 27 June', 'Brief new signed partners, production begins'] },
 ];
 
 const PHASE_GROUPS: Partial<Record<Phase, string>> = {
@@ -885,16 +885,7 @@ Write personalized outreach for the given contact. Return ONLY valid JSON:
             })}
           </div>
 
-          {/* Launch bar */}
-          <div className="mt-7 bg-brand-gold rounded-lg px-6 py-5 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] text-white/60 tracking-widest uppercase mb-1">North Star</div>
-              <div className="text-xl font-bold text-white tracking-tight">27 June 2026 — 4 founding partners signed, production briefed</div>
-            </div>
-            <span className="text-2xl text-white/30">✦</span>
-          </div>
-
-          <div className="mt-2.5 px-3.5 py-2.5 bg-white border border-gray-200 rounded-md text-xs text-gray-400">
+          <div className="mt-7 px-3.5 py-2.5 bg-white border border-gray-200 rounded-md text-xs text-gray-400">
             Custom programmes require 6 weeks production lead time. Deals signed by 1 June deliver fully for Issue 1. Larger campaigns can extend across Issues 1 & 2.
           </div>
         </>
