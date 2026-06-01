@@ -301,7 +301,7 @@ function ArchivedReportView({
                     <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${client.stale ? 'bg-amber-50 border border-amber-100' : 'bg-brand-light'}`}>
                       <span className="w-5 h-5 rounded-full bg-[#E8471C]/20 text-[#E8471C] font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs text-brand-dark truncate">{client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span></p>
+                        <p className="font-semibold text-xs text-brand-dark truncate">{client.company} <span className="font-normal text-brand-dark/50">— {client.name}</span></p>
                       </div>
                       <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>
                       <span className="font-bold text-[#E8471C] text-xs flex-shrink-0">{formatCurrency(client.value)}</span>
@@ -875,7 +875,7 @@ Return only the JSON. No prose, no markdown fences.`;
                           <span className="w-5 h-5 rounded-full bg-[#E8471C]/20 text-[#E8471C] font-bold text-xs flex items-center justify-center flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-xs text-brand-dark truncate">
-                              {client.name} <span className="font-normal text-brand-dark/50">— {client.company}</span>
+                              {client.company} <span className="font-normal text-brand-dark/50">— {client.name}</span>
                             </p>
                           </div>
                           <span className={`stage-badge text-xs ${cfg.bg} ${cfg.color} ${cfg.border} border`}>{client.stage}</span>

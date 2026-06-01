@@ -124,7 +124,7 @@ export default function PipelineTracker({
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #1A1A1A' }}>
-              {['Partner', 'Company', 'Stage', 'Value', 'Last Contact', 'Tags'].map(h => (
+              {['Brand', 'Partner', 'Stage', 'Value', 'Last Contact', 'Tags'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '4px 8px 6px', fontSize: '7pt', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
               ))}
             </tr>
@@ -132,8 +132,8 @@ export default function PipelineTracker({
           <tbody>
             {activeClients.map((c, i) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #eee', backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
-                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A' }}>{c.name}</td>
-                <td style={{ padding: '5px 8px', color: '#555' }}>{c.company}</td>
+                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1A1A1A' }}>{c.company}</td>
+                <td style={{ padding: '5px 8px', color: '#555' }}>{c.name}</td>
                 <td style={{ padding: '5px 8px', color: '#555' }}>{c.stage}</td>
                 <td style={{ padding: '5px 8px', fontWeight: 600, color: '#C9A84C' }}>{formatCurrency(c.value)}</td>
                 <td style={{ padding: '5px 8px', color: '#888' }}>{c.lastContact}</td>
@@ -264,8 +264,8 @@ export default function PipelineTracker({
                 <div key={c.id} className="card p-4 flex items-center gap-4 opacity-75">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm text-brand-dark">{c.name}</p>
-                      <span className="text-xs text-brand-dark/50">— {c.company}</span>
+                      <p className="font-semibold text-sm text-brand-dark">{c.company}</p>
+                      <span className="text-xs text-brand-dark/50">— {c.name}</span>
                     </div>
                     {c.lostReason && <p className="text-xs text-red-600/70 mt-0.5">{c.lostReason}</p>}
                   </div>

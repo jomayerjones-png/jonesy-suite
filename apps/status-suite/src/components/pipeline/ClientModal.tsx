@@ -822,10 +822,10 @@ Be concise, strategic, and focused on helping close this partnership. When asked
           <div className="px-6 py-5 border-b border-brand-cream flex items-center justify-between">
             <div>
               <h2 className="font-display text-xl font-semibold text-brand-dark">
-                {client ? client.name : 'New Client'}
+                {client ? client.company : 'New Client'}
               </h2>
               <p className="text-xs text-brand-dark/50 mt-0.5">
-                {client ? client.company : 'Add a new client to your pipeline'}
+                {client ? client.name : 'Add a new client to your pipeline'}
               </p>
             </div>
             <button
@@ -888,25 +888,25 @@ Be concise, strategic, and focused on helping close this partnership. When asked
               <div className="px-6 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">Full Name *</label>
-                    <input
-                      className={`input-field ${errors.name ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                      value={form.name}
-                      onChange={e => set('name', e.target.value)}
-                      placeholder="Name"
-                      autoFocus
-                    />
-                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-                  </div>
-                  <div>
-                    <label className="label">Company *</label>
+                    <label className="label">Brand / Company *</label>
                     <input
                       className={`input-field ${errors.company ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                       value={form.company}
                       onChange={e => set('company', e.target.value)}
                       placeholder="Company"
+                      autoFocus
                     />
                     {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
+                  </div>
+                  <div>
+                    <label className="label">Contact Name *</label>
+                    <input
+                      className={`input-field ${errors.name ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                      value={form.name}
+                      onChange={e => set('name', e.target.value)}
+                      placeholder="Name"
+                    />
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                   </div>
                 </div>
 

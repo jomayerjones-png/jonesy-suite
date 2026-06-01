@@ -55,8 +55,8 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-brand-light/80 border-b border-brand-cream">
+              <ThBtn col="company" label="Brand" />
               <ThBtn col="name" label="Client" />
-              <ThBtn col="company" label="Company" />
               <ThBtn col="stage" label="Stage" />
               <ThBtn col="value" label="Value" />
               <ThBtn col="lastContact" label="Last Contact" />
@@ -81,9 +81,9 @@ export default function ListView({ clients, onEdit, onDelete, onMove }: ListView
                     onClick={() => setExpandedId(isExpanded ? null : client.id)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-medium text-brand-dark">{client.name}</span>
+                      <span className="font-medium text-brand-dark">{client.company}</span>
                     </td>
-                    <td className="px-4 py-3 text-brand-dark/70">{client.company}</td>
+                    <td className="px-4 py-3 text-brand-dark/70">{client.name}</td>
                     <td className="px-4 py-3">
                       <span className={`stage-badge ${cfg.bg} ${cfg.color} ${cfg.border} border`}>
                         <span>{cfg.icon}</span> {client.stage}

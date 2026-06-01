@@ -634,7 +634,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
               >
                 <option value="">Select a partner to pre-fill…</option>
                 {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
+                  <option key={c.id} value={c.id}>{c.company} — {c.name}</option>
                 ))}
               </select>
               <p className="text-xs text-brand-dark/40">Pre-fills contact, brand & pipeline notes</p>
@@ -1091,7 +1091,7 @@ export default function ProposalGenerator({ companyName, clients, onSaveToClient
                 >
                   <option value="">Select partner…</option>
                   {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
+                    <option key={c.id} value={c.id}>{c.company} — {c.name}</option>
                   ))}
                 </select>
                 {savedClientId && savedClientId === selectedClientId ? (

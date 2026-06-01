@@ -490,8 +490,8 @@ export default function AnalyticsView({ clients, companyName }: AnalyticsViewPro
                       <div key={c.id} className={`flex items-center gap-4 p-3 rounded-lg border ${outcomeBg}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-sm text-brand-dark truncate">{c.name}</p>
-                            <span className="text-xs text-brand-dark/50 truncate">{c.company}</span>
+                            <p className="font-semibold text-sm text-brand-dark truncate">{c.company}</p>
+                            <span className="text-xs text-brand-dark/50 truncate">{c.name}</span>
                           </div>
                           {c.industry && <p className="text-xs text-brand-dark/40 mt-0.5">{c.industry}</p>}
                         </div>
