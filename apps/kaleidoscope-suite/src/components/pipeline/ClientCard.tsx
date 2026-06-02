@@ -41,11 +41,11 @@ export default function ClientCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          {/* Name & company */}
+          {/* Brand & client name */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-brand-dark text-sm truncate">{client.name}</span>
+            <span className="font-semibold text-brand-dark text-sm truncate">{client.company}</span>
           </div>
-          <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.company}</p>
+          <p className="text-xs text-brand-dark/60 mt-0.5 truncate">{client.name}</p>
         </div>
 
         {/* Value */}
